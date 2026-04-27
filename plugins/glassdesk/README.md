@@ -78,6 +78,57 @@ Three commands that make glassdesk self-improving:
 | `ai-multimodal` | Image/video/audio processing via Gemini API |
 | `media-processing` | FFmpeg, ImageMagick, background removal |
 
+## Model Tier Policy
+
+Each agent declares a **tier** in its frontmatter. A central config maps tier → Claude model (or external CLI), so changing model policy across all agents is a one-file edit + one command.
+
+### Tiers
+
+| Tier | Model | Use cases |
+|------|-------|-----------|
+| `premium` | opus | Brainstorm, plan, spec, deep review, design judgment |
+| `standard` | sonnet | Coding, refactoring, doc writing, structured analysis |
+| `fast` | haiku | Trivial edits, simple scout, comment checks |
+| `external` | sonnet (fallback) + Gemini CLI | High-volume scout via `gemini-2.5-flash` |
+
+### How to change model policy
+
+Edit `plugins/glassdesk/config/models.yml`:
+
+```yaml
+tiers:
+  premium:
+    model: opus      # change this; affects all premium agents
+```
+
+Then sync:
+
+```bash
+node plugins/glassdesk/bin/sync-models
+```
+
+This rewrites the `model:` field in every tagged agent. To preview changes without writing, use `--check`.
+
+### How to add a new agent
+
+1. Create `plugins/glassdesk/agents/<name>.md` with frontmatter
+2. Include `tier: <premium|standard|fast|external>`
+3. Run `node plugins/glassdesk/bin/sync-models` — `model:` will be auto-set
+
+### Manual override
+
+To pin a specific agent to a model regardless of policy, **omit `tier:`** from its frontmatter and set `model:` directly. The sync script will WARN and skip that agent.
+
+### Drift guard (developers)
+
+Optional pre-commit hook blocks commits when `model:` is out of sync with `tier:`:
+
+```bash
+bash plugins/glassdesk/scripts/install-dev-hooks.sh
+```
+
+Run once per clone. Skip if you don't want the guard.
+
 ## Optional Dependencies
 
 ```bash
