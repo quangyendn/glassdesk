@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Glassdesk — Claude Code framework</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Glassdesk</h1>
+      <p class="tagline">A comprehensive Claude Code framework — planning, multi-agent orchestration, SPARC methodology, and workflow automation.</p>
+    </header>
+
+    <section id="install">
+      <h2>Install</h2>
+      <ol>
+        <li>Fork or clone the Glassdesk repository.</li>
+        <li>Add it as a Claude Code marketplace:
+          <pre><code>claude plugin marketplace add &lt;path-to-your-fork&gt;</code></pre>
+        </li>
+        <li>Install the plugin:
+          <pre><code>claude plugin install glassdesk</code></pre>
+        </li>
+        <li>Verify:
+          <pre><code>claude plugin list</code></pre>
+        </li>
+      </ol>
+      <p>A short alias <code>gd</code> is also available: <code>claude plugin install gd</code>.</p>
+    </section>
+
+    <section id="capabilities">
+      <h2>Capabilities</h2>
+      <ul>
+        <li><strong>Planning</strong> — <code>/plan</code>, <code>/plan:fast</code>, <code>/plan:hard</code>, <code>/plan:parallel</code></li>
+        <li><strong>Implementation</strong> — <code>/code</code>, <code>/code:auto</code>, <code>/code:no-test</code>, <code>/code:parallel</code></li>
+        <li><strong>SPARC agents</strong> — 16 specialised commands under <code>/sparc:*</code></li>
+        <li><strong>Git integration</strong> — <code>/git:status</code>, <code>/git:commit</code>, <code>/git:branch</code>, <code>/git:review</code></li>
+        <li><strong>Fix workflows</strong> — 8 variants under <code>/fix:*</code> (CI, tests, types, UI…)</li>
+        <li><strong>Utilities</strong> — <code>/ask</code>, <code>/debug</code>, <code>/brainstorm</code>, <code>/scout</code></li>
+      </ul>
+    </section>
+
+    <section id="docs">
+      <h2>Documentation</h2>
+      <p>Full plugin documentation lives in <a href="../plugins/glassdesk/README.md"><code>plugins/glassdesk/README.md</code></a>.</p>
+    </section>
+
+    <footer>
+      <p>MIT/ISC license — glassdesk contributors</p>
+    </footer>
+  </main>
+</body>
+</html>

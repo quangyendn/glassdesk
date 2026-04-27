@@ -1,0 +1,15 @@
+# User-local files — must not leak into published tarball
+**/settings.local.json
+**/.DS_Store
+**/.coverage
+**/__pycache__/
+
+# Development artifacts
+.serena/
+plans/
+docs/
+tests/
+*.test.js
+.github/
+.gitignore
+.npmignore

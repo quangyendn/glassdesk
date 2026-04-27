@@ -1,0 +1,45 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "glassdesk-marketplace",
+  "version": "0.1.0",
+  "description": "Comprehensive Claude Code marketplace featuring multi-agent orchestration, structured planning/coding workflows, and AI multimodal capabilities",
+  "owner": {
+    "name": "glassdesk contributors"
+  },
+  "plugins": [
+    {
+      "name": "glassdesk",
+      "description": "Comprehensive framework with 40+ commands, 10 specialized agents, 7 skills, and parallel multi-agent execution capabilities",
+      "version": "0.1.0",
+      "author": {
+        "name": "glassdesk contributors"
+      },
+      "source": "./plugins/glassdesk",
+      "category": "development",
+      "keywords": [
+        "planning",
+        "multi-agent",
+        "workflow-automation",
+        "claude-flow",
+        "productivity"
+      ]
+    },
+    {
+      "name": "gd",
+      "description": "Short alias for glassdesk — comprehensive framework with 40+ commands, 10 specialized agents, 7 skills, and parallel execution",
+      "version": "0.1.0",
+      "author": {
+        "name": "glassdesk contributors"
+      },
+      "source": "./plugins/glassdesk",
+      "category": "development",
+      "keywords": [
+        "planning",
+        "multi-agent",
+        "workflow-automation",
+        "claude-flow",
+        "productivity"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,42 @@
+{
+  "name": "glassdesk",
+  "version": "0.1.0",
+  "description": "Claude Code marketplace featuring multi-agent orchestration, structured planning/coding workflows, and AI multimodal capabilities",
+  "main": ".claude",
+  "bin": {
+    "glassdesk": "./bin/cli.js"
+  },
+  "files": [
+    "bin/",
+    "templates/",
+    "plugins/glassdesk/",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "directories": {
+    "doc": "docs"
+  },
+  "keywords": [
+    "claude-code",
+    "plugin",
+    "marketplace",
+    "multi-agent",
+    "parallel-execution",
+    "workflow-automation",
+    "ai-development"
+  ],
+  "license": "ISC",
+  "engines": {
+    "node": ">=18.0.0",
+    "claude": ">=2.0.0"
+  },
+  "scripts": {
+    "validate": "claude plugin validate .",
+    "test": "node --test tests/*.test.js",
+    "pack:check": "npm pack --dry-run"
+  },
+  "type": "module"
+}

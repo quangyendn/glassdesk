@@ -1,0 +1,25 @@
+name: test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        node: [18, 20]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - run: npm test
+      - name: Verify package payload
+        run: |
+          npm pack --dry-run 2>&1 | tee /tmp/pack.txt
+          ! grep -E '(\.coverage|plugins/.*settings\.local\.json|workflow-guides|\.DS_Store|commands/agents)' /tmp/pack.txt

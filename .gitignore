@@ -1,0 +1,20 @@
+.swarm
+.claude-flow
+.serena
+plans
+docs/superpowers
+
+settings.local.json
+!templates/settings.local.json
+
+# Coverage + macOS + Python
+.coverage
+**/.coverage
+.DS_Store
+__pycache__/
+
+# Local claude
+.claude/
+
+# Session knowledge base (personal, not shared)
+.glassdesk-knowledge/
