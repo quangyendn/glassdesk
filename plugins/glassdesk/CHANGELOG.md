@@ -6,7 +6,8 @@
 
 - Model tier policy system — `plugins/glassdesk/config/models.yml` + `bin/sync-models`
 - 4 tiers: `premium` (opus), `standard` (sonnet), `fast` (haiku), `external` (sonnet fallback + gemini-2.5-flash CLI)
-- All 10 agents now declare `tier:` in frontmatter; `model:` is auto-synced from tier mapping
+- All agents declare `tier:` in frontmatter; `model:` is auto-synced from tier mapping
+- New `git-manager` agent (fast tier — haiku) handling `/git:cm`, `/git:cp`, `/git:pr` workflows. Resolves dangling reference where `/git:cm` and `/git:cp` referenced a non-existent agent
 - Optional pre-commit drift guard via `scripts/install-dev-hooks.sh` (zero deps, opt-in)
 - README "Model Tier Policy" section documenting tier system and override path
 
@@ -16,6 +17,7 @@
 - `comment-analyzer`, `pr-test-analyzer`, `silent-failure-hunter`, `type-design-analyzer`, `docs-manager`: explicit `model:` set per tier (previously `model: inherit` or `haiku` defaulting to session model)
 - `scout-external` agent: model `haiku` → `sonnet` (external tier fallback for when Gemini CLI absent)
 - `silent-failure-hunter`, `type-design-analyzer`: promoted to opus (premium tier — design/correctness judgment)
+- `/git:pr` command: thinned to delegate to `git-manager` agent (was running entirely in main thread → now haiku via subagent dispatch)
 
 ## [0.2.1] - 2026-04-27
 
