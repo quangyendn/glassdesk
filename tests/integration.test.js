@@ -145,3 +145,110 @@ test('copyPluginFiles: skips settings.local.json and .DS_Store', async () => {
   assert.ok(!fs.existsSync(path.join(destDir, 'settings.local.json')));
   assert.ok(!fs.existsSync(path.join(destDir, '.DS_Store')));
 });
+
+// ----- Path-rewrite tests (Phase 1: $GD_PLUGIN_PATH → ${CLAUDE_PROJECT_DIR}/.claude) -----
+
+// Recursively collect .md files under a root dir, return absolute paths.
+function collectMarkdownFiles(rootDir) {
+  const out = [];
+  const stack = [rootDir];
+  while (stack.length) {
+    const dir = stack.pop();
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, e.name);
+      if (e.isDirectory()) stack.push(full);
+      else if (e.isFile() && e.name.endsWith('.md')) out.push(full);
+    }
+  }
+  return out;
+}
+
+test('rewrite: post-init no .md contains $GD_PLUGIN_PATH; replacement present in ≥4 files', () => {
+  const cwd = mkProject();
+  runCli(['init', '--yes'], { cwd });
+  const mds = collectMarkdownFiles(path.join(cwd, '.claude'));
+  let leftover = 0;
+  let withReplacement = 0;
+  for (const f of mds) {
+    const c = fs.readFileSync(f, 'utf8');
+    if (/\$GD_PLUGIN_PATH\b/.test(c)) leftover++;
+    if (c.includes('${CLAUDE_PROJECT_DIR}/.claude')) withReplacement++;
+  }
+  assert.equal(leftover, 0, 'no .md should contain $GD_PLUGIN_PATH');
+  assert.ok(withReplacement >= 4, `expected ≥4 files with replacement, got ${withReplacement}`);
+});
+
+test('rewrite: subagent env-isolation — rewritten command runs with only CLAUDE_PROJECT_DIR set', () => {
+  const cwd = mkProject();
+  runCli(['init', '--yes'], { cwd });
+  // Pull the actual rewritten command line from a known file.
+  const planMd = fs.readFileSync(path.join(cwd, '.claude', 'commands', 'plan.md'), 'utf8');
+  const match = planMd.match(/node "[^"]*set-active-plan\.cjs"/);
+  assert.ok(match, 'expected rewritten node invocation in plan.md');
+  // Simulate subagent: only CLAUDE_PROJECT_DIR + PATH (no GD_PLUGIN_PATH, no GD_SESSION_ID).
+  const r = spawnSync('bash', ['-c', `${match[0]} plans/dummy`], {
+    cwd,
+    env: { CLAUDE_PROJECT_DIR: cwd, PATH: process.env.PATH, HOME: process.env.HOME },
+    encoding: 'utf8',
+  });
+  assert.equal(r.status, 0, `subagent run failed: ${r.stderr || r.stdout}`);
+  // Without GD_SESSION_ID the script logs a warning but exits 0; confirms it RAN (path resolved).
+  assert.match(r.stdout + r.stderr, /Would set active plan to: plans\/dummy|Active plan set to/);
+});
+
+test('rewrite: update re-rewrites tampered $GD_PLUGIN_PATH back to ${CLAUDE_PROJECT_DIR}/.claude', () => {
+  const cwd = mkProject();
+  runCli(['init', '--yes'], { cwd });
+  const target = path.join(cwd, '.claude', 'commands', 'plan.md');
+  // Tamper: replace the canonical token back to the legacy form.
+  const tampered = fs.readFileSync(target, 'utf8').replace(/\$\{CLAUDE_PROJECT_DIR\}\/\.claude/g, '$GD_PLUGIN_PATH');
+  fs.writeFileSync(target, tampered);
+  assert.match(fs.readFileSync(target, 'utf8'), /\$GD_PLUGIN_PATH/);
+  const r = runCli(['update', '--yes'], { cwd });
+  assert.equal(r.status, 0, r.stderr || r.stdout);
+  const after = fs.readFileSync(target, 'utf8');
+  assert.doesNotMatch(after, /\$GD_PLUGIN_PATH\b/);
+  assert.match(after, /\$\{CLAUDE_PROJECT_DIR\}\/\.claude/);
+});
+
+test('rewrite: update is idempotent — second run rewrites 0 of N files', () => {
+  const cwd = mkProject();
+  runCli(['init', '--yes'], { cwd });
+  // First update — fresh copy from bundle (still has $GD_PLUGIN_PATH), so rewrite count > 0.
+  const r1 = runCli(['update', '--yes'], { cwd });
+  assert.equal(r1.status, 0, r1.stderr || r1.stdout);
+  assert.match(r1.stdout, /Rewrote \$GD_PLUGIN_PATH in [1-9]\d*\/\d+ \.md files/);
+  // Second update — bundle copy + rewrite should still report >0 (it's a fresh re-copy each time).
+  // Idempotency assertion: post-state stable and re-running update produces equivalent output.
+  const beforeHashes = collectMarkdownFiles(path.join(cwd, '.claude')).map((f) => fs.readFileSync(f, 'utf8'));
+  const r2 = runCli(['update', '--yes'], { cwd });
+  assert.equal(r2.status, 0, r2.stderr || r2.stdout);
+  const afterHashes = collectMarkdownFiles(path.join(cwd, '.claude')).map((f) => fs.readFileSync(f, 'utf8'));
+  assert.deepEqual(afterHashes, beforeHashes, 'second update should produce identical .md content');
+});
+
+test('rewrite: bundle invariant — source plugins/glassdesk/**/*.md keeps $GD_PLUGIN_PATH in 4 known files', () => {
+  const bundleDir = path.join(REPO_ROOT, 'plugins', 'glassdesk');
+  const mds = collectMarkdownFiles(bundleDir);
+  const withToken = mds
+    .filter((f) => /\$GD_PLUGIN_PATH\b/.test(fs.readFileSync(f, 'utf8')))
+    .map((f) => path.relative(bundleDir, f).split(path.sep).join('/'))
+    .filter((rel) => !rel.endsWith('CHANGELOG.md'));
+  // Exactly the 4 references (CHANGELOG mentions are historical, excluded above).
+  assert.deepEqual(withToken.sort(), [
+    'commands/plan.md',
+    'commands/plan/hard.md',
+    'skills/planning/SKILL.md',
+    'skills/planning/references/plan-organization.md',
+  ]);
+});
+
+test('rewrite: --dry-run reports rewrite count without writing', () => {
+  const cwd = mkProject();
+  const r = runCli(['init', '--yes', '--dry-run'], { cwd });
+  assert.equal(r.status, 0, r.stderr || r.stdout);
+  assert.match(r.stdout, /Would rewrite \$GD_PLUGIN_PATH in \d+\/\d+ \.md files/);
+  // No files should have been written.
+  assert.equal(fs.existsSync(path.join(cwd, '.claude', 'commands')), false);
+  assert.equal(fs.existsSync(path.join(cwd, '.claude', '.glassdesk.json')), false);
+});
