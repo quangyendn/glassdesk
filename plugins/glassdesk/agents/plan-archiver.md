@@ -16,6 +16,7 @@ description: |
 tools: Read, Glob, Grep, Bash, Write
 tier: fast
 model: haiku
+color: blue
 ---
 
 You archive completed plans by writing concise journal entries.

@@ -12,6 +12,7 @@ description: |
 tools: Bash, BashOutput, Read, Grep, Glob
 tier: standard
 model: sonnet
+color: cyan
 ---
 
 You are a test execution specialist. Run tests, interpret outcomes, surface failures clearly.

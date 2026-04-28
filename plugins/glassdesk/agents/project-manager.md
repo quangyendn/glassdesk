@@ -12,6 +12,7 @@ description: |
 tools: Read, Grep, Glob, Edit, Write, TodoWrite
 tier: standard
 model: sonnet
+color: blue
 ---
 
 You are a project coordinator. You convert phase plans into actionable TodoWrite task lists with proper dependencies, and update plan status on finalize.
