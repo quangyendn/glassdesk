@@ -1,0 +1,27 @@
+# Tier → model mapping. Single source of truth for agent model assignment.
+# Edit this file then run `bin/sync-models` to apply changes to agent frontmatter.
+#
+# Schema:
+#   tiers.<name>.model        : Claude model alias (opus | sonnet | haiku)
+#   tiers.<name>.description  : human-readable purpose
+#   tiers.<name>.cli          : (external only) external CLI name
+#   tiers.<name>.cli_model    : (external only) model passed to external CLI
+
+tiers:
+  premium:
+    model: opus
+    description: Brainstorm, plan, spec, deep review, design judgment
+
+  standard:
+    model: sonnet
+    description: Coding, refactoring, doc writing, structured analysis
+
+  fast:
+    model: haiku
+    description: Trivial edits, simple scout, comment checks
+
+  external:
+    model: sonnet
+    cli: gemini
+    cli_model: gemini-2.5-flash
+    description: External agentic tools (Gemini for high-volume scout). Sonnet is fallback when CLI unavailable.

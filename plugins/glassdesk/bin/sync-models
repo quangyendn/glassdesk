@@ -1,0 +1,177 @@
+#!/usr/bin/env node
+// bin/sync-models — Resolve agent `tier:` → `model:` from config/models.yml.
+//
+// Purpose: keep all agents' `model:` frontmatter in sync with the central
+// tier policy in plugins/glassdesk/config/models.yml. Run after editing
+// the policy file or when adding/changing an agent's `tier:`.
+//
+// Modes:
+//   (default)   write changes; print synced lines
+//   --check     dry-run; exit 1 on drift (CI / pre-commit)
+//   --verbose   log every agent inspected (including no-ops)
+//
+// Zero dependency: regex-based YAML + frontmatter parser. Schema is fixed
+// and small (4 tiers, simple key:value). If you extend models.yml beyond
+// the documented schema, swap to `js-yaml`.
+
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const PLUGIN_ROOT = path.resolve(__dirname, '..');
+const CONFIG_PATH = path.join(PLUGIN_ROOT, 'config', 'models.yml');
+const AGENTS_DIR = path.join(PLUGIN_ROOT, 'agents');
+
+const args = new Set(process.argv.slice(2));
+const CHECK = args.has('--check');
+const VERBOSE = args.has('--verbose');
+
+// ---------------------------------------------------------------------------
+// Minimal YAML parser — handles only our 2-level schema:
+//   tiers:
+//     <tier-name>:
+//       <key>: <value>
+// Comments (`# ...`) are stripped. Blank lines ignored.
+// ---------------------------------------------------------------------------
+function parseConfig(yamlText) {
+  const lines = yamlText.split('\n');
+  const tiers = {};
+  let currentTier = null;
+  for (const raw of lines) {
+    const line = raw.replace(/#.*$/, '').trimEnd();
+    if (!line.trim()) continue;
+    if (/^tiers:\s*$/.test(line)) continue;
+    const tierMatch = line.match(/^  ([a-z_]+):\s*$/);
+    if (tierMatch) {
+      currentTier = tierMatch[1];
+      tiers[currentTier] = {};
+      continue;
+    }
+    const kvMatch = line.match(/^    ([a-z_]+):\s*(.+?)\s*$/);
+    if (kvMatch && currentTier) {
+      tiers[currentTier][kvMatch[1]] = kvMatch[2];
+    }
+  }
+  return { tiers };
+}
+
+// ---------------------------------------------------------------------------
+// Frontmatter helpers — extract top-level key:value pairs and rewrite the
+// `model:` field in place. Only top-level scalar fields are inspected;
+// nested structures (arrays, multiline strings) in description/etc are
+// preserved untouched.
+// ---------------------------------------------------------------------------
+function readFrontmatter(text) {
+  const m = text.match(/^---\n([\s\S]*?)\n---\n/);
+  if (!m) return null;
+  const fmText = m[1];
+  const fields = {};
+  for (const line of fmText.split('\n')) {
+    const kv = line.match(/^([a-z_]+):\s*(.*)$/);
+    if (kv) fields[kv[1]] = kv[2];
+  }
+  return { fmText, fields };
+}
+
+function rewriteModelField(text, newModel) {
+  const fmMatch = text.match(/^---\n([\s\S]*?)\n---\n/);
+  if (!fmMatch) return text;
+  const fmBody = fmMatch[1];
+
+  // Case 1 — `model:` already exists in frontmatter → rewrite value only.
+  if (/^model:\s*.+$/m.test(fmBody)) {
+    const newFm = fmBody.replace(/^(model:\s*)\S.*$/m, `$1${newModel}`);
+    return text.replace(fmMatch[0], `---\n${newFm}\n---\n`);
+  }
+
+  // Case 2 — `model:` absent → insert after `tier:` line if present,
+  // otherwise append at end of frontmatter.
+  let newFm;
+  if (/^tier:\s*[a-z]+\s*$/m.test(fmBody)) {
+    newFm = fmBody.replace(/^(tier:\s*[a-z]+)\s*$/m, `$1\nmodel: ${newModel}`);
+  } else {
+    newFm = `${fmBody}\nmodel: ${newModel}`;
+  }
+  return text.replace(fmMatch[0], `---\n${newFm}\n---\n`);
+}
+
+// ---------------------------------------------------------------------------
+// Main loop — iterate agent files, resolve tier→model, write or check drift.
+// ---------------------------------------------------------------------------
+function main() {
+  if (!fs.existsSync(CONFIG_PATH)) {
+    console.error(`ERROR: ${CONFIG_PATH} not found`);
+    process.exit(1);
+  }
+  const config = parseConfig(fs.readFileSync(CONFIG_PATH, 'utf8'));
+  const agentFiles = fs
+    .readdirSync(AGENTS_DIR)
+    .filter((f) => f.endsWith('.md'))
+    .sort();
+
+  let drift = 0;
+  let synced = 0;
+  let warned = 0;
+  let inspected = 0;
+
+  for (const file of agentFiles) {
+    const fpath = path.join(AGENTS_DIR, file);
+    const text = fs.readFileSync(fpath, 'utf8');
+    const fm = readFrontmatter(text);
+    if (!fm) {
+      console.warn(`WARN: ${file} has no frontmatter, skipped`);
+      warned++;
+      continue;
+    }
+    const tier = fm.fields.tier;
+    if (!tier) {
+      if (VERBOSE) console.warn(`WARN: ${file} has no tier:, skipped (manual override)`);
+      warned++;
+      continue;
+    }
+    const tierDef = config.tiers[tier];
+    if (!tierDef) {
+      console.error(
+        `ERROR: ${file} has unknown tier "${tier}". Valid: ${Object.keys(config.tiers).join(', ')}`
+      );
+      process.exit(1);
+    }
+    inspected++;
+    const expectedModel = tierDef.model;
+    const currentModel = fm.fields.model;
+    if (currentModel === expectedModel) {
+      if (VERBOSE) console.log(`ok: ${file} (tier=${tier} model=${expectedModel})`);
+      continue;
+    }
+    drift++;
+    if (CHECK) {
+      console.log(
+        `DRIFT: ${file} tier=${tier} expected=${expectedModel} actual=${currentModel || '(missing)'}`
+      );
+    } else {
+      const newText = rewriteModelField(text, expectedModel);
+      fs.writeFileSync(fpath, newText);
+      console.log(
+        `synced: ${file} tier=${tier} ${currentModel || '(none)'} → ${expectedModel}`
+      );
+      synced++;
+    }
+  }
+
+  if (CHECK) {
+    if (drift > 0) {
+      console.error(
+        `\n${drift} agent(s) out of sync. Run: plugins/glassdesk/bin/sync-models`
+      );
+      process.exit(1);
+    }
+    console.log(`OK — all agents synced (${inspected} checked, ${warned} skipped).`);
+    return;
+  }
+  console.log(
+    `\nDone. ${synced} synced, ${inspected - synced} unchanged, ${warned} skipped.`
+  );
+}
+
+main();

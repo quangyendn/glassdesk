@@ -11,7 +11,7 @@ Complete development framework for Claude Code — intelligent planning, structu
 - **23 Slash Commands** — 8-phase SDLC taxonomy: DISCOVER → PLAN → BUILD → VERIFY → REVIEW → SHIP → COMPOUND
 - **Compound Engineering** — `/spec` (brainstorm→doc), `/learn` (session→knowledge), `/improve` (gated proposals)
 - **11 Skill Packages** — building, scouting, fixing, brainstorming, compounding, planning, code-review, and more
-- **10 Specialized Agents** — code review, scouting, research, analysis
+- **17 Specialized Agents** — code review, scouting, research, analysis, git automation, debugging, planning, testing, project coordination, plan archival, UI testing
 - **Claude Flow Integration** — multi-agent orchestration via MCP tools
 
 ## Installation
@@ -47,7 +47,7 @@ Three commands that make glassdesk self-improving:
 - **`/learn`** — after a session, extract insights into `.glassdesk-knowledge/` (gitignored, local-only)
 - **`/improve [--plugin|--project]`** — reads knowledge entries, proposes diffs to `plans/improvements/` — **never auto-applied**
 
-## Agents (10)
+## Agents (17)
 
 | Agent | Purpose |
 |-------|---------|
@@ -61,6 +61,13 @@ Three commands that make glassdesk self-improving:
 | `pr-test-analyzer` | PR test coverage analysis |
 | `silent-failure-hunter` | Find silent failures and inadequate error handling |
 | `type-design-analyzer` | Type design quality, encapsulation, invariants |
+| `git-manager` | Git automation — stage, commit, push, create PR (used by `/git:*`) |
+| `debugger` | Root cause analysis for bugs and test failures |
+| `planner` | Synthesize research into structured implementation plans |
+| `project-manager` | Phase decomposition + TodoWrite coordination + finalize |
+| `tester` | Run test suites, interpret pass/fail, detect flakes |
+| `plan-archiver` | Archive completed plans, write journal entries (used by `/plan:archive`) |
+| `ui-tester` | Browser-automation UI testing via chrome-devtools (used by `/test:ui`) |
 
 ## Skills (11)
 
@@ -77,6 +84,57 @@ Three commands that make glassdesk self-improving:
 | `pair-programming` | Driver/navigator modes, TDD, mentoring |
 | `ai-multimodal` | Image/video/audio processing via Gemini API |
 | `media-processing` | FFmpeg, ImageMagick, background removal |
+
+## Model Tier Policy
+
+Each agent declares a **tier** in its frontmatter. A central config maps tier → Claude model (or external CLI), so changing model policy across all agents is a one-file edit + one command.
+
+### Tiers
+
+| Tier | Model | Use cases |
+|------|-------|-----------|
+| `premium` | opus | Brainstorm, plan, spec, deep review, design judgment |
+| `standard` | sonnet | Coding, refactoring, doc writing, structured analysis |
+| `fast` | haiku | Trivial edits, simple scout, comment checks |
+| `external` | sonnet (fallback) + Gemini CLI | High-volume scout via `gemini-2.5-flash` |
+
+### How to change model policy
+
+Edit `plugins/glassdesk/config/models.yml`:
+
+```yaml
+tiers:
+  premium:
+    model: opus      # change this; affects all premium agents
+```
+
+Then sync:
+
+```bash
+node plugins/glassdesk/bin/sync-models
+```
+
+This rewrites the `model:` field in every tagged agent. To preview changes without writing, use `--check`.
+
+### How to add a new agent
+
+1. Create `plugins/glassdesk/agents/<name>.md` with frontmatter
+2. Include `tier: <premium|standard|fast|external>`
+3. Run `node plugins/glassdesk/bin/sync-models` — `model:` will be auto-set
+
+### Manual override
+
+To pin a specific agent to a model regardless of policy, **omit `tier:`** from its frontmatter and set `model:` directly. The sync script will WARN and skip that agent.
+
+### Drift guard (developers)
+
+Optional pre-commit hook blocks commits when `model:` is out of sync with `tier:`:
+
+```bash
+bash plugins/glassdesk/scripts/install-dev-hooks.sh
+```
+
+Run once per clone. Skip if you don't want the guard.
 
 ## Optional Dependencies
 
