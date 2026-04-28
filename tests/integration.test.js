@@ -252,3 +252,37 @@ test('rewrite: --dry-run reports rewrite count without writing', () => {
   assert.equal(fs.existsSync(path.join(cwd, '.claude', 'commands')), false);
   assert.equal(fs.existsSync(path.join(cwd, '.claude', '.glassdesk.json')), false);
 });
+
+// ----- Phase 2: session-init first-writer-wins guard for GD_PLUGIN_PATH -----
+
+const SESSION_INIT = path.join(REPO_ROOT, 'plugins', 'glassdesk', 'hooks', 'session-init.cjs');
+
+function runSessionInit({ presetPluginPath } = {}) {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gd-session-init-'));
+  const envFile = path.join(tmp, 'claude-env');
+  fs.writeFileSync(envFile, '');
+  const env = {
+    PATH: process.env.PATH,
+    HOME: process.env.HOME,
+    CLAUDE_ENV_FILE: envFile,
+  };
+  if (presetPluginPath !== undefined) env.GD_PLUGIN_PATH = presetPluginPath;
+  const r = spawnSync('node', [SESSION_INIT], { env, encoding: 'utf8' });
+  return { ...r, envFileContent: fs.readFileSync(envFile, 'utf8'), tmp };
+}
+
+test('session-init: writes GD_PLUGIN_PATH when env unset', () => {
+  const r = runSessionInit({});
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.envFileContent, /export GD_PLUGIN_PATH=/);
+  assert.match(r.envFileContent, /export GD_SESSION_ID=/);
+});
+
+test('session-init: respects existing GD_PLUGIN_PATH (first-writer-wins)', () => {
+  const r = runSessionInit({ presetPluginPath: '/custom/marketplace/glassdesk' });
+  assert.equal(r.status, 0, r.stderr);
+  // Should NOT write GD_PLUGIN_PATH again.
+  assert.doesNotMatch(r.envFileContent, /export GD_PLUGIN_PATH=/);
+  // GD_SESSION_ID is still always regenerated.
+  assert.match(r.envFileContent, /export GD_SESSION_ID=/);
+});
