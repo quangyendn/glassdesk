@@ -1,0 +1,123 @@
+#!/usr/bin/env node
+// bin/plan-status — Print detailed progress for a single plan directory.
+//
+// Usage: plan-status <plan-dir>
+//   plan-dir: path to a plan directory containing plan.md (e.g., plans/260428-0007-model-tier-policy)
+//
+// Zero dependency. Reads plan.md frontmatter + each phase-*.md frontmatter,
+// counts checked todo boxes ("- [x] ...") in each phase to compute progress %.
+// Exits 1 on invalid path. Mechanical formatter — no LLM in the loop.
+
+import fs from 'node:fs';
+import path from 'node:path';
+
+const arg = process.argv[2];
+if (!arg) {
+  console.error('ERROR: plan-status <plan-dir> — path required');
+  process.exit(1);
+}
+
+const planDir = path.resolve(arg);
+const planFile = path.join(planDir, 'plan.md');
+if (!fs.existsSync(planFile)) {
+  console.error(`ERROR: ${planFile} not found`);
+  process.exit(1);
+}
+
+function readFrontmatter(text) {
+  const m = text.match(/^---\n([\s\S]*?)\n---\n/);
+  if (!m) return {};
+  const fields = {};
+  for (const line of m[1].split('\n')) {
+    const kv = line.match(/^([a-z_][a-z0-9_]*):\s*(.*)$/i);
+    if (kv) fields[kv[1]] = kv[2].replace(/^["']|["']$/g, '').trim();
+  }
+  return fields;
+}
+
+function progressFromTodos(text) {
+  // Count GitHub-style task list items: "- [ ]" pending, "- [x]" done.
+  const pending = (text.match(/^- \[ \] /gm) || []).length;
+  const done = (text.match(/^- \[[xX]\] /gm) || []).length;
+  const total = pending + done;
+  if (total === 0) return { done: 0, total: 0, pct: null };
+  return { done, total, pct: Math.round((done / total) * 100) };
+}
+
+const STATUS_ICON = {
+  done: '✅',
+  completed: '✅',
+  'in-progress': '🔄',
+  active: '🔄',
+  pending: '⏳',
+  blocked: '🚫',
+};
+
+function statusIcon(status) {
+  return STATUS_ICON[(status || 'pending').toLowerCase()] || '⏳';
+}
+
+function main() {
+  const planText = fs.readFileSync(planFile, 'utf8');
+  const fm = readFrontmatter(planText);
+
+  const phaseFiles = fs
+    .readdirSync(planDir)
+    .filter((f) => /^phase-.*\.md$/.test(f))
+    .sort();
+
+  const phases = phaseFiles.map((f) => {
+    const text = fs.readFileSync(path.join(planDir, f), 'utf8');
+    const phaseFm = readFrontmatter(text);
+    const progress = progressFromTodos(text);
+    return {
+      file: f,
+      number: phaseFm.phase || '-',
+      title: phaseFm.title || f,
+      status: (phaseFm.status || 'pending').toLowerCase(),
+      effort: phaseFm.effort || '-',
+      progress,
+    };
+  });
+
+  const completedCount = phases.filter(
+    (p) => p.status === 'done' || p.status === 'completed'
+  ).length;
+  const totalCount = phases.length;
+  const pct = totalCount === 0 ? 0 : Math.round((completedCount / totalCount) * 100);
+
+  console.log(`# Plan: ${fm.title || path.basename(planDir)}\n`);
+  console.log(
+    `**Status:** ${fm.status || 'pending'} | **Progress:** ${pct}% (${completedCount}/${totalCount} phases) | **Priority:** ${fm.priority || '-'} | **Effort:** ${fm.effort || '-'}`
+  );
+  if (fm.branch) console.log(`**Branch:** ${fm.branch}`);
+  if (fm.description) console.log(`\n> ${fm.description}`);
+
+  console.log('\n## Phases\n');
+  if (phases.length === 0) {
+    console.log('_No phase files found._');
+  } else {
+    console.log('| # | Phase | Status | Effort | Todos |');
+    console.log('|---|-------|--------|--------|-------|');
+    for (const p of phases) {
+      const todos =
+        p.progress.total === 0
+          ? '-'
+          : `${p.progress.done}/${p.progress.total} (${p.progress.pct}%)`;
+      console.log(
+        `| ${p.number} | ${statusIcon(p.status)} ${p.title} | ${p.status} | ${p.effort} | ${todos} |`
+      );
+    }
+  }
+
+  console.log('\n## Summary\n');
+  const byStatus = phases.reduce((acc, p) => {
+    acc[p.status] = (acc[p.status] || 0) + 1;
+    return acc;
+  }, {});
+  for (const [status, count] of Object.entries(byStatus)) {
+    console.log(`- ${statusIcon(status)} ${status}: ${count}`);
+  }
+}
+
+main();

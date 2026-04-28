@@ -11,7 +11,7 @@ Complete development framework for Claude Code — intelligent planning, structu
 - **23 Slash Commands** — 8-phase SDLC taxonomy: DISCOVER → PLAN → BUILD → VERIFY → REVIEW → SHIP → COMPOUND
 - **Compound Engineering** — `/spec` (brainstorm→doc), `/learn` (session→knowledge), `/improve` (gated proposals)
 - **11 Skill Packages** — building, scouting, fixing, brainstorming, compounding, planning, code-review, and more
-- **15 Specialized Agents** — code review, scouting, research, analysis, git automation, debugging, planning, testing, project coordination
+- **17 Specialized Agents** — code review, scouting, research, analysis, git automation, debugging, planning, testing, project coordination, plan archival, UI testing
 - **Claude Flow Integration** — multi-agent orchestration via MCP tools
 
 ## Installation
@@ -47,7 +47,7 @@ Three commands that make glassdesk self-improving:
 - **`/learn`** — after a session, extract insights into `.glassdesk-knowledge/` (gitignored, local-only)
 - **`/improve [--plugin|--project]`** — reads knowledge entries, proposes diffs to `plans/improvements/` — **never auto-applied**
 
-## Agents (15)
+## Agents (17)
 
 | Agent | Purpose |
 |-------|---------|
@@ -66,6 +66,8 @@ Three commands that make glassdesk self-improving:
 | `planner` | Synthesize research into structured implementation plans |
 | `project-manager` | Phase decomposition + TodoWrite coordination + finalize |
 | `tester` | Run test suites, interpret pass/fail, detect flakes |
+| `plan-archiver` | Archive completed plans, write journal entries (used by `/plan:archive`) |
+| `ui-tester` | Browser-automation UI testing via chrome-devtools (used by `/test:ui`) |
 
 ## Skills (11)
 

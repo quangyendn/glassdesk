@@ -1,0 +1,121 @@
+#!/usr/bin/env node
+// bin/plan-list — Print a markdown table of plans in ./plans with their status.
+//
+// Usage: plan-list [status-filter]
+//   status-filter: pending | in-progress | active | done | completed | archived | all (default: all)
+//
+// Zero dependency — reuses the same regex frontmatter parser idiom as bin/sync-models.
+// Reads plans/*/plan.md, extracts top-level frontmatter scalars, counts sibling
+// phase-*.md files, sorts by `created` desc. Exits 0 even when no plans found
+// (prints an empty-state notice). Mechanical formatter — no LLM in the loop.
+
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const PLUGIN_ROOT = path.resolve(__dirname, '..');
+// Plans live at the repo root, not inside the plugin. Plugin is at <repo>/plugins/glassdesk
+// so the repo root is two levels up from this script.
+const REPO_ROOT = path.resolve(PLUGIN_ROOT, '..', '..');
+const PLANS_DIR = path.join(REPO_ROOT, 'plans');
+
+const filter = (process.argv[2] || 'all').toLowerCase();
+const VALID_FILTERS = new Set([
+  'all',
+  'pending',
+  'in-progress',
+  'active',
+  'done',
+  'completed',
+  'archived',
+]);
+
+if (!VALID_FILTERS.has(filter)) {
+  console.error(`ERROR: invalid filter "${filter}". Valid: ${[...VALID_FILTERS].join(', ')}`);
+  process.exit(1);
+}
+
+// Match the same minimal frontmatter parser as sync-models — top-level scalar fields only.
+function readFrontmatter(text) {
+  const m = text.match(/^---\n([\s\S]*?)\n---\n/);
+  if (!m) return {};
+  const fields = {};
+  for (const line of m[1].split('\n')) {
+    const kv = line.match(/^([a-z_][a-z0-9_]*):\s*(.*)$/i);
+    if (kv) fields[kv[1]] = kv[2].replace(/^["']|["']$/g, '').trim();
+  }
+  return fields;
+}
+
+function listPlans() {
+  if (!fs.existsSync(PLANS_DIR)) return [];
+  const entries = fs.readdirSync(PLANS_DIR, { withFileTypes: true });
+  const plans = [];
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    if (entry.name === 'archive' || entry.name === 'reports' || entry.name === 'journals') continue;
+    const planPath = path.join(PLANS_DIR, entry.name, 'plan.md');
+    if (!fs.existsSync(planPath)) continue;
+    const fm = readFrontmatter(fs.readFileSync(planPath, 'utf8'));
+    const phaseCount = fs
+      .readdirSync(path.join(PLANS_DIR, entry.name))
+      .filter((f) => /^phase-.*\.md$/.test(f)).length;
+    plans.push({
+      slug: entry.name,
+      title: fm.title || entry.name,
+      status: (fm.status || 'pending').toLowerCase(),
+      priority: fm.priority || '-',
+      effort: fm.effort || '-',
+      created: fm.created || '-',
+      phases: phaseCount,
+    });
+  }
+  return plans;
+}
+
+function applyFilter(plans, filterValue) {
+  if (filterValue === 'all') return plans;
+  // Group "active" with "in-progress" — same conceptual state, different vocabularies in plan files.
+  if (filterValue === 'active' || filterValue === 'in-progress') {
+    return plans.filter((p) => p.status === 'in-progress' || p.status === 'active');
+  }
+  if (filterValue === 'completed' || filterValue === 'done') {
+    return plans.filter((p) => p.status === 'completed' || p.status === 'done');
+  }
+  return plans.filter((p) => p.status === filterValue);
+}
+
+function formatTable(plans) {
+  if (plans.length === 0) return '_(no plans match filter)_';
+  const rows = plans
+    .map(
+      (p) =>
+        `| ${p.created} | ${p.slug} | ${p.title} | ${p.status} | ${p.priority} | ${p.phases} | ${p.effort} |`
+    )
+    .join('\n');
+  return [
+    '| Created | Slug | Title | Status | Priority | Phases | Effort |',
+    '|---------|------|-------|--------|----------|--------|--------|',
+    rows,
+  ].join('\n');
+}
+
+function main() {
+  const plans = listPlans();
+  if (plans.length === 0) {
+    console.log(`# Plans\n\n_No plans found in ${path.relative(process.cwd(), PLANS_DIR)}/_`);
+    return;
+  }
+  // Sort by `created` desc; treat "-" as oldest so populated plans surface first.
+  plans.sort((a, b) => (b.created || '').localeCompare(a.created || ''));
+  const filtered = applyFilter(plans, filter);
+  const heading = filter === 'all' ? '# Plans' : `# Plans — filter: ${filter}`;
+  console.log(heading);
+  console.log('');
+  console.log(formatTable(filtered));
+  console.log('');
+  console.log(`**Total:** ${filtered.length}${filter === 'all' ? '' : ` of ${plans.length}`}`);
+}
+
+main();
