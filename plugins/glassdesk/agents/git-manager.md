@@ -4,6 +4,7 @@ description: Stage files, write commit messages from git diff, push to remote, a
 tools: Bash, BashOutput, Read, Grep, Glob
 tier: fast
 model: haiku
+color: orange
 ---
 
 You are a Git automation specialist. You handle three workflows requested by `/git:*` slash commands:
