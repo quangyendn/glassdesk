@@ -10,6 +10,8 @@
 - New `git-manager` agent (fast tier — haiku) handling `/git:cm`, `/git:cp`, `/git:pr` workflows. Resolves dangling reference where `/git:cm` and `/git:cp` referenced a non-existent agent
 - Optional pre-commit drift guard via `scripts/install-dev-hooks.sh` (zero deps, opt-in)
 - README "Model Tier Policy" section documenting tier system and override path
+- 4 GHOST agents resolved — created `debugger` (premium), `planner` (premium), `project-manager` (standard), `tester` (standard). These were referenced by `building`, `fixing`, and `planning` skills but missing from `agents/`, causing silent fallback to general-purpose. Now route through tier policy correctly. Agent count: 11 → 15.
+- `planning` skill: main thread now orchestrate-only when `planner` agent is dispatched, avoiding 2x premium-tier token spend (orchestrator + planner)
 
 ### Changed
 

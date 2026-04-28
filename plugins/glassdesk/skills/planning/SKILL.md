@@ -46,8 +46,18 @@ Load: `references/output-standards.md`
 2. **Research Phase** → Spawn researchers, investigate approaches
 3. **Synthesis** → Analyze reports, identify optimal solution
 4. **Design Phase** → Create architecture, implementation design
-5. **Plan Documentation** → Write comprehensive plan
+5. **Plan Documentation** → Dispatch `planner` agent (premium tier) to write `plan.md` + phase files
 6. **Review & Refine** → Ensure completeness, clarity, actionability
+
+### Orchestrate-only main thread
+
+When the `planner` agent is available, the **main thread orchestrates only**:
+- Read inputs (spec, scout/researcher reports, codebase docs)
+- Dispatch `researcher` agents in parallel for investigation
+- Dispatch `planner` agent for plan synthesis (it writes the actual plan files)
+- Verify the plan files exist and surface the path
+
+The main thread MUST NOT write `plan.md` or `phase-*.md` directly when `planner` is dispatchable. This avoids 2x premium-tier token spend (orchestrator Opus + planner Opus both writing). If `planner` agent is unavailable for any reason, fall back to writing inline and surface a warning.
 
 ## Output Requirements
 

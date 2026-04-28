@@ -11,7 +11,7 @@ Complete development framework for Claude Code — intelligent planning, structu
 - **23 Slash Commands** — 8-phase SDLC taxonomy: DISCOVER → PLAN → BUILD → VERIFY → REVIEW → SHIP → COMPOUND
 - **Compound Engineering** — `/spec` (brainstorm→doc), `/learn` (session→knowledge), `/improve` (gated proposals)
 - **11 Skill Packages** — building, scouting, fixing, brainstorming, compounding, planning, code-review, and more
-- **11 Specialized Agents** — code review, scouting, research, analysis, git automation
+- **15 Specialized Agents** — code review, scouting, research, analysis, git automation, debugging, planning, testing, project coordination
 - **Claude Flow Integration** — multi-agent orchestration via MCP tools
 
 ## Installation
@@ -47,7 +47,7 @@ Three commands that make glassdesk self-improving:
 - **`/learn`** — after a session, extract insights into `.glassdesk-knowledge/` (gitignored, local-only)
 - **`/improve [--plugin|--project]`** — reads knowledge entries, proposes diffs to `plans/improvements/` — **never auto-applied**
 
-## Agents (11)
+## Agents (15)
 
 | Agent | Purpose |
 |-------|---------|
@@ -62,6 +62,10 @@ Three commands that make glassdesk self-improving:
 | `silent-failure-hunter` | Find silent failures and inadequate error handling |
 | `type-design-analyzer` | Type design quality, encapsulation, invariants |
 | `git-manager` | Git automation — stage, commit, push, create PR (used by `/git:*`) |
+| `debugger` | Root cause analysis for bugs and test failures |
+| `planner` | Synthesize research into structured implementation plans |
+| `project-manager` | Phase decomposition + TodoWrite coordination + finalize |
+| `tester` | Run test suites, interpret pass/fail, detect flakes |
 
 ## Skills (11)
 
