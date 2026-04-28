@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- **`$GD_PLUGIN_PATH` resolution in subagents** — `npx glassdesk init/update` now rewrites the literal `$GD_PLUGIN_PATH` token in copied `.md` files to `${CLAUDE_PROJECT_DIR}/.claude` (Claude Code built-in, propagates to subagents). Resolves Claude Code bug #46696 where subagents do not inherit `CLAUDE_ENV_FILE` env vars, causing `node "$GD_PLUGIN_PATH/scripts/..."` calls to fail silently inside `/plan`, `/plan:hard`, planning skill subagent dispatches.
+- **Dual-install collision** — `session-init.cjs` SessionStart hook now uses first-writer-wins for `GD_PLUGIN_PATH`. When both marketplace plugin + npx install register a SessionStart hook, the env var is no longer silently overwritten last-writer-wins. `GD_SESSION_ID` continues to regenerate every session.
+- Marketplace bundle (`plugins/glassdesk/**/*.md`) is intentionally NOT modified — runtime `$GD_PLUGIN_PATH` still works in marketplace install path. Rewrite only applies to npx-installed copies.
+
 ### Added
 
 - Model tier policy system — `plugins/glassdesk/config/models.yml` + `bin/sync-models`

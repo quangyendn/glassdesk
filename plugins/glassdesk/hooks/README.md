@@ -10,8 +10,8 @@ Claude Code hooks for automated reminders and workflow enhancements.
 **Purpose:** Initializes session ID, state, and plugin path
 
 Sets these environment variables:
-- `GD_SESSION_ID` - Unique session identifier
-- `GD_PLUGIN_PATH` - Absolute path to plugin installation (works for global/local installs)
+- `GD_SESSION_ID` - Unique session identifier (always regenerated per session)
+- `GD_PLUGIN_PATH` - Absolute path to plugin installation. **First-writer-wins** — preserves existing value to avoid dual-install collision (marketplace plugin + npx install both register a SessionStart hook).
 
 Creates session temp file at `/tmp/gd-session-{id}.json`.
 
@@ -19,7 +19,9 @@ Creates session temp file at `/tmp/gd-session-{id}.json`.
 - Plan state persistence via `set-active-plan.cjs`
 - Subagent plan context propagation
 - Session-scoped state management
-- Script path resolution for globally installed plugins
+- Script path resolution for marketplace-installed plugins (the runtime env-var path)
+
+**Note for npx-installed projects:** dollar-prefixed `GD_PLUGIN_PATH` references inside command/skill markdown files are rewritten at install time to `${CLAUDE_PROJECT_DIR}/.claude` (a Claude Code built-in that propagates to subagents — works around bug #46696). The runtime env var is therefore not consumed by markdown in this install mode; it remains set for any custom hooks/scripts that read it. Marketplace install path continues to use the env var at runtime.
 
 ### dev-rules-reminder.cjs
 

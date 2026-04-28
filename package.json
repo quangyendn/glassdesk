@@ -1,6 +1,6 @@
 {
   "name": "glassdesk",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Claude Code marketplace featuring multi-agent orchestration, structured planning/coding workflows, and AI multimodal capabilities",
   "main": ".claude",
   "bin": {
