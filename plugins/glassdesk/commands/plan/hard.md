@@ -22,10 +22,10 @@ Check the `## Plan Context` section in the injected context:
 ## Workflow
 1. If creating new: Create directory using `Plan dir:` from `## Naming` section, then run `node "$GD_PLUGIN_PATH/scripts/set-active-plan.cjs" {plan-dir}`. If reusing: Use the active plan path from Plan Context. Pass directory path to every subagent.
 2. Follow "Plan Creation & Organization" rules of `planning` skill.
-3. Use up to 2 `researcher` agents in parallel (max 5 tool calls each, different aspects).
+3. Use up to 2 `gd-researcher` agents in parallel (max 5 tool calls each, different aspects).
 4. Analyze codebase: read `codebase-summary.md`, `code-standards.md`, `system-architecture.md`, `project-overview-pdr.md`. If `codebase-summary.md` unavailable or >3 days old, run `/scout` first.
-5. Pass all research and scout report paths to `planner` subagent to create the implementation plan.
-6. Receive plan from `planner`, ask user to review.
+5. Pass all research and scout report paths to `gd-planner` subagent to create the implementation plan.
+6. Receive plan from `gd-planner`, ask user to review.
 
 ## Post-Plan Validation (Optional)
 

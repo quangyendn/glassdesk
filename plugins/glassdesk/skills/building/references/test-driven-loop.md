@@ -8,12 +8,12 @@ Implement → Run tester → If fail: debugger → Fix → Re-run tester → Rep
 
 ## Step 3 Execution
 
-1. Call `tester` subagent: "Run test suite for plan phase [phase-name]"
+1. Call `gd-tester` subagent: "Run test suite for plan phase [phase-name]"
 2. If ANY tests fail:
    - STOP implementation
-   - Call `debugger` subagent: "Analyze failures: [details]"
+   - Call `gd-debugger` subagent: "Analyze failures: [details]"
    - Fix all issues
-   - Re-run `tester`
+   - Re-run `gd-tester`
    - Repeat until 100% pass
 
 ## Step 2 Preparation
@@ -25,7 +25,7 @@ Write tests covering:
 
 ## Loop Termination
 
-Only exit loop when `tester` reports 0 failures. No exceptions. If stuck after 3 cycles, escalate to user.
+Only exit loop when `gd-tester` reports 0 failures. No exceptions. If stuck after 3 cycles, escalate to user.
 
 ## Image/Media Assets
 

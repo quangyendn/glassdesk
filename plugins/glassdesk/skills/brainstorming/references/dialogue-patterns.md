@@ -14,9 +14,9 @@ Ask 1 question at a time; wait for response.
 
 | Agent | When to use |
 |-------|-------------|
-| `planner` | Research industry best practices |
-| `docs-manager` | Understand existing implementation |
-| `researcher` | Find solutions online; analyze trade-offs |
+| `gd-planner` | Research industry best practices |
+| `gd-docs-manager` | Understand existing implementation |
+| `gd-researcher` | Find solutions online; analyze trade-offs |
 
 Use `sequential-thinking` skill for complex multi-step analysis.
 

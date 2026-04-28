@@ -3,7 +3,7 @@ description: Run UI tests on a website & generate a detailed report
 argument-hint: [url] [options]
 ---
 
-Use `ui-tester` agent to run UI tests and generate a report.
+Use `gd-ui-tester` agent to run UI tests and generate a report.
 
 Pass:
 - `URL`: $1 — target URL

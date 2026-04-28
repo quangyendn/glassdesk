@@ -5,8 +5,8 @@
 ## Core Activities
 
 ### Parallel Researcher Agents
-- Spawn multiple `researcher` agents in parallel to investigate different approaches
-- Wait for all researcher agents to report back before proceeding
+- Spawn multiple `gd-researcher` agents in parallel to investigate different approaches
+- Wait for all gd-researcher agents to report back before proceeding
 - Each researcher investigates a specific aspect or approach
 
 ### Sequential Thinking
@@ -36,7 +36,7 @@ repomix --remote https://github.com/your-org/your-repo
 ```
 
 ### Debugger Delegation
-- Delegate to `debugger` agent for root cause analysis
+- Delegate to `gd-debugger` agent for root cause analysis
 - Use when investigating complex issues or bugs
 - Debugger agent specializes in diagnostic tasks
 

@@ -3,7 +3,7 @@ description: Write journal entries and archive specific plans or all completed p
 argument-hint: [path-to-plan] (default: all plans with status=done|completed)
 ---
 
-Use `plan-archiver` agent to read plans, write journal entries, and archive.
+Use `gd-plan-archiver` agent to read plans, write journal entries, and archive.
 
 Pass:
 - `PLAN_PATH`: $1 — optional explicit plan dir; if omitted, agent archives only `done`/`completed` plans

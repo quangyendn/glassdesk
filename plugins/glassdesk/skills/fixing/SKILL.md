@@ -30,7 +30,7 @@ Load: `references/test-failure-flow.md` for test-suite-run and fix loop.
 
 ## Common Mistakes
 
-- Jumping to fix without understanding root cause (always run `debugger` first)
+- Jumping to fix without understanding root cause (always run `gd-debugger` first)
 - Missing multimodal context — if user provides screenshot/video, use `ai-multimodal` to describe the issue first
-- Not verifying fix with `tester` before reporting success
-- Skipping `code-reviewer` on hard fixes
+- Not verifying fix with `gd-tester` before reporting success
+- Skipping `gd-code-reviewer` on hard fixes

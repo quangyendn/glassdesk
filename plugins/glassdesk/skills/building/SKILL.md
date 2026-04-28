@@ -37,4 +37,4 @@ Load: `references/test-driven-loop.md` for testing standards and TDD patterns.
 - Marking step complete before gate passes
 - Commenting out tests or changing assertions to make them pass
 - Assuming user approval without explicit response
-- Running `project-manager` and `docs-manager` sequentially (must be parallel)
+- Running `gd-project-manager` and `gd-docs-manager` sequentially (must be parallel)
