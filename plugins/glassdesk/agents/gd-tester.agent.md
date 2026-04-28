@@ -1,5 +1,5 @@
 ---
-name: tester
+name: gd-tester
 description: |
   Run test suites, interpret pass/fail, retry flaky failures, report
   results. Used in `building` skill Step 3 (testing gate) and `fixing`
