@@ -1,5 +1,5 @@
 ---
-name: project-manager
+name: gd-project-manager
 description: |
   Phase analysis + TodoWrite coordination. Maps phase requirements
   to discrete tasks, identifies dependencies, sets up TodoWrite list

@@ -1,5 +1,5 @@
 ---
-name: rust-build-resolver
+name: gd-rust-build-resolver
 description: |
   Rust build, compilation, and dependency error resolution specialist.
   Fixes cargo build errors, borrow checker issues, and Cargo.toml

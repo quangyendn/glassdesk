@@ -1,5 +1,5 @@
 ---
-name: plan-archiver
+name: gd-plan-archiver
 description: |
   Read implementation plan(s), write concise journal entries summarizing
   what was built and lessons learned, then archive plan files. Used by

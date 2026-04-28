@@ -1,5 +1,5 @@
 ---
-name: debugger
+name: gd-debugger
 description: |
   Investigate root cause of bugs, errors, test failures, or unexpected
   behavior. Read stack traces, logs, source code; trace data flow
