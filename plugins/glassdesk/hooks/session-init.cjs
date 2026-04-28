@@ -34,9 +34,14 @@ try {
 // __dirname is hooks/, so parent is plugin root
 const pluginPath = path.resolve(__dirname, '..');
 
-// Set env vars for current session
+// Set env vars for current session.
+// GD_SESSION_ID: always regenerate (uniqueness per session).
+// GD_PLUGIN_PATH: first-writer-wins to handle dual-install collisions
+// (marketplace plugin + npx install both register a SessionStart hook).
 writeEnv(envFile, 'GD_SESSION_ID', sessionId);
-writeEnv(envFile, 'GD_PLUGIN_PATH', pluginPath);
+if (!process.env.GD_PLUGIN_PATH) {
+  writeEnv(envFile, 'GD_PLUGIN_PATH', pluginPath);
+}
 
 // Initialize session temp file with origin context
 writeSessionState(sessionId, {

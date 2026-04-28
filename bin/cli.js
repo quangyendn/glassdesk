@@ -231,6 +231,53 @@ export function copyPluginFiles(srcDir, destDir, dryRun) {
   return collected;
 }
 
+// Rewrite $GD_PLUGIN_PATH → .claude (project-relative) in markdown copied to
+// <project>/.claude/. The env-var pattern fails inside subagents (Claude Code
+// bug #46696: subagents don't inherit CLAUDE_ENV_FILE vars). Project-relative
+// paths work because Claude Code spawns Bash with cwd=project root in both
+// main session and subagent contexts. Marketplace bundle source stays
+// unchanged — runtime $GD_PLUGIN_PATH still works in the parent session.
+//
+// Note: ${CLAUDE_PROJECT_DIR} would be the cleaner choice (absolute, no cwd
+// dependency) but is not actually exported to Bash by Claude Code 2.1.x —
+// empirically verified empty in tool-spawned shells despite docs claiming it.
+const REWRITE_TOKEN = '$GD_PLUGIN_PATH';
+// Word boundary avoids accidental rewrite of future identifiers like $GD_PLUGIN_PATHS.
+const REWRITE_TOKEN_RE = /\$GD_PLUGIN_PATH\b/g;
+const REWRITE_REPLACEMENT = '.claude';
+
+export function rewritePluginPathRefs(rootDir, { dryRun = false } = {}) {
+  let scanned = 0;
+  let rewritten = 0;
+  const stack = [rootDir];
+  while (stack.length) {
+    const dir = stack.pop();
+    let entries;
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const entry of entries) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        stack.push(full);
+        continue;
+      }
+      if (!entry.isFile() || !entry.name.endsWith('.md')) continue;
+      scanned++;
+      const src = fs.readFileSync(full, 'utf8');
+      // Cheap probe via includes() avoids stateful /g regex pitfalls; .replace() with /g handles all matches.
+      if (!src.includes(REWRITE_TOKEN)) continue;
+      if (!dryRun) {
+        fs.writeFileSync(full, src.replace(REWRITE_TOKEN_RE, REWRITE_REPLACEMENT));
+      }
+      rewritten++;
+    }
+  }
+  return { scanned, rewritten };
+}
+
 export function writeManifest(cwd, version, files) {
   const manifestPath = path.join(cwd, '.claude', '.glassdesk.json');
   const manifest = {
@@ -326,6 +373,12 @@ async function runInstall(cwd, mode, flags) {
     log.info('Dry-run: no files written.');
     const filesPreview = copyPluginFiles(BUNDLED_PLUGIN_DIR, path.join(cwd, '.claude'), true);
     log.plain(`  Would copy ${filesPreview.length} files.`);
+    // Estimate rewrite count from bundle source. Valid as long as COPY_SKIPLIST
+    // does not exclude any .md file containing $GD_PLUGIN_PATH (currently it skips
+    // only settings.local.json, .DS_Store, CHANGELOG.md). If the skiplist gains a
+    // .md entry, audit this preview path.
+    const rwPreview = rewritePluginPathRefs(BUNDLED_PLUGIN_DIR, { dryRun: true });
+    log.plain(`  Would rewrite $GD_PLUGIN_PATH in ${rwPreview.rewritten}/${rwPreview.scanned} .md files.`);
     return 0;
   }
 
@@ -346,6 +399,11 @@ async function runInstall(cwd, mode, flags) {
     log.warn('Settings and manifest were NOT written. Re-run to retry — overwrite is idempotent.');
     return 1;
   }
+
+  // Rewrite env-var references in copied markdown so commands/skills work in
+  // subagent contexts (see rewritePluginPathRefs for rationale).
+  const rw = rewritePluginPathRefs(claudeDir, { dryRun: false });
+  log.plain(`  Rewrote $GD_PLUGIN_PATH in ${rw.rewritten}/${rw.scanned} .md files.`);
 
   // Write merged settings only after copy succeeded — otherwise hooks would
   // reference files that aren't on disk.

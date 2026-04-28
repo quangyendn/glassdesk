@@ -1,7 +1,7 @@
 {
   "name": "glassdesk",
   "description": "23 SDLC-phased commands, specialized agents, compound-engineering primitives",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "author": {
     "name": "glassdesk contributors"
   },
