@@ -231,15 +231,20 @@ export function copyPluginFiles(srcDir, destDir, dryRun) {
   return collected;
 }
 
-// Rewrite $GD_PLUGIN_PATH → ${CLAUDE_PROJECT_DIR}/.claude in markdown copied to
+// Rewrite $GD_PLUGIN_PATH → .claude (project-relative) in markdown copied to
 // <project>/.claude/. The env-var pattern fails inside subagents (Claude Code
-// bug #46696: subagents don't inherit CLAUDE_ENV_FILE vars). CLAUDE_PROJECT_DIR
-// is a built-in absolute path that does propagate. Marketplace bundle source
-// stays unchanged — runtime $GD_PLUGIN_PATH still works in the parent session.
+// bug #46696: subagents don't inherit CLAUDE_ENV_FILE vars). Project-relative
+// paths work because Claude Code spawns Bash with cwd=project root in both
+// main session and subagent contexts. Marketplace bundle source stays
+// unchanged — runtime $GD_PLUGIN_PATH still works in the parent session.
+//
+// Note: ${CLAUDE_PROJECT_DIR} would be the cleaner choice (absolute, no cwd
+// dependency) but is not actually exported to Bash by Claude Code 2.1.x —
+// empirically verified empty in tool-spawned shells despite docs claiming it.
 const REWRITE_TOKEN = '$GD_PLUGIN_PATH';
 // Word boundary avoids accidental rewrite of future identifiers like $GD_PLUGIN_PATHS.
 const REWRITE_TOKEN_RE = /\$GD_PLUGIN_PATH\b/g;
-const REWRITE_REPLACEMENT = '${CLAUDE_PROJECT_DIR}/.claude';
+const REWRITE_REPLACEMENT = '.claude';
 
 export function rewritePluginPathRefs(rootDir, { dryRun = false } = {}) {
   let scanned = 0;

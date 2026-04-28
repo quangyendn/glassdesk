@@ -163,7 +163,7 @@ function collectMarkdownFiles(rootDir) {
   return out;
 }
 
-test('rewrite: post-init no .md contains $GD_PLUGIN_PATH; replacement present in ≥4 files', () => {
+test('rewrite: post-init no .md contains $GD_PLUGIN_PATH; project-relative .claude/scripts present in ≥4 files', () => {
   const cwd = mkProject();
   runCli(['init', '--yes'], { cwd });
   const mds = collectMarkdownFiles(path.join(cwd, '.claude'));
@@ -172,23 +172,25 @@ test('rewrite: post-init no .md contains $GD_PLUGIN_PATH; replacement present in
   for (const f of mds) {
     const c = fs.readFileSync(f, 'utf8');
     if (/\$GD_PLUGIN_PATH\b/.test(c)) leftover++;
-    if (c.includes('${CLAUDE_PROJECT_DIR}/.claude')) withReplacement++;
+    // After rewrite, references look like `node ".claude/scripts/..."` (project-relative).
+    if (/"\.claude\/scripts\//.test(c)) withReplacement++;
   }
   assert.equal(leftover, 0, 'no .md should contain $GD_PLUGIN_PATH');
-  assert.ok(withReplacement >= 4, `expected ≥4 files with replacement, got ${withReplacement}`);
+  assert.ok(withReplacement >= 4, `expected ≥4 files with project-relative .claude/scripts/ refs, got ${withReplacement}`);
 });
 
-test('rewrite: subagent env-isolation — rewritten command runs with only CLAUDE_PROJECT_DIR set', () => {
+test('rewrite: subagent env-isolation — rewritten command runs with cwd=project root and minimal env', () => {
   const cwd = mkProject();
   runCli(['init', '--yes'], { cwd });
   // Pull the actual rewritten command line from a known file.
   const planMd = fs.readFileSync(path.join(cwd, '.claude', 'commands', 'plan.md'), 'utf8');
   const match = planMd.match(/node "[^"]*set-active-plan\.cjs"/);
   assert.ok(match, 'expected rewritten node invocation in plan.md');
-  // Simulate subagent: only CLAUDE_PROJECT_DIR + PATH (no GD_PLUGIN_PATH, no GD_SESSION_ID).
+  // Simulate subagent: NO GD_PLUGIN_PATH, NO GD_SESSION_ID, NO CLAUDE_PROJECT_DIR.
+  // Rely solely on cwd=project root (which Claude Code's Bash tool always sets).
   const r = spawnSync('bash', ['-c', `${match[0]} plans/dummy`], {
     cwd,
-    env: { CLAUDE_PROJECT_DIR: cwd, PATH: process.env.PATH, HOME: process.env.HOME },
+    env: { PATH: process.env.PATH, HOME: process.env.HOME },
     encoding: 'utf8',
   });
   assert.equal(r.status, 0, `subagent run failed: ${r.stderr || r.stdout}`);
@@ -196,19 +198,19 @@ test('rewrite: subagent env-isolation — rewritten command runs with only CLAUD
   assert.match(r.stdout + r.stderr, /Would set active plan to: plans\/dummy|Active plan set to/);
 });
 
-test('rewrite: update re-rewrites tampered $GD_PLUGIN_PATH back to ${CLAUDE_PROJECT_DIR}/.claude', () => {
+test('rewrite: update re-rewrites tampered $GD_PLUGIN_PATH back to project-relative .claude', () => {
   const cwd = mkProject();
   runCli(['init', '--yes'], { cwd });
   const target = path.join(cwd, '.claude', 'commands', 'plan.md');
-  // Tamper: replace the canonical token back to the legacy form.
-  const tampered = fs.readFileSync(target, 'utf8').replace(/\$\{CLAUDE_PROJECT_DIR\}\/\.claude/g, '$GD_PLUGIN_PATH');
+  // Tamper: replace the rewritten path back to the legacy env-var form.
+  const tampered = fs.readFileSync(target, 'utf8').replace(/"\.claude\//g, '"$GD_PLUGIN_PATH/');
   fs.writeFileSync(target, tampered);
   assert.match(fs.readFileSync(target, 'utf8'), /\$GD_PLUGIN_PATH/);
   const r = runCli(['update', '--yes'], { cwd });
   assert.equal(r.status, 0, r.stderr || r.stdout);
   const after = fs.readFileSync(target, 'utf8');
   assert.doesNotMatch(after, /\$GD_PLUGIN_PATH\b/);
-  assert.match(after, /\$\{CLAUDE_PROJECT_DIR\}\/\.claude/);
+  assert.match(after, /"\.claude\//);
 });
 
 test('rewrite: update is idempotent — second run rewrites 0 of N files', () => {

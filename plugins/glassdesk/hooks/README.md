@@ -21,7 +21,7 @@ Creates session temp file at `/tmp/gd-session-{id}.json`.
 - Session-scoped state management
 - Script path resolution for marketplace-installed plugins (the runtime env-var path)
 
-**Note for npx-installed projects:** dollar-prefixed `GD_PLUGIN_PATH` references inside command/skill markdown files are rewritten at install time to `${CLAUDE_PROJECT_DIR}/.claude` (a Claude Code built-in that propagates to subagents — works around bug #46696). The runtime env var is therefore not consumed by markdown in this install mode; it remains set for any custom hooks/scripts that read it. Marketplace install path continues to use the env var at runtime.
+**Note for npx-installed projects:** dollar-prefixed `GD_PLUGIN_PATH` references inside command/skill markdown files are rewritten at install time to project-relative `.claude/...` paths. Claude Code spawns Bash with `cwd=project root` in both main session and subagent contexts, so relative paths resolve correctly without needing env-var propagation (works around bug #46696). The runtime env var is therefore not consumed by markdown in this install mode; it remains set for any custom hooks/scripts that read it. Marketplace install path continues to use the env var at runtime.
 
 ### dev-rules-reminder.cjs
 
