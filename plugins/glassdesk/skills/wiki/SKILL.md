@@ -31,19 +31,20 @@ Maintain an evergreen, query-able project wiki under `.gd-wiki/` (committed, Obs
 └── index/                    # `.base` aggregator files (Obsidian Bases)
 ```
 
-`.config.json` canonical schema (all keys are nested; flat shape is a bug):
+`.config.json` canonical schema (all keys are nested; flat shape is a bug). `/wiki:init` is the authoritative writer — this block must match it byte-for-byte:
 
 ```json
 {
+  "version": 1,
   "sync": {
     "main_branch": "main",
-    "last_synced_commit": "<sha>",
-    "last_synced_at": "<ISO-8601>",
-    "stop_paths": ["node_modules/", "dist/", ".gd-wiki/insights/"],
+    "last_synced_commit": null,
+    "last_synced_at": null,
+    "stop_paths": ["node_modules/", "dist/", ".next/", "vendor/", ".git/", ".gd-wiki/insights/"],
     "auto_index_base": false
   },
   "query": {
-    "qmd_collection": "<project-slug>-<remote-sha8>",
+    "qmd_collection": "wiki-<project-slug>",
     "default_n": 5,
     "min_score": 0.3,
     "max_tokens": 1000000,
@@ -51,15 +52,23 @@ Maintain an evergreen, query-able project wiki under `.gd-wiki/` (committed, Obs
   },
   "lint": {
     "stale_days": 60,
-    "warn_unsynced_commits": 20
+    "warn_unsynced_commits": 20,
+    "min_links_per_page": 1
   },
   "models": {
     "curator": "claude-sonnet-4-6",
     "deep_lint": "claude-sonnet-4-6",
     "ask_wiki": "claude-sonnet-4-6"
+  },
+  "obsidian": {
+    "wikilinks": true,
+    "frontmatter_required": ["title", "updated", "tags"],
+    "use_bases_for_index": true
   }
 }
 ```
+
+`<project-slug>` is derived at init time from the git remote URL's last path segment (else current folder name).
 
 Curator scope: edit ONLY paths under `.gd-wiki/`. Reject any write outside.
 
