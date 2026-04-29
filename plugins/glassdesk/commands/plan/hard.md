@@ -1,6 +1,6 @@
 ---
 description: ⚡⚡⚡ Research, analyze, and create an implementation plan
-argument-hint: [task]
+argument-hint: [task | spec path | (empty for latest spec)]
 ---
 
 Think harder.
@@ -8,9 +8,11 @@ Activate `planning` skill.
 Refer to 'output-standards' reference in 'planning' skill for plan file spec and output requirements.
 
 ## Your mission
-<task>
-$ARGUMENTS
-</task>
+<task>$ARGUMENTS</task>
+
+## Pre-Spec Check (Input Resolution)
+
+Run **Step 0** of `planning` skill (`references/input-resolution.md`) BEFORE the Pre-Creation Check below. Step 0 calls `scripts/resolve-spec-input.cjs`, branches on the JSON `mode` field (`spec` / `spec-confirm` / `task` / `error`), and produces either a spec path or task text. Keep this section identical between `plan.md` and `plan/hard.md`.
 
 ## Pre-Creation Check (Active vs Suggested Plan)
 
