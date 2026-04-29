@@ -1,0 +1,96 @@
+---
+title: "Plugin System Architecture"
+updated: 2026-04-29
+tags: [category/architecture, plugin, commands, agents, skills]
+---
+
+Glassdesk is a Claude Code plugin that provides a complete SDLC framework through a flat-structured plugin package installed via `npx glassdesk init` or the Claude Code marketplace.
+
+## Plugin Structure
+
+The plugin lives under `plugins/glassdesk/` and installs into a project's `.claude/` directory. The package uses a **flat directory structure** — commands, skills, and agents sit directly under the plugin root with no `.claude/` wrapper.
+
+```
+plugins/glassdesk/
+├── .claude-plugin/plugin.json   # plugin manifest + cross-marketplace deps
+├── commands/                    # slash commands (one file = one command)
+│   └── wiki/                    # variant commands: /wiki:init, /wiki:update, /wiki:lint
+├── agents/                      # specialized subagents (gd- prefix)
+├── skills/                      # reusable skill packages loaded by commands
+│   └── wiki/references/         # skill reference docs (maintaining, linting, querying, etc.)
+├── config/
+│   └── models.yml               # tier → model mapping (single source of truth)
+├── bin/                         # zero-LLM CLI scripts (plan-list, plan-status, sync-models)
+├── hooks/
+│   └── session-init.cjs         # SessionStart hook — sets GD_PLUGIN_PATH, GD_SESSION_ID
+└── scripts/
+    ├── install-dev-hooks.sh     # optional pre-commit drift guard
+    └── pre-commit-hook.sh       # blocks commits when agent model:tier drift
+```
+
+## Command Registration Pattern
+
+| Pattern | Route | Example |
+|---|---|---|
+| `commands/{name}.md` | `/name` | `commands/ask.md` → `/ask` |
+| `commands/{name}/{variant}.md` | `/name:{variant}` | `commands/wiki/init.md` → `/wiki:init` |
+
+Both base and variant can coexist. Variants extend base functionality; they do not replace it.
+
+## Command → Skill → Agent Chain
+
+Commands are thin shims (≤30 lines). They delegate heavy work by activating a skill, which then dispatches to a subagent via the Task tool. This three-layer design keeps command files readable and routes work to the correct model tier.
+
+```
+/plan:hard  →  activate 'planning' skill  →  dispatch gd-researcher (standard)
+                                           →  dispatch gd-planner (premium)
+                                           →  dispatch gd-project-manager (standard)
+```
+
+## SDLC Phase Taxonomy
+
+27 commands organized across 9 phases:
+
+| Phase | Commands |
+|---|---|
+| DISCOVER | `/ask`, `/ask:wiki`, `/brainstorm`, `/scout`, `/scout:ext` |
+| PLAN | `/plan`, `/plan:hard`, `/plan:validate`, `/plan:status`, `/plan:list`, `/plan:archive` |
+| BUILD | `/code`, `/code:auto` |
+| VERIFY | `/fix`, `/fix:hard`, `/debug`, `/test:ui` |
+| REVIEW | `/review:pr` |
+| SHIP | `/git:cm`, `/git:cp`, `/git:pr` |
+| WIKI | `/wiki:init`, `/wiki:update`, `/wiki:lint` |
+| COMPOUND | `/spec`, `/learn`, `/improve` |
+
+## Agent Topology
+
+25 specialized agents, all prefixed `gd-`. Agents declare a `tier:` in frontmatter; `bin/sync-models` resolves the tier to a concrete Claude model and writes `model:` to each agent file. See [[model-tier-policy]] for the tier mapping.
+
+Key agents and their dispatch sources:
+
+| Agent | Tier | Dispatched by |
+|---|---|---|
+| `gd-planner` | premium | `/plan:hard` (planning skill) |
+| `gd-architect` | premium | `/plan`, `/plan:hard` |
+| `gd-debugger` | premium | `/debug`, `/fix:hard` |
+| `gd-researcher` | standard | `/plan:hard` |
+| `gd-project-manager` | standard | building skill |
+| `gd-tester` | standard | building/fixing skills |
+| `gd-wiki-curator` | standard | `/wiki:update` |
+| `gd-git-manager` | fast | `/git:cm`, `/git:cp`, `/git:pr` |
+| `gd-plan-archiver` | fast | `/plan:archive` |
+
+## Multi-Agent Orchestration
+
+Optional [[claude-flow-integration|Claude Flow]] integration enables parallel agent execution via MCP tools (`swarm_init`, `agent_spawn`, `task_orchestrate`). Claude Flow is an opt-in dependency (`npm i -g claude-flow@alpha`) — the plugin functions without it.
+
+## Path Resolution at Runtime
+
+The `session-init.cjs` hook fires on SessionStart and exports `GD_PLUGIN_PATH` into the session environment. At `npx install/update` time, `bin/cli.js` rewrites `$GD_PLUGIN_PATH` literals in copied `.md` files to project-relative `.claude/...` paths so that subagents (which do not inherit `CLAUDE_ENV_FILE` env vars per Claude Code bug #46696) can still resolve skill and agent references.
+
+## Related Pages
+
+- [[model-tier-policy]] — tier → model assignment system
+- [[wiki-maintainer]] — the `/wiki:*` command suite
+- [[agent-naming-standardization]] — `gd-` prefix decision
+- [[plugin-flat-structure]] — why no `.claude/` wrapper in plugin source

@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "sync": {
+    "main_branch": "main",
+    "last_synced_commit": "ce7ec307330afdc0941e48b71079bdcfc156139c",
+    "last_synced_at": "2026-04-29T14:41:19Z",
+    "stop_paths": [
+      "node_modules/",
+      "dist/",
+      ".next/",
+      "vendor/",
+      ".git/",
+      ".gd-wiki/insights/"
+    ],
+    "auto_index_base": false
+  },
+  "query": {
+    "qmd_collection": "wiki-glassdesk-93bc79f5",
+    "default_n": 5,
+    "min_score": 0.3,
+    "max_tokens": 1000000,
+    "miss_policy": "surface"
+  },
+  "lint": {
+    "stale_days": 60,
+    "warn_unsynced_commits": 20,
+    "min_links_per_page": 1
+  },
+  "models": {
+    "curator": "claude-sonnet-4-6",
+    "deep_lint": "claude-sonnet-4-6",
+    "ask_wiki": "claude-sonnet-4-6"
+  },
+  "obsidian": {
+    "wikilinks": true,
+    "frontmatter_required": [
+      "title",
+      "updated",
+      "tags"
+    ],
+    "use_bases_for_index": true
+  }
+}
