@@ -46,7 +46,7 @@ Commit, push, open PR.
 
 ### 8. COMPOUND
 Session compounding — use after meaningful work sessions.
-- `/learn` — extract insights → `.glassdesk-knowledge/{slug}.md` (local-only, gitignored)
+- `/learn` — extract insights → `.gd-wiki/insights/{YYMMDD}-{slug}.md` (auto-mkdir; committed since v0.3.0)
 - `/improve` — generate gated proposal (`plans/improvements/`); never auto-applied; needs ≥1 `/learn` first
 - Skills: `compounding`
 

@@ -1,0 +1,18 @@
+filters:
+  and:
+    - file.inFolder(".gd-wiki/")
+    - not:
+        - file.hasTag("index")
+
+views:
+  - type: table
+    name: "Wiki Pages by Category"
+    order:
+      - file.name
+      - file.tags
+      - updated
+    sort:
+      - property: updated
+        direction: DESC
+    summaries:
+      file.name: Count

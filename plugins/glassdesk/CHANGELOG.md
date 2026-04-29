@@ -31,6 +31,37 @@
 - `silent-failure-hunter`, `type-design-analyzer`: promoted to opus (premium tier — design/correctness judgment)
 - `/git:pr` command: thinned to delegate to `git-manager` agent (was running entirely in main thread → now haiku via subagent dispatch)
 
+## [0.3.0] — 2026-04-29
+
+### Added
+
+- **Project Wiki Maintainer feature** — 4 new commands: `/wiki:init`, `/wiki:update`, `/wiki:lint`, `/ask:wiki`
+- `wiki` skill with 5 reference docs (maintaining/querying/linting/obsidian-conventions/cost-budget)
+- `gd-wiki-curator` agent (Sonnet, scoped to `.gd-wiki/` only) for incremental wiki upkeep on `main` only
+- Plugin dependency on `obsidian@obsidian-skills` for page authoring + base index files
+- Cross-marketplace dependency allowlist (`obsidian-skills`) in marketplace manifest
+
+### Changed (BREAKING)
+
+- `/learn` now writes ONLY to `.gd-wiki/insights/` (auto-mkdir if missing). `.glassdesk-knowledge/` is no longer read or written
+- `/improve` now scans ONLY `.gd-wiki/insights/`. Old `.glassdesk-knowledge/` entries are ignored
+- Users on v0.2.x who want to retain prior insights must move them manually:
+  ```bash
+  mkdir -p .gd-wiki/insights && git mv .glassdesk-knowledge/*.md .gd-wiki/insights/
+  ```
+
+### Required CLI
+
+- `qmd` CLI (>=2.1.0) — install via `npm i -g @tobilu/qmd`. First `qmd embed` downloads ~2GB of models machine-wide (one-time)
+- `brew install sqlite` recommended on macOS (QMD SQLite extension support)
+- `yq` recommended (used by `/wiki:lint` stale-frontmatter check) — `brew install yq`
+
+### Notes
+
+- Cross-marketplace dependency on `obsidian-skills` is whitelisted via `marketplace.json::allowCrossMarketplaceDependenciesOn`. Manual install fallback documented in `docs/quick-start.md` if auto-resolve fails
+- Static acceptance: 26/27 spec criteria verified at ship time (smoke walkthrough deferred to user, see `plans/260429-1818-wiki-maintainer/reports/smoke-260429-acceptance.md`)
+- Curator boundary post-run check covers BOTH tracked-modified AND untracked files (curator-created paths outside `.gd-wiki/` are `rm`'d, not just `git checkout`'d)
+
 ## [0.2.1] - 2026-04-27
 
 ### Changed

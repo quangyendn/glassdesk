@@ -4,9 +4,10 @@ How to generate a self-improvement proposal from accumulated knowledge entries.
 
 ## Gate Check (required before generating)
 
-1. Scan `.glassdesk-knowledge/` for existing entries
-2. If zero entries found: **STOP** — inform user to run `/learn` first
-3. If ≥1 entry found: proceed
+1. `mkdir -p .gd-wiki/insights` (normalizes empty case to `0 files` not `directory not found`)
+2. Scan `.gd-wiki/insights/` for existing entries
+3. If zero entries found: **STOP** — inform user to run `/learn` first
+4. If ≥1 entry found: proceed
 
 ## Scope Flags
 
@@ -32,7 +33,7 @@ plans/improvements/{YYMMDD}-{slug}-proposal.md
 ---
 date: YYYY-MM-DD
 scope: plugin | project
-based-on: [.glassdesk-knowledge/YYMMDD-slug.md, ...]
+based-on: [.gd-wiki/insights/YYMMDD-slug.md, ...]
 status: draft
 ---
 
@@ -78,4 +79,4 @@ status: draft
 - **NEVER auto-apply** — the proposal file is the final output; the user applies manually
 - Each diff block must be a valid unified diff (proper `---`/`+++`/`@@` headers)
 - Limit to ≤5 proposed changes per proposal — quality over quantity
-- Reference the specific `.glassdesk-knowledge/` entries that drove each change
+- Reference the specific `.gd-wiki/insights/` entries that drove each change
