@@ -6,6 +6,7 @@
   "owner": {
     "name": "glassdesk contributors"
   },
+  "allowCrossMarketplaceDependenciesOn": ["obsidian-skills"],
   "plugins": [
     {
       "name": "glassdesk",

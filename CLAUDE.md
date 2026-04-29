@@ -4,20 +4,22 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Slash Commands
 
-Available commands in `.claude/commands/` — 23 total:
+Available commands in `.claude/commands/` — 27 total:
 
 | Phase | Commands |
 |-------|----------|
-| **DISCOVER** | `/ask`, `/brainstorm`, `/scout`, `/scout:ext` |
+| **DISCOVER** | `/ask`, `/ask:wiki`, `/brainstorm`, `/scout`, `/scout:ext` |
 | **PLAN** | `/plan`, `/plan:hard`, `/plan:validate`, `/plan:status`, `/plan:list`, `/plan:archive` |
 | **BUILD** | `/code`, `/code:auto` |
 | **VERIFY** | `/fix`, `/fix:hard`, `/debug`, `/test:ui` |
 | **REVIEW** | `/review:pr` |
 | **SHIP** | `/git:cm`, `/git:cp`, `/git:pr` |
+| **WIKI** | `/wiki:init`, `/wiki:update`, `/wiki:lint` |
 | **COMPOUND** | `/spec`, `/learn`, `/improve` |
 
 ### DISCOVER
 - `/ask` - Smart question command with context
+- `/ask:wiki` - Query the project wiki (`.gd-wiki/`) via QMD for grounded answers
 - `/brainstorm` - Ideation and creative exploration
 - `/scout` - Explore codebase structure
 - `/scout:ext` - Use external agentic tools for scouting
@@ -48,9 +50,14 @@ Available commands in `.claude/commands/` — 23 total:
 - `/git:cp` - Stage, commit, and push current branch
 - `/git:pr` - Create a pull request
 
+### WIKI
+- `/wiki:init` - Bootstrap `.gd-wiki/` Obsidian-flavored vault, register QMD collection, run first embed
+- `/wiki:update` - Distill new commits since last sync into wiki pages (main branch only)
+- `/wiki:lint` - Deterministic checks (broken links, orphans, stale frontmatter); `--deep` runs LLM contradiction sweep
+
 ### COMPOUND
 - `/spec` - Formalize a brainstorm into a spec document in `docs/specs/`
-- `/learn` - Extract and persist insights from the current session to `.glassdesk-knowledge/`
+- `/learn` - Extract and persist insights from the current session to `.gd-wiki/insights/`
 - `/improve` - Generate an improvement proposal from knowledge entries (never auto-applied)
 
 ## Skills

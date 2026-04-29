@@ -1,11 +1,14 @@
 {
   "name": "glassdesk",
-  "description": "23 SDLC-phased commands, specialized agents, compound-engineering primitives",
-  "version": "0.2.1",
+  "description": "27 SDLC-phased commands, specialized agents, compound-engineering primitives, project wiki maintainer",
+  "version": "0.3.0",
   "author": {
     "name": "glassdesk contributors"
   },
   "license": "ISC",
+  "dependencies": [
+    { "name": "obsidian", "marketplace": "obsidian-skills" }
+  ],
   "keywords": [
     "sdlc",
     "planning",
@@ -15,6 +18,10 @@
     "improve",
     "code-review",
     "debugging",
-    "workflow-automation"
+    "workflow-automation",
+    "wiki",
+    "knowledge-base",
+    "qmd-search",
+    "obsidian-markdown"
   ]
 }

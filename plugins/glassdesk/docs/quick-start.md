@@ -1,6 +1,6 @@
 # Glassdesk Quick Start
 
-5-minute setup guide for the glassdesk plugin — 23 SDLC-phased commands.
+5-minute setup guide for the glassdesk plugin — 27 SDLC-phased commands.
 
 ## Installation
 
@@ -8,7 +8,7 @@
 claude plugin install glassdesk
 ```
 
-Verify: start `claude` and type `/` — you should see all 23 commands.
+Verify: start `claude` and type `/` — you should see all 27 commands.
 
 ## SDLC Pipeline
 
@@ -35,12 +35,13 @@ DISCOVER → PLAN → BUILD → VERIFY → REVIEW → SHIP → COMPOUND
 
 | Phase | Commands |
 |-------|----------|
-| **DISCOVER** | `/ask`, `/brainstorm`, `/scout`, `/scout:ext` |
+| **DISCOVER** | `/ask`, `/ask:wiki`, `/brainstorm`, `/scout`, `/scout:ext` |
 | **PLAN** | `/plan`, `/plan:hard`, `/plan:validate`, `/plan:status`, `/plan:list`, `/plan:archive` |
 | **BUILD** | `/code`, `/code:auto` |
 | **VERIFY** | `/fix`, `/fix:hard`, `/debug`, `/test:ui` |
 | **REVIEW** | `/review:pr` |
 | **SHIP** | `/git:cm`, `/git:cp`, `/git:pr` |
+| **WIKI** | `/wiki:init`, `/wiki:update`, `/wiki:lint` |
 | **COMPOUND** | `/spec`, `/learn`, `/improve` |
 
 ## Compound Engineering
@@ -59,6 +60,29 @@ bash plugins/glassdesk/bin/migrate-glassdesk-v0.2.sh
 
 Full mapping: [docs/migration-v0.2.md](migration-v0.2.md)
 
+## Wiki Maintainer Setup (v0.3.0+)
+
+The `/wiki:*` commands depend on:
+
+1. **Obsidian skills plugin** (auto-resolved via `dependencies`):
+   ```bash
+   /plugin marketplace add kepano/obsidian-skills
+   /plugin install obsidian@obsidian-skills    # if not auto-installed
+   ```
+
+2. **QMD CLI** (host-level prerequisite, ~2GB models on first embed):
+   ```bash
+   npm i -g @tobilu/qmd      # requires Node >=22 or Bun >=1.0
+   qmd --version             # verify >= 2.1.0
+   ```
+
+3. **macOS only** — SQLite extension support:
+   ```bash
+   brew install sqlite
+   ```
+
+Run `/wiki:init` to bootstrap `.gd-wiki/` in your project.
+
 ## Dependencies
 
 **Required:** Node.js 18+, Git
@@ -71,3 +95,4 @@ Full mapping: [docs/migration-v0.2.md](migration-v0.2.md)
 | Media Processing | `brew install ffmpeg imagemagick && npm i -g rmbg-cli` |
 | External Scouts | `npm i -g @anthropic/gemini-cli` |
 | Parallel Agents | `npm i -g claude-flow@alpha` |
+| Wiki Maintainer | `npm i -g @tobilu/qmd` (>=2.1.0) + `brew install sqlite` (macOS) |
