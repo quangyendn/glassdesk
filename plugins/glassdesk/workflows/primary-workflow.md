@@ -15,11 +15,15 @@ Formalize brainstorm/discovery output into a spec document.
 - Skills: `brainstorming`
 
 ### 3. PLAN
-Create implementation plan from spec or task.
-- `/plan` (fast), `/plan:hard` (deep + research)
+Create implementation plan from spec or task. Input modes:
+- Bare `/plan` → auto-detects latest spec in `docs/specs/`, confirms with user, proceeds
+- `/plan <spec-path>` → loads that spec directly (no confirm)
+- `/plan <task description>` → free-text mode (no spec)
+- Path-like arg pointing at a missing file → clear error (no silent fallback)
+- `/plan` (fast), `/plan:hard` (deep + research) — both share input resolution
 - Lifecycle: `/plan:validate`, `/plan:list`, `/plan:status`, `/plan:archive`
 - Plans saved to `./plans/{YYMMDD-HHmm-slug}/`
-- Skills: `planning`
+- Skills: `planning` (Step 0 = Input Resolution)
 
 ### 4. BUILD
 Execute the plan.

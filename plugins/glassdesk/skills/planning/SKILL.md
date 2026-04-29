@@ -23,6 +23,10 @@ Use this skill when:
 Always honoring **YAGNI**, **KISS**, and **DRY** principles.
 **Be honest, be brutal, straight to the point, and be concise.**
 
+### 0. Input Resolution (pre-flight)
+Load: `references/input-resolution.md`
+**Runs BEFORE** Pre-Creation Check. Resolves `$ARGUMENTS` into either a spec path or task text via `scripts/resolve-spec-input.cjs`. Inherited by both `/plan` and `/plan:hard` (and any future `/plan:*` variants) — DO NOT duplicate the decision tree in command files.
+
 ### 1. Research & Analysis
 Load: `references/research-phase.md`
 **Skip if:** Provided with researcher reports
@@ -42,11 +46,12 @@ Load: `references/output-standards.md`
 
 ## Workflow Process
 
+0. **Input Resolution** → Run Step 0 (`references/input-resolution.md`); produces `input_kind` + spec path or task text
 1. **Initial Analysis** → Read codebase docs, understand context
 2. **Research Phase** → Spawn researchers, investigate approaches
 3. **Synthesis** → Analyze reports, identify optimal solution
 4. **Design Phase** → Create architecture, implementation design
-5. **Plan Documentation** → Dispatch `gd-planner` agent (premium tier) to write `plan.md` + phase files
+5. **Plan Documentation** → Dispatch `gd-planner` agent (premium tier) to write `plan.md` + phase files. For `input_kind == "spec"`, pass the spec **path** (not inline content) so the planner reads it directly.
 6. **Review & Refine** → Ensure completeness, clarity, actionability
 
 ### Orchestrate-only main thread
