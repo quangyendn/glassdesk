@@ -1,6 +1,6 @@
 # Glassdesk Plugin
 
-23 SDLC-phased commands, specialized agents, and compound-engineering primitives for Claude Code.
+27 SDLC-phased commands, specialized agents, compound-engineering primitives, and a project wiki maintainer for Claude Code.
 
 ## Overview
 
@@ -44,7 +44,7 @@ claude plugin list
 Three commands that make glassdesk self-improving:
 
 - **`/spec [topic]`** — run after `/brainstorm` to write a formal spec to `docs/specs/`
-- **`/learn`** — after a session, extract insights into `.glassdesk-knowledge/` (gitignored, local-only)
+- **`/learn`** — after a session, extract insights into `.gd-wiki/insights/` (auto-mkdir; no `/wiki:init` required; committed alongside the wiki since v0.3.0)
 - **`/improve [--plugin|--project]`** — reads knowledge entries, proposes diffs to `plans/improvements/` — **never auto-applied**
 
 ## Agents (17)

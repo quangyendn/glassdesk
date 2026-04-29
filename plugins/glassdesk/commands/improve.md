@@ -10,7 +10,7 @@ Load 'references/improve-proposal.md'.
 <scope>$ARGUMENTS</scope>
 
 Follow the proposal workflow:
-1. **Gate** — scan `.glassdesk-knowledge/`; if empty, stop and ask user to run `/learn` first
+1. **Gate** — `mkdir -p .gd-wiki/insights` (normalizes empty case to `0 files` not `directory not found`), then scan `.gd-wiki/insights/`; if empty, stop and ask user to run `/learn` first
 2. **Analyze** — read existing entries; identify improvement themes for the given scope
 3. **Write** — generate proposal to `plans/improvements/{YYMMDD}-{slug}-proposal.md`
 

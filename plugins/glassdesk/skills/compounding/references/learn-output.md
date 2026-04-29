@@ -5,10 +5,11 @@ How to write a knowledge base entry after extracting session insights.
 ## Destination
 
 ```
-.glassdesk-knowledge/{YYMMDD}-{slug}.md
+.gd-wiki/insights/{YYMMDD}-{slug}.md
 ```
 
-- Hidden directory — gitignored, never committed
+- Auto-mkdir on every `/learn` invocation — no `/wiki:init` prerequisite
+- Committed alongside the wiki vault (since v0.3.0); previously gitignored under `.glassdesk-knowledge/` (dropped, no compat read)
 - One file per session (not per insight)
 - Date = session date (today if running same day, else use session timestamp)
 - Slug = 3-5 word kebab-case summary of the session topic
@@ -49,8 +50,8 @@ Repeat `### {Insight title}` block for each insight (max 5).
 
 ## Rules
 
-- NEVER write to `docs/`, `plans/`, or any tracked file
+- NEVER write to `docs/`, `plans/`, or any tracked file outside `.gd-wiki/insights/`
 - NEVER include file contents, credentials, or tool_result data
-- NEVER create `.glassdesk-knowledge/` if it doesn't exist yet — run `mkdir -p .glassdesk-knowledge` first
+- ALWAYS run `mkdir -p .gd-wiki/insights` before writing — auto-create is the contract
 - Keep entries terse — each insight body ≤3 sentences
-- If `.glassdesk-knowledge/` is missing from `.gitignore`, append it before writing
+- `.gd-wiki/insights/` IS committed (curator skips it; `/learn` owns it)

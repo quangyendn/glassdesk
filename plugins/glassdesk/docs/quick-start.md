@@ -49,7 +49,7 @@ DISCOVER → PLAN → BUILD → VERIFY → REVIEW → SHIP → COMPOUND
 Three commands that make glassdesk self-improving:
 
 - **`/spec [topic]`** — run after `/brainstorm` to write a formal spec to `docs/specs/`
-- **`/learn`** — after a session, extract insights into `.glassdesk-knowledge/` (gitignored, local-only)
+- **`/learn`** — after a session, extract insights into `.gd-wiki/insights/` (auto-mkdir; no `/wiki:init` required; committed alongside the wiki since v0.3.0). See "Wiki Maintainer Setup" above for the broader vault.
 - **`/improve [--plugin|--project]`** — reads knowledge entries, proposes diffs to `plans/improvements/` — **never auto-applied**
 
 ## Migrating from v0.1.x
