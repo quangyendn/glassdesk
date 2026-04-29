@@ -83,6 +83,50 @@ The `/wiki:*` commands depend on:
 
 Run `/wiki:init` to bootstrap `.gd-wiki/` in your project.
 
+### Wiki Maintainer Walkthrough
+
+```bash
+# 1. Bootstrap the vault (one-time per project)
+$ /wiki:init
+[pre-flight] qmd 2.1.x detected
+[pre-flight] sqlite present (macOS)
+[init] created .gd-wiki/{architecture,features,decisions,risks,manual,insights,index}
+[init] wrote .gd-wiki/.config.json (collection: wiki-<project-slug>)
+[init] registered QMD collection: wiki-<project-slug>
+First qmd embed will download ~2GB of models (one-time, machine-wide). Proceed? [Y/n] Y
+[embed] complete
+
+# 2. Seed a page (manual edit), commit, then sync
+$ vim .gd-wiki/architecture/plugin-overview.md   # write a page with frontmatter
+$ git add .gd-wiki/ && git commit -m "wiki: seed architecture/plugin-overview"
+
+# 3. After future merges on main, distill new commits into wiki
+$ /wiki:update
+[pre-flight] on main, last_synced ${SHA1:0:8} reachable, diff non-empty
+[budget] estimated 4_200 tokens (max 1_000_000)
+[curator] dispatched gd-wiki-curator (sonnet)
+✓ Edited:  .gd-wiki/features/auth-flow.md   — added OAuth provider section
+✓ Created: .gd-wiki/decisions/redis-cache.md — captured Redis vs in-memory choice
+[reindex] qmd update -c wiki-<slug> + qmd embed
+[pointer] sync.last_synced_commit → ${SHA2:0:8}
+
+# 4. Query the wiki
+$ /ask:wiki "what is the gd-wiki-curator agent for?"
+The gd-wiki-curator agent distills git diffs into wiki page edits, scoped strictly
+to `.gd-wiki/` [.gd-wiki/architecture/plugin-overview.md:42]. It runs as a Sonnet
+subagent invoked by `/wiki:update` and respects `<!-- manual -->` blocks.
+
+Related pages:
+- .gd-wiki/architecture/plugin-overview.md
+- .gd-wiki/features/wiki-maintainer.md
+
+# 5. Audit periodically
+$ /wiki:lint
+Wrote plans/reports/wiki-lint-260501-1430.md — 0 issues found.
+```
+
+See `plugins/glassdesk/skills/wiki/SKILL.md` for the storage contract, decision tree, and curator boundaries.
+
 ## Dependencies
 
 **Required:** Node.js 18+, Git

@@ -52,8 +52,15 @@
 
 ### Required CLI
 
-- `qmd` CLI (>=2.1.0) — install via `npm i -g @tobilu/qmd`
+- `qmd` CLI (>=2.1.0) — install via `npm i -g @tobilu/qmd`. First `qmd embed` downloads ~2GB of models machine-wide (one-time)
 - `brew install sqlite` recommended on macOS (QMD SQLite extension support)
+- `yq` recommended (used by `/wiki:lint` stale-frontmatter check) — `brew install yq`
+
+### Notes
+
+- Cross-marketplace dependency on `obsidian-skills` is whitelisted via `marketplace.json::allowCrossMarketplaceDependenciesOn`. Manual install fallback documented in `docs/quick-start.md` if auto-resolve fails
+- Static acceptance: 26/27 spec criteria verified at ship time (smoke walkthrough deferred to user, see `plans/260429-1818-wiki-maintainer/reports/smoke-260429-acceptance.md`)
+- Curator boundary post-run check covers BOTH tracked-modified AND untracked files (curator-created paths outside `.gd-wiki/` are `rm`'d, not just `git checkout`'d)
 
 ## [0.2.1] - 2026-04-27
 
