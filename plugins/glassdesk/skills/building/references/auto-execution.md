@@ -10,9 +10,9 @@ After each phase completes (all gates passed):
 ## Finalize Step (Step 5 for code:auto)
 
 Run in parallel:
-1. `project-manager` subagent: "Update plan status in [plan-path]. Mark [phase-name] as DONE with timestamp."
-2. `docs-manager` subagent: "Update docs for [phase-name]. Changed files: [list]."
-3. `git-manager` subagent: auto-stage + commit with message "[phase] - [plan]"
+1. `gd-project-manager` subagent: "Update plan status in [plan-path]. Mark [phase-name] as DONE with timestamp."
+2. `gd-docs-manager` subagent: "Update docs for [phase-name]. Changed files: [list]."
+3. `gd-git-manager` subagent: auto-stage + commit with message "[phase] - [plan]"
 
 Commit only if: all steps 1-4 successful + tests passed.
 

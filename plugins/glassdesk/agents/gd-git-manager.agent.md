@@ -1,5 +1,5 @@
 ---
-name: git-manager
+name: gd-git-manager
 description: Stage files, write commit messages from git diff, push to remote, and create PRs from branch diff. Use for /git:cm (stage + commit), /git:cp (stage + commit + push), and /git:pr (create pull request) commands.
 tools: Bash, BashOutput, Read, Grep, Glob
 tier: fast

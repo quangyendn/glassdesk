@@ -1,5 +1,5 @@
 ---
-name: planner
+name: gd-planner
 description: |
   Synthesize research reports + spec into a structured implementation
   plan. Used by `/plan:hard` after researchers complete. Produces

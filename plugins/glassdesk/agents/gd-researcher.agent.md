@@ -1,5 +1,5 @@
 ---
-name: researcher
+name: gd-researcher
 description: Conducts deep research on technical topics for implementation decisions. Use for investigating technologies, patterns, and approaches.
 tools: Glob, Grep, Read, Write, WebFetch, WebSearch, TodoWrite
 tier: standard

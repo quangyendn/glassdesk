@@ -3,7 +3,7 @@ description: Create a pull request
 argument-hint: [to-branch] [from-branch]
 ---
 
-Use `git-manager` agent to create a pull request.
+Use `gd-git-manager` agent to create a pull request.
 
 Pass:
 - `TO_BRANCH`: $1 (default `main`)

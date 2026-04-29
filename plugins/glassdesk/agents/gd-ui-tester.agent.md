@@ -1,5 +1,5 @@
 ---
-name: ui-tester
+name: gd-ui-tester
 description: |
   Browser-automation UI testing. Visit URL, exercise flows, capture
   screenshots + console logs, generate detailed report. Used by

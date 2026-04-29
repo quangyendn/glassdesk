@@ -25,10 +25,10 @@ Missing marker = step INCOMPLETE.
 
 | Step | code.md | code:auto |
 |------|---------|-----------|
-| 3 | `tester` | `tester` |
-| 4 | `code-reviewer` | `code-reviewer` |
-| 5 (code) | `project-manager` + `docs-manager` | — |
-| 5 (auto) | — | `project-manager` + `docs-manager` + `git-manager` |
+| 3 | `gd-tester` | `gd-tester` |
+| 4 | `gd-code-reviewer` | `gd-code-reviewer` |
+| 5 (code) | `gd-project-manager` + `gd-docs-manager` | — |
+| 5 (auto) | — | `gd-project-manager` + `gd-docs-manager` + `gd-git-manager` |
 
 Steps 5 agents MUST run in parallel.
 
@@ -39,7 +39,7 @@ Steps 5 agents MUST run in parallel.
 | Step 3 | Tests = 100% passing (no exceptions) |
 | Step 4 | Critical issues = 0 |
 | Step 5 (code.md) | User must explicitly approve in writing |
-| Step 5 (auto) | `project-manager` AND `docs-manager` must complete successfully |
+| Step 5 (auto) | `gd-project-manager` AND `gd-docs-manager` must complete successfully |
 
 ## Testing Standards
 
