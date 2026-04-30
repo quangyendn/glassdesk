@@ -2,6 +2,7 @@
 .claude-flow
 .serena
 plans
+docs/specs
 docs/superpowers
 
 settings.local.json
@@ -25,4 +26,3 @@ website/dist/
 website/.astro/
 website/.vercel/
 .vercel/
-
