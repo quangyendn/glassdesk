@@ -33,6 +33,20 @@ Follow `planning` skill output standards (`references/output-standards.md`).
 4. **Write `plan.md`**: required frontmatter, phases table, acceptance criteria, locked constraints
 5. **Write phase files**: 1 per phase, sections: Context links, Overview, Insights, Requirements, Architecture, Files, Steps, Todos, Success, Risks, Next
 
+### Phases Table — Required Schema
+
+The phases table in `plan.md` MUST use exactly these columns, in this order, so that `gd-project-manager` finalize mode can tick row status:
+
+```
+| # | Phase | Status | Effort | Link |
+|---|-------|--------|-------:|------|
+| 01 | <name> | Pending | <Xh> | [phase-01](./phase-01-<slug>.md) |
+```
+
+- **Status** values: `Pending` | `In Progress` | `Done` | `Blocked` | `Cancelled`. Always start as `Pending`.
+- Do NOT replace `Status` with `Outputs`, `Notes`, or any other column — phase-level outputs belong in the per-phase file, not the overview table.
+- See `planning` skill `references/plan-organization.md` for canonical example.
+
 ## Output Format
 
 Files written to provided plan-dir path. Confirmation message:
