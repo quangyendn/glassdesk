@@ -1,8 +1,8 @@
 ---
 title: "Planning"
-updated: 2026-04-29
+updated: 2026-05-01
 tags: [category/feature, planning, agents, skill]
-summary: "The planning feature provides research-driven implementation plan creation via /plan and /plan:hard, with structured phase decomposition and YAGNI/KISS/DRY principles."
+summary: "The planning feature provides research-driven implementation plan creation via /plan and /plan:hard, with structured phase decomposition, spec auto-detection, and YAGNI/KISS/DRY principles."
 ---
 
 The planning feature creates structured, phased implementation plans via `/plan` (fast, no research) and `/plan:hard` (full research with parallel agents).
@@ -31,6 +31,19 @@ plans/
 └── reports/                 # Standalone reports
 ```
 
+## Spec→Plan Auto-Detection (Step 0)
+
+Both `/plan` and `/plan:hard` run `resolve-spec-input.cjs` as Step 0 before any other planning step. The resolver inspects `$ARGUMENTS` and `docs/specs/` and returns one of four modes:
+
+| Mode | Trigger | Behavior |
+|---|---|---|
+| `spec` | Arg is a valid file path | Use that spec directly; skip confirmation |
+| `spec-confirm` | No arg, latest spec auto-detected | Show confirmation prompt (Y / n / other path) |
+| `task` | No arg, no spec found | Ask user for free-text task description |
+| `error` | Arg looks like a path but file missing | Abort with message; do NOT silently fall back to task mode |
+
+After Step 0 resolves, planning proceeds with either `spec_path` or `task_text` as input. Spec path is passed to `gd-planner` as a file reference (not inline content) to avoid context bloat.
+
 ## Agent Dispatch
 
 `/plan:hard` dispatches three agents in sequence:
@@ -51,6 +64,6 @@ When no path argument is given, `/plan:archive` archives ONLY plans with `status
 
 ## Related Pages
 
-- [[building]] — phase-by-phase execution of plans
+- [[building]] — phase-by-phase execution of plans, including gd-implementer (Step 2)
 - [[model-tier-policy]] — why planner is premium (Opus) tier
 - [[ghost-agent-resolution]] — how planner, debugger, project-manager, tester were added
