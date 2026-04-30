@@ -12,6 +12,7 @@ Claude Code hooks for automated reminders and workflow enhancements.
 Sets these environment variables:
 - `GD_SESSION_ID` - Unique session identifier (always regenerated per session)
 - `GD_PLUGIN_PATH` - Absolute path to plugin installation. **First-writer-wins** — preserves existing value to avoid dual-install collision (marketplace plugin + npx install both register a SessionStart hook).
+- `GD_SERENA_AVAILABLE` - `"1"` if Serena MCP plugin is enabled, `"0"` otherwise. Detected via `~/.claude/settings.json` `enabledPlugins` (loose match `/^serena@/`) with `claude plugin list --json` fallback (3s timeout). When `"0"`, a one-shot install hint is printed to stdout (auto-injected as session context). Skills and commands gate "prefer Serena" routing on this flag.
 
 Creates session temp file at `/tmp/gd-session-{id}.json`.
 

@@ -17,7 +17,7 @@
 
 const crypto = require('crypto');
 const path = require('path');
-const { writeEnv, writeSessionState } = require('./lib/gd-config-utils.cjs');
+const { writeEnv, writeSessionState, detectSerena, buildSerenaHint } = require('./lib/gd-config-utils.cjs');
 
 const envFile = process.env.CLAUDE_ENV_FILE;
 
@@ -49,5 +49,15 @@ writeSessionState(sessionId, {
   activePlan: null,
   timestamp: Date.now()
 });
+
+// ───────── Serena MCP detection (non-blocking) ─────────
+// Sets GD_SERENA_AVAILABLE=1|0 for skill/command conditional logic.
+// Prints one-shot install hint to stdout when 0 (auto-injected as session context).
+let serenaActive = false;
+try { serenaActive = detectSerena(); } catch (_) { serenaActive = false; }
+writeEnv(envFile, 'GD_SERENA_AVAILABLE', serenaActive ? '1' : '0');
+if (!serenaActive) {
+  console.log(buildSerenaHint());
+}
 
 process.exit(0);

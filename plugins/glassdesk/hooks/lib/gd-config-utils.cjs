@@ -506,6 +506,64 @@ function writeEnv(envFile, key, value) {
 }
 
 /**
+ * Detect whether Serena MCP plugin is enabled.
+ *
+ * Detection chain (fastest first):
+ *   1. ~/.claude/settings.json `enabledPlugins` — loose match /^serena@/
+ *   2. `claude plugin list --json` subprocess — 3s timeout
+ *   3. Fall back to false (treat as unavailable)
+ *
+ * MUST NOT throw. Detection failure = not available.
+ *
+ * @returns {boolean} True if Serena plugin is enabled, false otherwise.
+ */
+function detectSerena() {
+  // Tier 1: settings.json (fast, authoritative for "enabled")
+  try {
+    const settingsPath = path.join(os.homedir(), '.claude', 'settings.json');
+    if (fs.existsSync(settingsPath)) {
+      const cfg = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+      const enabled = cfg.enabledPlugins || {};
+      for (const key of Object.keys(enabled)) {
+        if (/^serena@/.test(key) && enabled[key] === true) return true;
+      }
+    }
+  } catch (_) { /* fall through */ }
+
+  // Tier 2: CLI fallback (slower; tolerates schema drift)
+  try {
+    const out = require('child_process')
+      .execSync('claude plugin list --json', {
+        timeout: 3000,
+        stdio: ['ignore', 'pipe', 'ignore'],
+      })
+      .toString();
+    const list = JSON.parse(out);
+    const arr = Array.isArray(list) ? list : (list && list.plugins) || [];
+    return arr.some(p => p && /serena/i.test(p.name || '') && p.enabled !== false);
+  } catch (_) { /* fall through */ }
+
+  // Tier 3: assume not available
+  return false;
+}
+
+/**
+ * Build the one-shot install hint printed to SessionStart stdout.
+ * Plain text, ≤500 chars, ≤10 lines. Auto-injected as Claude session context.
+ *
+ * @returns {string} Hint message.
+ */
+function buildSerenaHint() {
+  return [
+    '[glassdesk] Tip: Serena MCP not detected. Symbol-aware tools cut code-work tokens 50–90%.',
+    '  Install:  /plugin install serena@claude-plugins-official',
+    '  (If marketplace missing:  /plugin marketplace add anthropics/claude-plugins-official  then retry)',
+    '  Onboarding (one-time per project): user-triggered on first symbol-tool call.',
+    '  Reference: ${CLAUDE_PLUGIN_ROOT}/docs/serena-preference.md',
+  ].join('\n');
+}
+
+/**
  * Get reports path based on plan resolution
  * Only uses plan-specific path for 'session' resolved plans (explicitly active)
  * Branch-matched (suggested) plans use default path to avoid pollution
@@ -690,6 +748,8 @@ module.exports = {
   sanitizeConfig,
   escapeShellValue,
   writeEnv,
+  detectSerena,
+  buildSerenaHint,
   getSessionTempPath,
   readSessionState,
   writeSessionState,
