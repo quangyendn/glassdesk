@@ -1,0 +1,62 @@
+---
+import { getCollection } from "astro:content";
+
+const all = await getCollection("wiki");
+
+type Item = { slug: string; title: string };
+const groups = new Map<string, Item[]>();
+
+for (const e of all) {
+  const slug = e.id.replace(/\.md$/, "");
+  const parts = slug.split("/");
+  const top = parts.length > 1 ? (parts[0] ?? "_root") : "_root";
+  if (!groups.has(top)) groups.set(top, []);
+  groups.get(top)!.push({ slug, title: e.data.title });
+}
+
+for (const arr of groups.values()) {
+  arr.sort((a, b) => a.title.localeCompare(b.title));
+}
+
+const folderOrder = [
+  "architecture",
+  "features",
+  "decisions",
+  "risks",
+  "insights",
+  "manual",
+  "_root",
+];
+
+const sortedGroups = [...groups.entries()].sort(([a], [b]) => {
+  const ia = folderOrder.indexOf(a);
+  const ib = folderOrder.indexOf(b);
+  return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+});
+
+const folderLabel = (f: string) => (f === "_root" ? "Overview" : f);
+
+const { current } = Astro.props as { current?: string };
+---
+
+<nav class="docs-sidebar" aria-label="Sidebar">
+  {
+    sortedGroups.map(([folder, items]) => (
+      <section aria-labelledby={`grp-${folder}`}>
+        <h3 id={`grp-${folder}`}>{folderLabel(folder)}</h3>
+        <ul>
+          {items.map((i) => (
+            <li>
+              <a
+                href={`/docs/${i.slug}`}
+                aria-current={current === i.slug ? "page" : undefined}
+              >
+                {i.title}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </section>
+    ))
+  }
+</nav>

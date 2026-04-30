@@ -1,0 +1,14 @@
+---
+const { slug, title } = Astro.props as { slug: string; title: string };
+const parts = slug.split("/");
+const folder = parts.length > 1 ? parts[0] : null;
+---
+
+<nav class="breadcrumb" aria-label="Breadcrumb">
+  <ol>
+    <li><a href="/">Home</a></li>
+    <li><a href="/docs/architecture/plugin-system">Docs</a></li>
+    {folder && <li>{folder}</li>}
+    <li aria-current="page">{title}</li>
+  </ol>
+</nav>

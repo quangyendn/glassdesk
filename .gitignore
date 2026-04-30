@@ -18,3 +18,11 @@ __pycache__/
 
 # Session knowledge base (personal, not shared)
 .glassdesk-knowledge/
+
+# Astro / Vercel website build artefacts
+website/node_modules/
+website/dist/
+website/.astro/
+website/.vercel/
+.vercel/
+

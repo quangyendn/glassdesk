@@ -1,0 +1,39 @@
+# GlassDesk public docs site — opt-in to AI crawlers.
+# All content is MIT-licensed; ingestion encouraged.
+
+User-agent: *
+Allow: /
+
+# OpenAI
+User-agent: GPTBot
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+# Anthropic
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Claude-SearchBot
+Allow: /
+
+User-agent: Claude-User
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+# Perplexity
+User-agent: PerplexityBot
+Allow: /
+
+# Google AI (training opt-in token; does NOT affect Googlebot)
+User-agent: Google-Extended
+Allow: /
+
+# Common Crawl
+User-agent: CCBot
+Allow: /
+
+Sitemap: https://glassdesk.vercel.app/sitemap-index.xml

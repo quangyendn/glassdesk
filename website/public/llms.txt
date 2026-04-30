@@ -1,0 +1,31 @@
+# GlassDesk
+
+> Agentic SDLC plugin for Claude Code — slash commands, skills, and agents covering DISCOVER → PLAN → BUILD → VERIFY → REVIEW → SHIP, with `.gd-wiki/` as living project memory.
+
+GlassDesk is a Claude Code plugin distributed under MIT. It installs 27 slash commands and 11 skills. Source: https://github.com/quangyendn/glassdesk
+
+## Documentation
+
+- [Architecture — plugin system](https://glassdesk.vercel.app/docs/architecture/plugin-system): how plugin discovery, registration, and command resolution work
+- [Feature — planning](https://glassdesk.vercel.app/docs/features/planning): `/plan` and `/plan:hard` workflow and phase decomposition
+- [Feature — building](https://glassdesk.vercel.app/docs/features/building): phase-by-phase plan execution with verification gates
+- [Feature — debugging and fixing](https://glassdesk.vercel.app/docs/features/debugging-and-fixing): `/debug`, `/fix`, `/fix:hard`
+- [Feature — code review](https://glassdesk.vercel.app/docs/features/code-review): subagent-driven review and verification gates
+- [Feature — wiki maintainer](https://glassdesk.vercel.app/docs/features/wiki-maintainer): `.gd-wiki/` distillation and querying
+- [Feature — compounding](https://glassdesk.vercel.app/docs/features/compounding): `/learn` and `/improve` for session-extracted insights
+- [Feature — scouting](https://glassdesk.vercel.app/docs/features/scouting): `/scout` and `/scout:ext` codebase exploration
+- [Feature — AI multimodal](https://glassdesk.vercel.app/docs/features/ai-multimodal): image/video/audio via Gemini
+- [Feature — media processing](https://glassdesk.vercel.app/docs/features/media-processing): FFmpeg / ImageMagick pipeline
+- [Decision — plugin flat structure](https://glassdesk.vercel.app/docs/decisions/plugin-flat-structure): why plugin source omits the `.claude/` wrapper
+- [Decision — model tier policy](https://glassdesk.vercel.app/docs/decisions/model-tier-policy): which agents run on Opus / Sonnet / Haiku and why
+- [Decision — agent naming standardization](https://glassdesk.vercel.app/docs/decisions/agent-naming-standardization): the `gd-` prefix convention
+- [Decision — claude-flow integration](https://glassdesk.vercel.app/docs/decisions/claude-flow-integration): parallel agent orchestration
+- [Decision — gd-wiki vault adoption](https://glassdesk.vercel.app/docs/decisions/gd-wiki-vault-adoption): why Obsidian-flavoured Markdown
+- [Full content](https://glassdesk.vercel.app/llms-full.txt): concatenated Markdown of all docs pages
+
+## Optional
+
+- [Risk — plugin double-nesting trap](https://glassdesk.vercel.app/docs/risks/plugin-double-nesting-trap): the `.claude/` wrapper anti-pattern
+- [Risk — Serena MCP enforcement](https://glassdesk.vercel.app/docs/risks/serena-mcp-enforcement): the PreToolUse hook that blocks built-in code edits
+- [Risk — wiki curator boundary escape](https://glassdesk.vercel.app/docs/risks/wiki-curator-boundary-escape): bounds on the curator's edit scope
+- [Risk — model tier drift](https://glassdesk.vercel.app/docs/risks/model-tier-drift): keeping agent → tier mappings honest
