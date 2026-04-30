@@ -1,7 +1,7 @@
 .swarm
 .claude-flow
 .serena
-plans
+plans/
 docs/specs
 docs/superpowers
 
