@@ -1,4 +1,5 @@
 ---
+title: gd-implementer rollout — execution-time learnings
 date: 2026-05-01
 session: d8799c9a-6572-43ad-a1eb-41f25656c143
 tags: [building, plan-execution, wiki, git, agents]
