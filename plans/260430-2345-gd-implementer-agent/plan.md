@@ -1,7 +1,8 @@
 ---
 title: "gd-implementer Agent (Standard Tier) for /code & /code:auto Step 2"
 date: 2026-04-30
-status: draft
+status: completed
+completed_at: 2026-05-01
 slug: gd-implementer-agent
 related:
   - plans/reports/brainstorm-260430-2345-gd-implementer-agent.md
@@ -41,7 +42,7 @@ Tất cả quyết định kiến trúc đã chốt ở brainstorm — xem `plan
 |---|-------|--------|-------:|------|
 | 01 | Agent file + tier sync | Done | S (1-1.5h) | [phase-01](./phase-01-agent-file-tier-sync.md) |
 | 02 | Skill rewrite (Step 2 dispatch) | Done | M (1.5-2h) | [phase-02](./phase-02-skill-rewrite-step2-dispatch.md) |
-| 03 | Wiki update + smoke test | Pending | S (0.5-1h) | [phase-03](./phase-03-wiki-update-smoke-test.md) |
+| 03 | Wiki update + smoke test | Done | S (0.5-1h) | [phase-03](./phase-03-wiki-update-smoke-test.md) |
 
 **Total effort:** ~3-4.5h. Decomposition mirrors hard ordering từ ghost-agent-resolution: agent file → skill edit → wiki+verify. Mỗi phase = 1 atomic commit.
 
