@@ -1,11 +1,21 @@
 ---
 title: "Compounding"
-updated: 2026-04-29
+updated: 2026-04-30
 tags: [category/feature, compounding, knowledge-base, skill]
-summary: "The compounding feature makes glassdesk self-improving through /spec (brainstorm→formal spec), /learn (session→wiki insights), and /improve (gated improvement proposals)."
+summary: "The compounding feature makes glassdesk self-improving through /spec (brainstorm→formal spec), /learn (session→wiki insights), /improve (gated improvement proposals), and Wiki Recall (read-back at DISCOVERY Step 0)."
 ---
 
-Compounding is the set of three commands that make glassdesk self-improving: spec formalization, session insight extraction, and improvement proposals.
+Compounding is the set of commands and pre-flight hooks that make glassdesk self-improving: spec formalization, session insight extraction, improvement proposals, and the read-back of prior knowledge into DISCOVERY workflows.
+
+## Read/Write Loop
+
+| Direction | Mechanism | Where |
+|---|---|---|
+| **Write** | `/learn` extracts session insights | `.gd-wiki/insights/` |
+| **Write** | `/wiki:update` distills commits into pages | `.gd-wiki/{architecture,decisions,features,risks}/` |
+| **Read** | **Wiki Recall** (Step 0 of DISCOVERY skills) | `brainstorming`, `planning`, `scouting` query `.gd-wiki/` before Discovery |
+
+Recall side closes the loop — without it, prior decisions/architecture/insights never influence new proposals. See `plugins/glassdesk/skills/wiki/references/recall.md`.
 
 ## Commands
 

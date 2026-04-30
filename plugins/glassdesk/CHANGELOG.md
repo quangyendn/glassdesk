@@ -28,6 +28,7 @@
 
 ### Added
 
+- **Wiki Recall in DISCOVERY skills** — `brainstorming`, `planning`, and `scouting` SKILL.md files now open with a Step 0 Wiki Recall: query `.gd-wiki/` for prior decisions, patterns, and insights before beginning new work. Reference doc at `skills/wiki/references/recall.md`. `compounding.md` wiki page updated with a Read/Write Loop section explaining the recall ↔ learn cycle.
 - Model tier policy system — `plugins/glassdesk/config/models.yml` + `bin/sync-models`
 - 4 tiers: `premium` (opus), `standard` (sonnet), `fast` (haiku), `external` (sonnet fallback + gemini-2.5-flash CLI)
 - All agents declare `tier:` in frontmatter; `model:` is auto-synced from tier mapping

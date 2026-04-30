@@ -27,9 +27,18 @@ Use this skill when:
 Always honoring **YAGNI**, **KISS**, and **DRY** principles.
 **Be honest, be brutal, straight to the point, and be concise.**
 
-### 0. Input Resolution (pre-flight)
+### 0a. Input Resolution (pre-flight)
 Load: `references/input-resolution.md`
 **Runs BEFORE** Pre-Creation Check. Resolves `$ARGUMENTS` into either a spec path or task text via `scripts/resolve-spec-input.cjs`. Inherited by both `/plan` and `/plan:hard` (and any future `/plan:*` variants) — DO NOT duplicate the decision tree in command files.
+
+### 0b. Wiki Recall (pre-flight, before Discovery)
+Load: `${CLAUDE_PLUGIN_ROOT}/skills/wiki/references/recall.md` with `$Q` = resolved task text from 0a (or `$ARGUMENTS` if input_kind == "task").
+
+**Hard citation gate**: If recall returns top hit with score ≥ 0.5, the plan MUST contain either:
+1. A `.gd-wiki/<path>` reference in Context links / rationale of relevant phase, OR
+2. An explicit divergence note in plan.md ("wiki has X, plan diverges because Y").
+
+Missing both = plan is incomplete; revise before finalizing.
 
 ### 1. Research & Analysis
 Load: `references/research-phase.md`
@@ -50,7 +59,8 @@ Load: `references/output-standards.md`
 
 ## Workflow Process
 
-0. **Input Resolution** → Run Step 0 (`references/input-resolution.md`); produces `input_kind` + spec path or task text
+0a. **Input Resolution** → Run Step 0a (`references/input-resolution.md`); produces `input_kind` + spec path or task text
+0b. **Wiki Recall** → Run Step 0b (`../wiki/references/recall.md`); inject prior wiki context with hard citation gate
 1. **Initial Analysis** → Read codebase docs, understand context
 2. **Research Phase** → Spawn researchers, investigate approaches
 3. **Synthesis** → Analyze reports, identify optimal solution
