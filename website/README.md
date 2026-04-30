@@ -1,20 +1,39 @@
-# Glassdesk website
+# GlassDesk Website
 
-A single static page introducing the Glassdesk plugin. No build step.
+Astro 5 static site deployed on Vercel. Docs sourced read-only from `../.gd-wiki/`.
 
-## Local preview
+## Develop
 
-Open `index.html` directly in a browser:
-
+```sh
+nvm use            # node 20+
+cd website
+npm install
+npm run dev        # http://localhost:4321
 ```
-open website/index.html        # macOS
-xdg-open website/index.html    # Linux
+
+## Build
+
+```sh
+npm run build      # → dist/
+npm run preview    # serve dist/
 ```
 
-## Hosting
+## Content source
 
-Suitable for any static host:
+Docs come from `.gd-wiki/` at the repo root via Astro Content Collection (`src/content.config.ts`). This directory is **read-only** from the site — never edited from `website/`.
 
-- GitHub Pages — push the repo and enable Pages with `/website` as the source folder.
-- Netlify / Vercel — drag-and-drop the `website/` folder.
-- Plain web server — serve `website/` as the document root.
+Wiki-style links (`[[target]]`, `[[target|alias]]`) are resolved by `remark-wiki-link` configured in `astro.config.mjs`.
+
+## Deploy
+
+Vercel auto-deploys on push to `main`. Project settings:
+
+- Root Directory: `website`
+- **"Include source files outside of the Root Directory in the Build Step": ENABLED** (required — without this, the `.gd-wiki` glob returns 0 entries)
+- Framework preset: Astro (auto-detected)
+
+A floor-assert in `astro.config.mjs` fails the build if the collection has < 5 entries — defensive guard against the toggle being off.
+
+## Local search caveat
+
+Pagefind indexes `dist/` post-build. In `npm run dev` cold (no prior `dist/`), search returns no results. Run `npm run build` once first to generate `dist/pagefind/`.

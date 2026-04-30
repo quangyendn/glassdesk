@@ -1,0 +1,96 @@
+---
+import Base from "./Base.astro";
+import Sidebar from "../components/Sidebar.astro";
+import Breadcrumb from "../components/Breadcrumb.astro";
+import type { CollectionEntry } from "astro:content";
+
+interface Props {
+  entry: CollectionEntry<"wiki">;
+}
+
+const { entry } = Astro.props;
+const slug = entry.id.replace(/\.md$/, "");
+const title = entry.data.title;
+const description =
+  entry.data.summary ?? `${title} — GlassDesk wiki page.`;
+
+const parts = slug.split("/");
+const folder = parts.length > 1 ? parts[0] : null;
+
+type BreadcrumbItem = {
+  "@type": "ListItem";
+  position: number;
+  name: string;
+  item?: string;
+};
+
+const breadcrumbItems: BreadcrumbItem[] = [
+  {
+    "@type": "ListItem",
+    position: 1,
+    name: "Home",
+    item: new URL("/", Astro.site).toString(),
+  },
+  {
+    "@type": "ListItem",
+    position: 2,
+    name: "Docs",
+    item: new URL("/docs/architecture/plugin-system", Astro.site).toString(),
+  },
+];
+if (folder) {
+  // No `item` — folder has no canonical URL (no folder index page).
+  breadcrumbItems.push({
+    "@type": "ListItem",
+    position: 3,
+    name: folder,
+  });
+}
+breadcrumbItems.push({
+  "@type": "ListItem",
+  position: breadcrumbItems.length + 1,
+  name: title,
+  item: new URL(`/docs/${slug}`, Astro.site).toString(),
+});
+
+const techArticleJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  headline: title,
+  description,
+  dateModified: entry.data.updated ?? undefined,
+  author: { "@type": "Organization", name: "GlassDesk" },
+  publisher: { "@type": "Organization", name: "GlassDesk" },
+  mainEntityOfPage: new URL(`/docs/${slug}`, Astro.site).toString(),
+};
+
+const breadcrumbJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  itemListElement: breadcrumbItems,
+};
+---
+
+<Base title={`${title} — GlassDesk`} description={description} ogType="article">
+  <script
+    slot="head"
+    type="application/ld+json"
+    set:html={JSON.stringify(techArticleJsonLd).replace(/<\/script/gi, "<\\/script")}
+  />
+  <script
+    slot="head"
+    type="application/ld+json"
+    set:html={JSON.stringify(breadcrumbJsonLd).replace(/<\/script/gi, "<\\/script")}
+  />
+
+  <div class="docs-shell">
+    <Sidebar current={slug} />
+    <div>
+      <Breadcrumb slug={slug} title={title} />
+      <article data-pagefind-body>
+        <h1>{title}</h1>
+        <slot />
+      </article>
+    </div>
+  </div>
+</Base>

@@ -1,0 +1,119 @@
+---
+import Base from "../layouts/Base.astro";
+
+const softwareJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: "GlassDesk",
+  applicationCategory: "DeveloperApplication",
+  operatingSystem: "Cross-platform",
+  url: "https://glassdesk.vercel.app",
+  description:
+    "Agentic SDLC plugin for Claude Code — slash commands, skills, and agents covering DISCOVER → PLAN → BUILD → VERIFY → REVIEW → SHIP, with .gd-wiki/ as living project memory.",
+  offers: {
+    "@type": "Offer",
+    price: "0",
+    priceCurrency: "USD",
+  },
+  license: "https://opensource.org/licenses/MIT",
+};
+---
+
+<Base
+  title="GlassDesk — Agentic SDLC for Claude Code"
+  description="Agentic SDLC plugin for Claude Code: 27 slash commands, 11 skills, multi-agent orchestration, and .gd-wiki/ as living project memory."
+  pageClass="landing"
+  ogType="website"
+>
+  <script
+    slot="head"
+    type="application/ld+json"
+    set:html={JSON.stringify(softwareJsonLd).replace(/<\/script/gi, "<\\/script")}
+  />
+
+  <main>
+    <section aria-labelledby="hero-h">
+      <h1 id="hero-h">GlassDesk</h1>
+      <p class="tagline">
+        Agentic SDLC plugin for Claude Code — DISCOVER · PLAN · BUILD · VERIFY ·
+        REVIEW · SHIP, with <code>.gd-wiki/</code> as living project memory.
+      </p>
+      <a class="cta" href="/docs/architecture/plugin-system">Read the docs</a>
+    </section>
+
+    <section aria-labelledby="install-h">
+      <h2 id="install-h">Install</h2>
+      <ol>
+        <li>Fork or clone the GlassDesk repository.</li>
+        <li>
+          Add it as a Claude Code marketplace:
+          <pre><code>claude plugin marketplace add &lt;path-to-your-fork&gt;</code></pre>
+        </li>
+        <li>
+          Install the plugin:
+          <pre><code>claude plugin install glassdesk</code></pre>
+        </li>
+        <li>
+          Verify:
+          <pre><code>claude plugin list</code></pre>
+        </li>
+      </ol>
+      <p>
+        Short alias also works:
+        <code>claude plugin install gd</code>.
+      </p>
+    </section>
+
+    <section aria-labelledby="capabilities-h">
+      <h2 id="capabilities-h">Capabilities</h2>
+      <ul>
+        <li>
+          <strong>27 slash commands</strong> across DISCOVER · PLAN · BUILD ·
+          VERIFY · REVIEW · SHIP · WIKI · COMPOUND.
+        </li>
+        <li>
+          <strong>11 skills</strong> — planning, building, debugging, fixing,
+          scouting, brainstorming, code-review, pair-programming, compounding,
+          ai-multimodal, media-processing.
+        </li>
+        <li>
+          <strong>Living wiki</strong> — <code>.gd-wiki/</code> distilled from
+          commits via <code>/wiki:update</code>; queryable with <code
+            >/ask:wiki</code
+          >.
+        </li>
+        <li>
+          <strong>Multi-agent orchestration</strong> — parallel research,
+          planning, and review with claude-flow.
+        </li>
+        <li>
+          <strong>Agent-friendly</strong> — <a href="/llms.txt">llms.txt</a>,
+          <a href="/llms-full.txt">llms-full.txt</a>, sitemap, and AI-crawler
+          allow-list.
+        </li>
+      </ul>
+    </section>
+
+    <section aria-labelledby="docs-h">
+      <h2 id="docs-h">Documentation</h2>
+      <ul>
+        <li>
+          <a href="/docs/architecture/plugin-system">Architecture</a> — system
+          map and component boundaries
+        </li>
+        <li>
+          <a href="/docs/features/planning">Features</a> — slash command and
+          skill catalogue
+        </li>
+        <li>
+          <a href="/docs/decisions/model-tier-policy">Decisions</a> — ADRs and
+          locked-in trade-offs
+        </li>
+        <li>
+          <a href="/docs/risks/plugin-double-nesting-trap">Risks</a> — tracked
+          engineering risks
+        </li>
+      </ul>
+    </section>
+  </main>
+</Base>
