@@ -1,7 +1,7 @@
 {
   "name": "glassdesk",
   "description": "27 SDLC-phased commands, specialized agents, compound-engineering primitives, project wiki maintainer",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "author": {
     "name": "glassdesk contributors"
   },

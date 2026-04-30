@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.4.0] — 2026-04-30
+
+### Added
+
+- **Serena MCP integration** — SessionStart hook (`hooks/session-init.cjs`) detects whether Serena plugin is enabled. Sets `GD_SERENA_AVAILABLE=1|0` env var via `CLAUDE_ENV_FILE`. Detection chain: `~/.claude/settings.json` `enabledPlugins` (loose match `/^serena@/`) → `claude plugin list --json` (3s timeout) → assume false. Defensive throughout — never throws, never blocks session start. Happy-path latency <70ms.
+- **Install hint** — when Serena is absent, hook prints a 5-line install hint to stdout (auto-injected as session context). Mentions one-time per-project onboarding caveat.
+- **Tool-preference reference** — `docs/serena-preference.md` is the single source of truth for built-in vs Serena tool routing. Documents the nested namespace `mcp__plugin_serena_serena__*` as primary form (marketplace install) and the flat `mcp__serena__*` as fallback (manual install). Includes 9-row tool mapping table, source-code extension whitelist (16 entries), and language-coverage gaps (`.svelte`, `.astro`, `.erb`, `.slim`, `.haml` → built-in territory).
+- **Skill instructions** — `scouting`, `building`, `fixing`, `debugging`, `planning` SKILL.md now carry an identical "## Tool Preference" block routing code work to Serena when available, falling back to built-in otherwise.
+- **Command notes** — `/scout`, `/code`, `/fix`, `/debug`, `/plan` and code-related variants (`/scout:ext`, `/code:auto`, `/fix:hard`, `/plan:hard`) carry an identical 1-line tool-preference note. Plan-metadata commands (`/plan:list`, `/plan:status`, `/plan:archive`, `/plan:validate`) are not modified.
+
+### Notes
+
+- Serena is **not** a hard dependency. Plugin works clean without it; no commands break.
+- First use per project: Serena requires a one-time `onboarding` task — user-triggered, never auto. ~30k–80k tokens for ~1000-file repos.
+- Non-code skills (`wiki`, `brainstorming`, `compounding`, `media-processing`, `ai-multimodal`, `pair-programming`, `code-review`) are intentionally untouched — they operate on `.md`/`.json`/media where Serena is irrelevant.
+- The optional `hooks/serena-enforce.cjs.example` artifact considered during planning was DROPPED — users with the global `~/.claude/hooks/enforce-serena.sh` would double-block.
+- Validation A/B (≥40% token reduction on `/scout`) deferred to follow-up — instrumentation is in place; runtime measurement requires toggling Serena on/off and recording in `validation-results.md`.
+
 ## [Unreleased]
 
 ### Fixed

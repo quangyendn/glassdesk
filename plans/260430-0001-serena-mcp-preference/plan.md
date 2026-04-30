@@ -1,7 +1,8 @@
 ---
 title: Serena MCP as Preferred LSP Tool — Plugin Integration
 slug: serena-mcp-preference
-status: in-progress
+status: completed
+completed: 2026-04-30
 priority: P2
 effort: 5h
 branch: main

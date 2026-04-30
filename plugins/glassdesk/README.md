@@ -171,6 +171,21 @@ npm install -g rmbg-cli
 npm install -g @anthropic/gemini-cli
 ```
 
+### Serena MCP (recommended for code-heavy work)
+
+Symbol-aware code tools backed by LSP — typically 50–90% token reduction on symbol lookups, refactors, and reference searches across large codebases. Auto-detected by glassdesk's SessionStart hook (`GD_SERENA_AVAILABLE=1|0`).
+
+```bash
+# Marketplace (preferred)
+/plugin install serena@claude-plugins-official
+# If the marketplace is not yet registered:
+/plugin marketplace add anthropics/claude-plugins-official
+```
+
+Prerequisites: Python + [`uv`](https://docs.astral.sh/uv/) (Serena's MCP server is launched via `uvx`).
+
+When Serena is absent, glassdesk shows a one-time install hint per session and falls back to built-in `Read`/`Grep`/`Edit`. **No commands break.** First-time use per project triggers a one-time `onboarding` task (user-confirmed, ~30k–80k tokens for ~1000-file repos). Tool routing is documented in `docs/serena-preference.md`.
+
 ## Documentation
 
 - [Quick Start](docs/quick-start.md) — 5-minute setup and SDLC walkthrough
@@ -179,7 +194,7 @@ npm install -g @anthropic/gemini-cli
 
 ## Version
 
-**Plugin Version:** 0.2.0
+**Plugin Version:** 0.4.0
 
 ## License
 
