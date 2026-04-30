@@ -25,6 +25,7 @@ Missing marker = step INCOMPLETE.
 
 | Step | code.md | code:auto |
 |------|---------|-----------|
+| 2 | `gd-implementer` | `gd-implementer` |
 | 3 | `gd-tester` | `gd-tester` |
 | 4 | `gd-code-reviewer` | `gd-code-reviewer` |
 | 5 (code) | `gd-project-manager` + `gd-docs-manager` | — |
@@ -32,14 +33,39 @@ Missing marker = step INCOMPLETE.
 
 Steps 5 agents MUST run in parallel.
 
+### Step 2 Dispatch Contract
+
+Main thread MUST dispatch `gd-implementer` exactly once per phase. Main thread MUST NOT Edit/Write source files in Step 2.
+
+Input:
+- `phase_path` — current phase file (e.g., `plans/<plan>/phase-01-<slug>.md`)
+- `plan_path` — `plans/<plan>/plan.md`
+- `typecheck_parallel_safe` — from phase frontmatter; default `false`
+
+Return: structured Implementation Summary with fields `files_changed[]`, `type_check_status` (`success` | `failed` | `skipped`), `type_check_output`, `blockers[]`, `retry_hint?`.
+
 ## Blocking Gates
 
 | Gate | Condition |
 |------|-----------|
+| Step 2 | `gd-implementer` returns `success` AND `type_check_status` = `success` (or `skipped` with documented reason) |
 | Step 3 | Tests = 100% passing (no exceptions) |
 | Step 4 | Critical issues = 0 |
 | Step 5 (code.md) | User must explicitly approve in writing |
 | Step 5 (auto) | `gd-project-manager` AND `gd-docs-manager` must complete successfully |
+
+## Step 2 Failure Escalation
+
+Cap = **1 retry** per failure mode. Apply uniformly to `partial` and `type_check_failed` (per plan validation 2026-05-01).
+
+| Implementer return | Main thread action |
+|---|---|
+| `success` + type_check `success` (or `skipped` with reason) | Proceed to Step 3 |
+| `partial` (blockers non-empty) | Re-dispatch `gd-implementer` with `retry_hint` + blocker context (cap 1 retry) |
+| `type_check_status: failed` | Re-dispatch `gd-implementer` with compile errors + `retry_hint` (cap 1 retry) |
+| Retry already exhausted (any failure mode) | Escalate `gd-debugger` (premium tier) — STOP gate; do NOT proceed to Step 3 |
+
+The retry MUST go through `gd-implementer` again — main thread MUST NOT bypass and Edit source files itself even after a failure.
 
 ## Testing Standards
 
