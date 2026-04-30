@@ -84,6 +84,7 @@ These are decisions resolved by research; do **not** revisit during implementati
 - **Whether to ship `serena-enforce.cjs.example`**: defer decision to Phase 04. Risk: users who copy without reading may double-block themselves.
 - **Conflict with user's global `~/.claude/CLAUDE.md` Serena rules**: accepted as redundant-but-harmless. Reference file notes this explicitly.
 - **MCP namespace under future Claude Code versions**: nested form `mcp__plugin_serena_serena__*` confirmed for marketplace installs as of 2026-04-30. If Anthropic ever flattens to `mcp__serena__*`, reference file's documented fallback covers it; revisit if user reports `find_symbol` not being called.
+- **Validation A/B (token reduction ≥40%)**: deferred. Markdown instrumentation landed in Phase 03; runtime measurement requires toggling Serena off in `~/.claude/settings.json`, running `/scout` twice, and recording results in `validation-results.md`. Per phase spec §Implementation Step 6, sub-target outcome does NOT block phase merge.
 
 ## Risks (cross-phase)
 
