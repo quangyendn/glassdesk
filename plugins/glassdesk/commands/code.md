@@ -10,6 +10,8 @@ Activate 'building' skill.
 Load 'references/execution-gates.md' for step format, blocking gates, TodoWrite tracking.
 Load 'references/test-driven-loop.md' for testing standards and TDD patterns.
 
+> **Tool note:** For code work in this command, prefer Serena MCP (`mcp__plugin_serena_serena__*`, or `mcp__serena__*` for manual installs) when `$GD_SERENA_AVAILABLE=1`. See `${CLAUDE_PLUGIN_ROOT}/docs/serena-preference.md`.
+
 ## Step 0: Plan Detection
 
 **If empty:** `find ./plans -name "plan.md" -type f -exec stat -f "%m %N" {} \; 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2-` → auto-select next incomplete phase.

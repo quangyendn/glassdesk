@@ -6,6 +6,8 @@ argument-hint: [user-prompt] [scale]
 Activate 'scouting' skill.
 Load 'references/external-tools.md' for gemini/opencode invocation and parallel dispatch patterns.
 
+> **Tool note:** For code work in this command, prefer Serena MCP (`mcp__plugin_serena_serena__*`, or `mcp__serena__*` for manual installs) when `$GD_SERENA_AVAILABLE=1`. See `${CLAUDE_PLUGIN_ROOT}/docs/serena-preference.md`.
+
 ## Variables
 
 - `USER_PROMPT`: $1 — what to find

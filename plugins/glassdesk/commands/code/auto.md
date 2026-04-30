@@ -11,6 +11,8 @@ Load 'references/execution-gates.md' for step format, blocking gates, TodoWrite 
 Load 'references/auto-execution.md' for $ALL_PHASES behavior, git-manager, and summary report.
 Load 'references/test-driven-loop.md' for testing standards and TDD patterns.
 
+> **Tool note:** For code work in this command, prefer Serena MCP (`mcp__plugin_serena_serena__*`, or `mcp__serena__*` for manual installs) when `$GD_SERENA_AVAILABLE=1`. See `${CLAUDE_PLUGIN_ROOT}/docs/serena-preference.md`.
+
 ## Arguments
 - $PLAN: $1 (specific plan path or auto-detected)
 - $ALL_PHASES: $2 (`Yes` = run all phases; `No` = wait per phase; default: `Yes`)

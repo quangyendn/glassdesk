@@ -7,6 +7,8 @@ Think harder.
 Activate `planning` skill.
 Refer to 'output-standards' reference in 'planning' skill for plan file spec and output requirements.
 
+> **Tool note:** For code work in this command, prefer Serena MCP (`mcp__plugin_serena_serena__*`, or `mcp__serena__*` for manual installs) when `$GD_SERENA_AVAILABLE=1`. See `${CLAUDE_PLUGIN_ROOT}/docs/serena-preference.md`.
+
 ## Your mission
 <task>$ARGUMENTS</task>
 
