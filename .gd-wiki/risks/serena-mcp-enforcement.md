@@ -1,8 +1,8 @@
 ---
 title: "Serena MCP Code-File Enforcement"
-updated: 2026-04-29
+updated: 2026-05-01
 tags: [category/risk, serena, enforcement, code-files]
-summary: "A PreToolUse hook blocks built-in Read/Edit/Grep/Glob on code files (.js, .ts, .py, etc.); all code-file access must go through Serena MCP tools or calls will be denied silently."
+summary: "A PreToolUse hook blocks built-in Read/Edit/Grep/Glob on code files; Serena MCP preference is wired into 5 skills, 9 commands, and the gd-implementer agent as of v0.4.0."
 ---
 
 A `PreToolUse` hook at `~/.claude/hooks/enforce-serena.sh` blocks built-in `Read`, `Edit`, `Grep`, and `Glob` tool calls on code files (`.js`, `.ts`, `.tsx`, `.jsx`, `.py`, `.go`, `.rs`, `.rb`, and others). All code-file access must go through Serena MCP tools.
@@ -24,6 +24,20 @@ Any agent or command that calls the built-in `Read` tool on a code file will hav
 
 Non-code files use built-in tools normally: `.md`, `.json`, `.yaml`, `.yml`, `.toml`, `.env`, `.txt`, `.csv`, `.lock`, `.sql`, `.graphql`, `.html`, `.css`, `.scss`, `.xml`, `.svg`, `.sh`.
 
+## Plugin Integration (v0.4.0)
+
+As of v0.4.0, Serena preference is wired into the plugin at three levels:
+
+**Skills** (5): `building`, `debugging`, `fixing`, `planning`, `scouting` — each skill's `SKILL.md` includes the Serena tool-preference table and instructs agents to prefer Serena when `$GD_SERENA_AVAILABLE=1`.
+
+**Commands** (9): `code`, `code:auto`, `debug`, `fix`, `fix:hard`, `plan`, `plan:hard`, `scout`, `scout:ext` — each command header includes a Serena activation reminder.
+
+**Agent**: `gd-implementer` — built with Serena MCP tools in its `tools:` list; uses Serena for code-file edits when available, falls back to built-in tools otherwise.
+
+**SessionStart hook** (`hooks/session-init.cjs`): detects whether Serena MCP is active at session start and exports `GD_SERENA_AVAILABLE=1` into the session environment. Skills and agents read this flag to branch tool preference at runtime without hard-failing when Serena is absent.
+
+Reference doc: `plugins/glassdesk/docs/serena-preference.md` — full tool-mapping table, decision tree, and non-code file exceptions.
+
 ## Activation
 
 Serena must be activated before code work begins:
@@ -41,3 +55,4 @@ If Serena is not initialized, do not proceed — ask the user to set up Serena f
 ## See Also
 
 - [[plugin-system]] — agents that read code files must comply with this constraint
+- [[building]] — gd-implementer is the primary code-editing agent subject to this enforcement

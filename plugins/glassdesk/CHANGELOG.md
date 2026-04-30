@@ -28,6 +28,11 @@
 
 ### Added
 
+- **`gd-implementer` agent** — new standard-tier (Sonnet) subagent that owns Step 2 (Implementation) in the `building` skill dispatch chain. Reads a phase file, performs all source-code edits, runs the declared type-check, and returns a structured `Implementation Summary` the orchestrator gates on. Tests are never run by this agent — `gd-tester` owns Step 3. Supports multi-stack type-checking (`ts`, `rust`, `ruby`, `python`, `go`) with optional parallel execution via `typecheck_parallel_safe: true` in phase frontmatter.
+- **`building` skill — mandatory dispatch contract** — `SKILL.md` now enforces that the main thread MUST dispatch `gd-implementer` for Step 2 and MUST NOT edit source files directly. If `gd-implementer` is unavailable (ghost-agent), execution stops rather than silently falling back to main-thread edits. Mirrors the orchestrate-only pattern from the `planning` skill to avoid premium-tier (Opus) token spend on first-draft edits.
+- **Reference doc `references/execution-gates.md`** — canonical Mandatory Subagents table, Step Output Format spec, and Step 2 Failure Escalation rules (1-retry cap → `gd-debugger` escalation).
+- **Reference doc `references/test-driven-loop.md`** — formalizes the Step 2 / Step 3 boundary: `gd-implementer` first-draft + type-check only; `gd-tester` owns runtime tests; `gd-debugger` owns root-cause on test failure.
+
 - **Wiki Recall in DISCOVERY skills** — `brainstorming`, `planning`, and `scouting` SKILL.md files now open with a Step 0 Wiki Recall: query `.gd-wiki/` for prior decisions, patterns, and insights before beginning new work. Reference doc at `skills/wiki/references/recall.md`. `compounding.md` wiki page updated with a Read/Write Loop section explaining the recall ↔ learn cycle.
 - Model tier policy system — `plugins/glassdesk/config/models.yml` + `bin/sync-models`
 - 4 tiers: `premium` (opus), `standard` (sonnet), `fast` (haiku), `external` (sonnet fallback + gemini-2.5-flash CLI)

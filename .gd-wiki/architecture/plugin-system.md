@@ -1,6 +1,6 @@
 ---
 title: "Plugin System Architecture"
-updated: 2026-04-29
+updated: 2026-05-01
 tags: [category/architecture, plugin, commands, agents, skills]
 ---
 
@@ -22,10 +22,12 @@ plugins/glassdesk/
 │   └── models.yml               # tier → model mapping (single source of truth)
 ├── bin/                         # zero-LLM CLI scripts (plan-list, plan-status, sync-models)
 ├── hooks/
-│   └── session-init.cjs         # SessionStart hook — sets GD_PLUGIN_PATH, GD_SESSION_ID
+│   ├── session-init.cjs         # SessionStart hook — sets GD_PLUGIN_PATH, GD_SESSION_ID, GD_SERENA_AVAILABLE
+│   └── lib/gd-config-utils.cjs  # shared config helpers for hooks
 └── scripts/
     ├── install-dev-hooks.sh     # optional pre-commit drift guard
-    └── pre-commit-hook.sh       # blocks commits when agent model:tier drift
+    ├── pre-commit-hook.sh       # blocks commits when agent model:tier drift
+    └── resolve-spec-input.cjs   # spec→plan input resolver (Step 0 of /plan and /plan:hard)
 ```
 
 ## Command Registration Pattern
@@ -64,7 +66,7 @@ Commands are thin shims (≤30 lines). They delegate heavy work by activating a 
 
 ## Agent Topology
 
-25 specialized agents, all prefixed `gd-`. Agents declare a `tier:` in frontmatter; `bin/sync-models` resolves the tier to a concrete Claude model and writes `model:` to each agent file. See [[model-tier-policy]] for the tier mapping.
+Specialized agents, all prefixed `gd-`. Agents declare a `tier:` in frontmatter; `bin/sync-models` resolves the tier to a concrete Claude model and writes `model:` to each agent file. See [[model-tier-policy]] for the tier mapping.
 
 Key agents and their dispatch sources:
 
@@ -74,6 +76,7 @@ Key agents and their dispatch sources:
 | `gd-architect` | premium | `/plan`, `/plan:hard` |
 | `gd-debugger` | premium | `/debug`, `/fix:hard` |
 | `gd-researcher` | standard | `/plan:hard` |
+| `gd-implementer` | standard | building skill Step 2 |
 | `gd-project-manager` | standard | building skill |
 | `gd-tester` | standard | building/fixing skills |
 | `gd-wiki-curator` | standard | `/wiki:update` |
@@ -86,7 +89,11 @@ Optional [[claude-flow-integration|Claude Flow]] integration enables parallel ag
 
 ## Path Resolution at Runtime
 
-The `session-init.cjs` hook fires on SessionStart and exports `GD_PLUGIN_PATH` into the session environment. At `npx install/update` time, `bin/cli.js` rewrites `$GD_PLUGIN_PATH` literals in copied `.md` files to project-relative `.claude/...` paths so that subagents (which do not inherit `CLAUDE_ENV_FILE` env vars per Claude Code bug #46696) can still resolve skill and agent references.
+The `session-init.cjs` hook fires on SessionStart and exports three environment variables:
+
+- `GD_PLUGIN_PATH` — absolute path to installed plugin; rewritten at `npx install/update` time in `.md` files so subagents can resolve skill/agent references (Claude Code bug #46696 workaround)
+- `GD_SESSION_ID` — unique per-session identifier for log correlation
+- `GD_SERENA_AVAILABLE` — set to `1` when Serena MCP is detected active; skills and agents use this flag to branch between Serena tools and built-in tool fallback at runtime
 
 ## Related Pages
 

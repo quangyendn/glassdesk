@@ -1,6 +1,6 @@
 ---
 title: "Model Tier Policy"
-updated: 2026-04-29
+updated: 2026-05-01
 tags: [category/decision, model-routing, cost-optimization, agents]
 summary: "Agents declare a tier in frontmatter; a central models.yml maps tier to Claude model; bin/sync-models resolves and commits model: fields to prevent drift."
 ---
@@ -20,7 +20,7 @@ Introduce a four-tier model policy. Agents declare `tier:` in frontmatter. A cen
 | Tier | Model | Use cases |
 |---|---|---|
 | `premium` | opus | Brainstorm, plan, spec, deep review, design judgment |
-| `standard` | sonnet | Coding, refactoring, doc writing, structured analysis |
+| `standard` | sonnet | Coding, refactoring, doc writing, structured analysis (e.g. `gd-implementer`, `gd-project-manager`, `gd-tester`) |
 | `fast` | haiku | Trivial edits, simple scout, comment checks |
 | `external` | sonnet (fallback) + gemini-2.5-flash CLI | High-volume scout via Gemini |
 
