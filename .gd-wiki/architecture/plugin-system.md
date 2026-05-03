@@ -1,6 +1,6 @@
 ---
 title: "Plugin System Architecture"
-updated: 2026-05-01
+updated: 2026-05-03
 tags: [category/architecture, plugin, commands, agents, skills]
 ---
 
@@ -95,9 +95,20 @@ The `session-init.cjs` hook fires on SessionStart and exports three environment 
 - `GD_SESSION_ID` — unique per-session identifier for log correlation
 - `GD_SERENA_AVAILABLE` — set to `1` when Serena MCP is detected active; skills and agents use this flag to branch between Serena tools and built-in tool fallback at runtime
 
+## Registered Marketplace Plugins
+
+The `glassdesk-marketplace` (`/.claude-plugin/marketplace.json`) registers three plugins:
+
+| Name | Source | Description |
+|------|--------|-------------|
+| `glassdesk` | `./plugins/glassdesk` | Full SDLC framework (40+ commands, 10 agents, 7 skills) |
+| `gd` | `./plugins/glassdesk` | Short alias for `glassdesk` |
+| `ccaudit` | `./plugins/ccaudit` | 2-tier 20-pattern Claude Code audit tool |
+
 ## Related Pages
 
 - [[model-tier-policy]] — tier → model assignment system
 - [[wiki-maintainer]] — the `/wiki:*` command suite
 - [[agent-naming-standardization]] — `gd-` prefix decision
 - [[plugin-flat-structure]] — why no `.claude/` wrapper in plugin source
+- [[ccaudit]] — standalone audit plugin registered in this marketplace
