@@ -1,33 +1,37 @@
-# ccaudit — Claude Code Audit Plugin
+# ccaudit — Claude Code Audit
 
 Audit Claude Code setup against a 20-pattern catalog (9 cost-overhead + 11 best-practice compliance) and recommend prioritized fixes. The cost-overhead tier is grounded in a 90-day, 430-hour, $1,340 instrumentation study showing these waste patterns can consume up to 73% of input tokens before any prompt is read.
 
-## Install
+## Quick start (npx)
 
-From the `glassdesk-marketplace`:
+Run the audit against the current project — no install:
+
+```bash
+npx -y ccaudit
+```
+
+(If `ccaudit` is unavailable on npm, use the scoped fallback `npx -y @quangyendn/ccaudit`.)
+
+The audit reads `~/.claude/CLAUDE.md`, `./CLAUDE.md`, `./.claude/CLAUDE.md`, and `./CLAUDE.local.md` from the directory you invoke it in. Run from a project root for project-scoped findings.
+
+## Install as Claude Code plugin
+
+For users inside Claude Code who want the skill auto-loaded:
 
 ```
 /plugin marketplace add glassdesk-marketplace <marketplace-source>
 /plugin install ccaudit@glassdesk-marketplace
 ```
 
-Replace `<marketplace-source>` with the path or URL where the `glassdesk-marketplace` is hosted (e.g. a local clone of this repo, or a remote git URL once published).
+Replace `<marketplace-source>` with the path or URL where `glassdesk-marketplace` is hosted (a local clone of this repo, or a remote git URL).
 
-## Use
-
-Invoke the audit skill directly:
+Then invoke directly:
 
 ```
 /ccaudit:audit
 ```
 
-Or trigger by natural language — the skill auto-activates on phrases like:
-
-- "audit claude code"
-- "optimize claude code"
-- "tối ưu claude code"
-- "kiểm tra claude code"
-- "claude code đang tốn token / hit usage limit"
+Or trigger by natural language — the skill auto-activates on phrases like "audit claude code", "optimize claude code", "tối ưu claude code", "kiểm tra claude code", "claude code đang tốn token".
 
 ## What you get
 
@@ -46,22 +50,37 @@ Or trigger by natural language — the skill auto-activates on phrases like:
 | Always-on MCPs           | 12     | 3     |
 | SessionStart hooks       | 9      | 2     |
 
+## System requirements
+
+- macOS, Linux, or WSL (Windows native not supported — no `bash` by default).
+- `bash` 3.2+ (stock macOS works).
+- Standard POSIX tools: `awk`, `grep`, `sort`, `tr`, `cut`, `wc`, `mktemp`.
+- For npx path only: Node.js 18+.
+- Optional: `yq` (mikefarah v4+) for faster YAML parsing — `brew install yq`. Awk fallback used if absent.
+- Optional: `git` for Tier 2 compliance patterns that read repo state.
+
 ## Layout
 
 ```
 plugins/ccaudit/
-├── .claude-plugin/plugin.json
+├── package.json                   # npm package manifest (npx entry)
+├── bin/ccaudit.js                 # node wrapper that spawns audit.sh
+├── .claude-plugin/plugin.json     # Claude Code plugin manifest
 └── skills/audit/
     ├── SKILL.md
     ├── references/
-    │   ├── patterns.md          # Index of all 20 audit patterns
-    │   ├── patterns/            # 20 individual pattern files (T1-01..T1-09, T2-01..T2-11)
-    │   └── fixes.md             # 30-second fix recipe per pattern
+    │   ├── patterns.md            # Index of all 20 audit patterns
+    │   ├── patterns/              # 20 individual pattern files (T1-01..T1-09, T2-01..T2-11)
+    │   └── fixes.md               # 30-second fix recipe per pattern
     └── scripts/
-        ├── audit.sh             # Diagnostic script
-        └── analyze-session.py
+        ├── audit.sh               # Diagnostic script
+        └── analyze-session.py     # Optional deep per-session log analysis
 ```
 
 ## Re-audit cadence
 
 Run weekly. Overhead creep is the default state.
+
+## Maintainers
+
+See [PUBLISHING.md](./PUBLISHING.md) for the npm release flow.

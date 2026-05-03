@@ -29,9 +29,17 @@ command -v yq >/dev/null 2>&1 || YQ_FALLBACK=1
 
 # ---------- helpers ----------
 
-# Emit one path per line for every CLAUDE.md memory layer that exists,
-# in load order. See: https://docs.claude.com/en/docs/claude-code/memory
-_claude_md_files() {
+# Pre-compute existing CLAUDE.md memory layers into a tempfile at startup.
+# Detection blocks are eval-ed in subshells; on stock macOS bash 3.2 `export -f`
+# does not exist, so exported FUNCTIONS do not cross the eval boundary.
+# A file path passed via env var works on every POSIX shell.
+# Load order: enterprise → user → project root → legacy → local.
+# See: https://docs.claude.com/en/docs/claude-code/memory
+CCAUDIT_CLAUDE_MD_LIST="$(mktemp -t ccaudit.claudemd.XXXXXX)"
+export CCAUDIT_CLAUDE_MD_LIST
+trap 'rm -f "${CCAUDIT_CLAUDE_MD_LIST:-}"' EXIT
+
+_ccaudit_init_claude_md_list() {
   local candidates=(
     "/Library/Application Support/ClaudeCode/CLAUDE.md"
     "/etc/claude-code/CLAUDE.md"
@@ -41,11 +49,19 @@ _claude_md_files() {
     "./CLAUDE.local.md"
   )
   local f
+  : > "$CCAUDIT_CLAUDE_MD_LIST"
   for f in "${candidates[@]}"; do
-    [ -f "$f" ] && printf '%s\n' "$f"
+    [ -f "$f" ] && printf '%s\n' "$f" >> "$CCAUDIT_CLAUDE_MD_LIST"
   done
 }
-export -f _claude_md_files
+_ccaudit_init_claude_md_list
+
+# Wrapper kept so existing detection blocks `done < <(_claude_md_files)` work
+# unchanged. Reads from the precomputed list instead of recomputing — and does
+# not rely on `export -f` (bash 4+ only).
+_claude_md_files() {
+  cat "$CCAUDIT_CLAUDE_MD_LIST"
+}
 
 _bold()   { printf "\033[1m%s\033[0m" "$1"; }
 _col_status() {

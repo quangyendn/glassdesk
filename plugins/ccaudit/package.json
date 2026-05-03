@@ -1,0 +1,38 @@
+{
+  "name": "ccaudit",
+  "version": "0.2.0",
+  "description": "Audit Claude Code setup against a 20-pattern catalog (cost-overhead + best-practice compliance).",
+  "license": "ISC",
+  "author": "glassdesk contributors",
+  "homepage": "https://github.com/quangyendn/glassdesk/tree/main/plugins/ccaudit",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/quangyendn/glassdesk.git",
+    "directory": "plugins/ccaudit"
+  },
+  "bugs": {
+    "url": "https://github.com/quangyendn/glassdesk/issues"
+  },
+  "keywords": [
+    "claude-code",
+    "audit",
+    "token-optimization",
+    "diagnostics",
+    "cost-reduction"
+  ],
+  "bin": {
+    "ccaudit": "bin/ccaudit.js"
+  },
+  "files": [
+    "bin/",
+    "skills/",
+    ".claude-plugin/"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "os": [
+    "darwin",
+    "linux"
+  ]
+}
