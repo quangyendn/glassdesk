@@ -1,155 +1,325 @@
 #!/usr/bin/env bash
-# claude-audit.sh — Audit Claude Code setup for the 9 token-waste patterns.
+# audit.sh — ccaudit: catalog-driven 2-tier Claude Code audit.
+# Loops over pattern files in references/patterns/*.md
+# Reads YAML frontmatter via yq (primary) or awk (fallback).
 # Run from any project root. Reads ~/.claude and ./.claude.
+#
+# Severity ordinal map (for Top-3 ranking):
+#   high=3, fail=3, medium=2, warn=2, low=1, info=0
+#
+# Usage:
+#   CLAUDE_PLUGIN_ROOT=/path/to/ccaudit bash audit.sh
+#   bash audit.sh   (auto-detects from script location)
 
 set -u
 
+# ---------- resolve plugin root ----------
+if [ -z "${CLAUDE_PLUGIN_ROOT:-}" ]; then
+  SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+  # scripts/ is 2 levels below plugin root: skills/audit/scripts/
+  CLAUDE_PLUGIN_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
+fi
+PATTERN_DIR="${CLAUDE_PLUGIN_ROOT}/skills/audit/references/patterns"
+
+# ---------- yq probe ----------
+YQ_FALLBACK=0
+command -v yq >/dev/null 2>&1 || YQ_FALLBACK=1
+
 # ---------- helpers ----------
-have() { command -v "$1" >/dev/null 2>&1; }
-section() { printf "\n=== %s ===\n" "$1"; }
-warn()    { printf "  [WARN] %s\n" "$1"; }
-ok()      { printf "  [OK]   %s\n" "$1"; }
-fail()    { printf "  [FAIL] %s\n" "$1"; }
-info()    { printf "  %s\n" "$1"; }
+_bold()   { printf "\033[1m%s\033[0m" "$1"; }
+_col_status() {
+  case "$1" in
+    PASS) printf "\033[32mPASS\033[0m" ;;
+    WARN) printf "\033[33mWARN\033[0m" ;;
+    FAIL) printf "\033[31mFAIL\033[0m" ;;
+    INFO) printf "\033[36mINFO\033[0m" ;;
+    *)    printf "%s" "$1" ;;
+  esac
+}
 
-USER_DIR="${HOME}/.claude"
-PROJ_DIR=".claude"
+# ---------- awk frontmatter parser ----------
+# Usage: _awk_field <file> <key>
+# Returns the scalar value of <key> from the first YAML frontmatter block.
+# Multi-line values (detection block) are handled by _awk_detection.
+_awk_field() {
+  local file="$1" key="$2"
+  awk -v key="$key" '
+    /^---/ { fm++; next }
+    fm == 1 && /^[a-zA-Z_]/ {
+      split($0, a, /:[[:space:]]*/);
+      if (a[1] == key) { print substr($0, index($0, a[2])); found=1 }
+    }
+    fm == 2 { exit }
+  ' "$file"
+}
 
-# Approx tokens-per-word for English/code prose.
-TOK_PER_WORD=1.3
+# Extract the multi-line detection block (everything indented under "detection: |")
+_awk_detection() {
+  local file="$1"
+  awk '
+    /^---/ { fm++; next }
+    fm == 1 && /^detection:[[:space:]]*\|/ { in_det=1; next }
+    fm == 1 && in_det && /^  / { sub(/^  /, ""); print; next }
+    fm == 1 && in_det && !/^  / { in_det=0 }
+    fm == 2 { exit }
+  ' "$file"
+}
 
-# ---------- 1. CLAUDE.md bloat ----------
-section "1. CLAUDE.md size (Pattern #1: bloat)"
-total_words=0
-for f in "${USER_DIR}/CLAUDE.md" "${PROJ_DIR}/CLAUDE.md"; do
-  if [ -f "$f" ]; then
-    w=$(wc -w < "$f" | tr -d ' ')
-    info "$f: ${w} words (~$(awk -v w="$w" -v t="$TOK_PER_WORD" 'BEGIN{printf "%d", w*t}') tokens)"
-    total_words=$((total_words + w))
+# ---------- frontmatter extraction ----------
+_get_field() {
+  local file="$1" key="$2"
+  if [ "$YQ_FALLBACK" -eq 0 ]; then
+    yq eval ".$key" "$file" 2>/dev/null | grep -v '^null$' || true
   else
-    info "$f: (not found)"
+    _awk_field "$file" "$key"
   fi
-done
-total_tokens=$(awk -v w="$total_words" -v t="$TOK_PER_WORD" 'BEGIN{printf "%d", w*t}')
-info "Combined: ${total_words} words / ~${total_tokens} tokens"
-if [ "$total_words" -gt 1500 ]; then
-  fail "Over budget. Target combined < 1,200 words (~1,500 tokens). Refactor required."
-elif [ "$total_words" -gt 1200 ]; then
-  warn "Approaching limit. Consider trimming."
-else
-  ok "Within target."
-fi
+}
 
-# ---------- 3. Hook injection waste ----------
-section "3. Active hooks (Pattern #3: hook injection)"
-for f in "${USER_DIR}/settings.json" "${PROJ_DIR}/settings.json"; do
-  if [ -f "$f" ]; then
-    info "File: $f"
-    if have jq; then
-      keys=$(jq -r '.hooks // {} | keys | .[]' "$f" 2>/dev/null)
-      if [ -z "$keys" ]; then
-        ok "No hooks registered."
-      else
-        info "Registered hook events:"
-        printf "%s\n" "$keys" | sed 's/^/    - /'
-        ups_count=$(jq -r '.hooks.UserPromptSubmit // [] | length' "$f" 2>/dev/null)
-        ss_count=$(jq -r '.hooks.SessionStart // [] | length'    "$f" 2>/dev/null)
-        info "UserPromptSubmit hooks: ${ups_count:-0}"
-        info "SessionStart hooks:    ${ss_count:-0}"
-        if [ "${ups_count:-0}" -gt 1 ]; then
-          warn "More than 1 UserPromptSubmit hook fires on every prompt. Audit each."
-        fi
-        if [ "${ss_count:-0}" -gt 2 ]; then
-          warn "More than 2 SessionStart hooks. Kill any 'loaded successfully' notifications (Pattern #9)."
-        fi
-      fi
+_get_detection() {
+  local file="$1"
+  if [ "$YQ_FALLBACK" -eq 0 ]; then
+    yq eval '.detection' "$file" 2>/dev/null | grep -v '^null$' || true
+  else
+    _awk_detection "$file"
+  fi
+}
+
+_get_threshold_key() {
+  local file="$1" key="$2"
+  if [ "$YQ_FALLBACK" -eq 0 ]; then
+    yq eval ".threshold.$key" "$file" 2>/dev/null | grep -v '^null$' || true
+  else
+    awk -v key="$key" '
+      /^---/ { fm++; next }
+      fm == 1 && /^threshold:/ { in_thr=1; next }
+      fm == 1 && in_thr && /^  / {
+        split($0, a, /:[[:space:]]*/);
+        gsub(/^[[:space:]]+/, "", a[1]);
+        if (a[1] == key) { gsub(/[[:space:]]/, "", a[2]); print a[2]; found=1 }
+        next
+      }
+      fm == 1 && in_thr && !/^  / { in_thr=0 }
+      fm == 2 { exit }
+    ' "$file"
+  fi
+}
+
+# ---------- severity ordinal ----------
+_sev_ord() {
+  case "$1" in
+    high|fail) echo 3 ;;
+    medium|warn) echo 2 ;;
+    low) echo 1 ;;
+    info) echo 0 ;;
+    *) echo 0 ;;
+  esac
+}
+
+# ---------- classify result ----------
+# Outputs: STATUS measured target
+_classify() {
+  local file="$1" measured="$2"
+
+  # manual patterns
+  if [ "$measured" = "manual" ]; then
+    echo "INFO manual manual"
+    return
+  fi
+
+  # non-numeric guard: if measured is not a non-negative integer, emit WARN
+  # (covers "error", empty string, or anything with non-digit characters)
+  case "$measured" in
+    ''|*[!0-9]*) echo "WARN (parse error) -"; return ;;
+  esac
+
+  local severity
+  severity=$(_get_field "$file" "severity")
+
+  # try threshold keys in order of specificity
+  local fw fn ww wn wm fm fcount wcount
+  fw=$(_get_threshold_key "$file" "fail_words")
+  ww=$(_get_threshold_key "$file" "warn_words")
+  fn=$(_get_threshold_key "$file" "fail_count")
+  wn=$(_get_threshold_key "$file" "warn_count")
+  fm=$(_get_threshold_key "$file" "fail_matches")
+  wm=$(_get_threshold_key "$file" "warn_matches")
+  local if_flag
+  if_flag=$(_get_threshold_key "$file" "info_flag")
+
+  # words thresholds
+  if [ -n "$fw" ] && [ "$fw" != "null" ]; then
+    local target="<${ww:-$fw}w"
+    if [ "$measured" -ge "$fw" ] 2>/dev/null; then
+      echo "FAIL $measured $target"
+    elif [ -n "$ww" ] && [ "$measured" -ge "$ww" ] 2>/dev/null; then
+      echo "WARN $measured $target"
     else
-      info "(install jq for detailed parsing)"
-      grep -A2 '"hooks"' "$f" || true
+      echo "PASS $measured $target"
+    fi
+    return
+  fi
+
+  # count thresholds
+  if [ -n "$fn" ] && [ "$fn" != "null" ]; then
+    local target="<${wn:-$fn}"
+    if [ "$measured" -ge "$fn" ] 2>/dev/null; then
+      echo "FAIL $measured $target"
+    elif [ -n "$wn" ] && [ "$measured" -ge "$wn" ] 2>/dev/null; then
+      echo "WARN $measured $target"
+    else
+      echo "PASS $measured $target"
+    fi
+    return
+  fi
+
+  # match thresholds
+  if [ -n "$fm" ] && [ "$fm" != "null" ]; then
+    local target="0"
+    if [ "$measured" -ge "$fm" ] 2>/dev/null; then
+      echo "FAIL $measured $target"
+    elif [ -n "$wm" ] && [ "$measured" -ge "$wm" ] 2>/dev/null; then
+      echo "WARN $measured $target"
+    else
+      echo "PASS $measured $target"
+    fi
+    return
+  fi
+
+  if [ -n "$wm" ] && [ "$wm" != "null" ]; then
+    if [ "$measured" -ge "$wm" ] 2>/dev/null; then
+      echo "WARN $measured 0"
+    else
+      echo "PASS $measured 0"
+    fi
+    return
+  fi
+
+  # info_flag: emit INFO if measured == flag value
+  if [ -n "$if_flag" ] && [ "$if_flag" != "null" ]; then
+    if [ "$measured" = "$if_flag" ] 2>/dev/null; then
+      echo "INFO $measured -"
+    else
+      echo "PASS $measured -"
+    fi
+    return
+  fi
+
+  # fallback: info
+  echo "INFO $measured -"
+}
+
+# ---------- accumulators ----------
+t1_rows=""   # "ID|NAME|STATUS|MEASURED|TARGET|COST%"
+t2_rows=""   # "ID|NAME|STATUS|MEASURED|TARGET|CITATION"
+fix_candidates=""  # "COST_ORD|SEV_ORD|ID|FIX_REF" for top-3
+
+total_cost_fail=0
+
+# ---------- main loop ----------
+for pattern_file in "${PATTERN_DIR}"/*.md; do
+  [ -f "$pattern_file" ] || continue
+
+  pid=$(_get_field "$pattern_file" "id")
+  pname=$(_get_field "$pattern_file" "name")
+  ptier=$(_get_field "$pattern_file" "tier")
+  psev=$(_get_field "$pattern_file" "severity")
+  pcost=$(_get_field "$pattern_file" "cost_share_pct")
+  pfixref=$(_get_field "$pattern_file" "fix_ref")
+  pcitation=$(_get_field "$pattern_file" "citation")
+
+  # skip if id missing (malformed file)
+  [ -z "$pid" ] || [ "$pid" = "null" ] && continue
+
+  # strip quotes if yq returns quoted strings
+  pname="${pname#\"}" ; pname="${pname%\"}"
+  pfixref="${pfixref#\"}" ; pfixref="${pfixref%\"}"
+  pcitation="${pcitation#\"}" ; pcitation="${pcitation%\"}"
+
+  # get and eval detection block
+  det_script=$(_get_detection "$pattern_file")
+
+  if [ -z "$det_script" ]; then
+    measured="skip"
+  else
+    measured=$(eval "$det_script" 2>/dev/null) || measured="error"
+  fi
+  measured="${measured:-0}"
+
+  # classify
+  classify_out=$(_classify "$pattern_file" "$measured")
+  status=$(echo "$classify_out" | cut -d' ' -f1)
+  mval=$(echo "$classify_out" | cut -d' ' -f2)
+  tval=$(echo "$classify_out" | cut -d' ' -f3)
+
+  sev_ord=$(_sev_ord "$psev")
+
+  if [ "$ptier" = "cost" ]; then
+    cost_pct="${pcost:-0}"
+    cost_ord="${cost_pct:-0}"
+    t1_rows="${t1_rows}${pid}|${pname}|${status}|${mval}|${tval}|${cost_pct}%
+"
+    # collect for top-3 fixes (FAIL or WARN)
+    if [ "$status" = "FAIL" ] || [ "$status" = "WARN" ]; then
+      total_cost_fail=$((total_cost_fail + cost_pct))
+      fix_candidates="${fix_candidates}${cost_ord} ${sev_ord} ${pid} ${pfixref}
+"
     fi
   else
-    info "$f: (not found)"
+    t2_rows="${t2_rows}${pid}|${pname}|${status}|${mval}|${tval}|${pcitation}
+"
+    if [ "$status" = "FAIL" ] || [ "$status" = "WARN" ]; then
+      # compliance patterns get cost_ord=0 (no cost share)
+      fix_candidates="${fix_candidates}0 ${sev_ord} ${pid} ${pfixref}
+"
+    fi
   fi
 done
 
-# ---------- 5. Skills installed (Pattern #5: skill loading) ----------
-section "5. Installed skills (Pattern #5: irrelevant skill load)"
-if [ -d "${USER_DIR}/skills" ]; then
-  count=$(find "${USER_DIR}/skills" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')
-  info "Skills in ${USER_DIR}/skills: ${count}"
-  find "${USER_DIR}/skills" -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sed 's/^/    - /'
-  if [ "$count" -gt 5 ]; then
-    warn "Target: 3-5 active skills. Disable any not used in last 7 days."
-  else
-    ok "Within target."
-  fi
+# ---------- report ----------
+printf "\n=== ccaudit report ===\n"
+
+printf "\n[Section A] Tier 1 — Cost Overhead\n"
+printf "%-7s | %-42s | %-6s | %-10s | %-10s | %s\n" \
+  "ID" "Pattern" "Status" "Measured" "Target" "Cost share"
+printf "%s\n" "$(printf '%.0s-' {1..90})"
+while IFS='|' read -r rid rname rstatus rmeasured rtarget rcost; do
+  [ -z "$rid" ] && continue
+  printf "%-7s | %-42s | " "$rid" "$rname"
+  _col_status "$rstatus"
+  printf "    | %-10s | %-10s | %s\n" "$rmeasured" "$rtarget" "$rcost"
+done <<EOF
+${t1_rows}
+EOF
+
+printf "\n[Section B] Tier 2 — Best-Practice Compliance\n"
+printf "%-7s | %-42s | %-6s | %-10s | %-10s | %s\n" \
+  "ID" "Pattern" "Status" "Measured" "Target" "Citation"
+printf "%s\n" "$(printf '%.0s-' {1..110})"
+while IFS='|' read -r rid rname rstatus rmeasured rtarget rcitation; do
+  [ -z "$rid" ] && continue
+  printf "%-7s | %-42s | " "$rid" "$rname"
+  _col_status "$rstatus"
+  printf "    | %-10s | %-10s | %s\n" "$rmeasured" "$rtarget" "${rcitation:0:60}"
+done <<EOF
+${t2_rows}
+EOF
+
+# ---------- top-3 fixes ----------
+printf "\n[Top 3 Fixes] ranked: cost_share_pct desc → severity desc\n"
+if [ -n "$fix_candidates" ]; then
+  top3=$(printf "%s" "$fix_candidates" | grep -v '^$' | sort -rn -k1,1 -k2,2 | head -3)
+  rank=1
+  while IFS=' ' read -r cord sord fid fref; do
+    [ -z "$fid" ] && continue
+    printf "  %d. %s → %s\n" "$rank" "$fid" "$fref"
+    rank=$((rank + 1))
+  done <<EOF2
+${top3}
+EOF2
 else
-  info "${USER_DIR}/skills: (not found)"
+  printf "  No WARN/FAIL patterns detected. Great shape!\n"
 fi
 
-# ---------- Plugins installed (Pattern #9: plugin auto-update) ----------
-section "Installed plugins (Pattern #9: plugin auto-update redundancy)"
-if [ -d "${USER_DIR}/plugins" ]; then
-  pcount=$(find "${USER_DIR}/plugins" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')
-  info "Plugins: ${pcount}"
-  find "${USER_DIR}/plugins" -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sed 's/^/    - /'
-  if [ "$pcount" -gt 5 ]; then
-    warn "Target: 3-5 plugins. Each plugin contributes hooks + SessionStart messages."
-  else
-    ok "Within target."
-  fi
-else
-  info "${USER_DIR}/plugins: (not found)"
-fi
-
-# ---------- 6. MCP servers (Pattern #6: tool def overhead) ----------
-section "6. Connected MCP servers (Pattern #6: tool definitions)"
-for f in "${USER_DIR}/settings.json" "${PROJ_DIR}/settings.json"; do
-  if [ -f "$f" ] && have jq; then
-    mcp_count=$(jq -r '.mcpServers // {} | keys | length' "$f" 2>/dev/null)
-    info "$f → ${mcp_count} MCP server(s)"
-    jq -r '.mcpServers // {} | keys | .[]' "$f" 2>/dev/null | sed 's/^/    - /'
-    if [ "${mcp_count:-0}" -gt 4 ]; then
-      warn "Target: 3 always-on MCPs. Move the rest to per-session enable."
-    fi
-  fi
-done
-
-# ---------- 2 + 4: Session-level signals from logs ----------
-section "Session token usage (Patterns #2, #4: re-reads + cache misses)"
-log_dir="${USER_DIR}/logs"
-if [ -d "$log_dir" ]; then
-  recent=$(find "$log_dir" -name "*.log" -mtime -7 2>/dev/null)
-  if [ -n "$recent" ]; then
-    echo "$recent" | head -5 | sed 's/^/  log: /'
-    if have grep && have awk; then
-      avg=$(grep -h -oP 'input_tokens["\:\s]+\K[0-9]+' $recent 2>/dev/null \
-            | awk '{ s += $1; n++ } END { if (n>0) printf "%.0f", s/n; else print "0" }')
-      total_prompts=$(grep -h -oP 'input_tokens["\:\s]+\K[0-9]+' $recent 2>/dev/null | wc -l | tr -d ' ')
-      info "Avg input tokens / prompt (last 7d): ${avg}"
-      info "Total prompts (last 7d):             ${total_prompts}"
-      if [ "${avg:-0}" -gt 8000 ]; then
-        fail "Avg input >8K tokens — heavy overhead. Trim CLAUDE.md, hooks, skills, MCPs."
-      elif [ "${avg:-0}" -gt 5000 ]; then
-        warn "Avg input >5K tokens — moderate overhead."
-      else
-        ok "Avg input within healthy range (<5K tokens)."
-      fi
-    fi
-  else
-    info "No logs in last 7 days."
-  fi
-else
-  info "${log_dir}: (not found — proxy logging not configured)"
-fi
-
-# ---------- 7 + 8: Static config flags we cannot infer ----------
-section "Manual checks (Patterns #7, #8: extended thinking + wrong-direction)"
-info "  - Extended Thinking default: check Claude Code settings, target OFF by default."
-info "  - Cmd+. / Ctrl+. habit: stop runaway generations within 5s. Track yourself for 1 week."
-
-# ---------- Summary ----------
-section "Summary"
-info "Re-run weekly: bash scripts/audit.sh"
-info "Apply fixes from: references/fixes.md"
-info "Pattern reference: references/patterns.md"
+# ---------- estimated savings ----------
+printf "\nEstimated savings: %d%% productive-token uplift available.\n" "$total_cost_fail"
+printf "(Sum of Tier 1 cost_share_pct for WARN/FAIL patterns)\n\n"
