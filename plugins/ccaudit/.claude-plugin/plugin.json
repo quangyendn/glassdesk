@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "ccaudit",
+  "description": "Audit Claude Code setup for the 9 invisible token-waste patterns and recommend prioritized fixes.",
+  "version": "0.1.0",
+  "author": {
+    "name": "glassdesk contributors"
+  },
+  "license": "ISC",
+  "keywords": [
+    "claude-code",
+    "audit",
+    "token-optimization",
+    "diagnostics",
+    "cost-reduction"
+  ]
+}
