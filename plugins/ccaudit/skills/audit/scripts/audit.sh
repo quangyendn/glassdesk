@@ -13,6 +13,8 @@
 
 set -u
 
+# SECURITY: pattern detection blocks are eval-ed. Pattern files are first-party only — review like code.
+
 # ---------- resolve plugin root ----------
 if [ -z "${CLAUDE_PLUGIN_ROOT:-}" ]; then
   SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -26,6 +28,25 @@ YQ_FALLBACK=0
 command -v yq >/dev/null 2>&1 || YQ_FALLBACK=1
 
 # ---------- helpers ----------
+
+# Emit one path per line for every CLAUDE.md memory layer that exists,
+# in load order. See: https://docs.claude.com/en/docs/claude-code/memory
+_claude_md_files() {
+  local candidates=(
+    "/Library/Application Support/ClaudeCode/CLAUDE.md"
+    "/etc/claude-code/CLAUDE.md"
+    "$HOME/.claude/CLAUDE.md"
+    "./CLAUDE.md"
+    "./.claude/CLAUDE.md"
+    "./CLAUDE.local.md"
+  )
+  local f
+  for f in "${candidates[@]}"; do
+    [ -f "$f" ] && printf '%s\n' "$f"
+  done
+}
+export -f _claude_md_files
+
 _bold()   { printf "\033[1m%s\033[0m" "$1"; }
 _col_status() {
   case "$1" in
@@ -54,6 +75,7 @@ _awk_field() {
 }
 
 # Extract the multi-line detection block (everything indented under "detection: |")
+# TODO(F3): awk parser is not robust to blank lines within the detection block; revisit.
 _awk_detection() {
   local file="$1"
   awk '
@@ -125,6 +147,9 @@ _classify() {
     echo "INFO manual manual"
     return
   fi
+
+  [ "$measured" = "evalwarn" ] && { echo "WARN (eval err) -"; return; }
+  [ "$measured" = "missing" ] && { echo "INFO (no CLAUDE.md) -"; return; }
 
   # non-numeric guard: if measured is not a non-negative integer, emit WARN
   # (covers "error", empty string, or anything with non-digit characters)
@@ -241,7 +266,17 @@ for pattern_file in "${PATTERN_DIR}"/*.md; do
   if [ -z "$det_script" ]; then
     measured="skip"
   else
-    measured=$(eval "$det_script" 2>/dev/null) || measured="error"
+    err_file=$(mktemp 2>/dev/null) || err_file="/tmp/ccaudit.$$.err"
+    eval_status=0
+    measured=$(eval "$det_script" 2>"$err_file") || eval_status=$?
+    if [ -s "$err_file" ]; then
+      printf '[ccaudit] %s detection stderr: %s\n' "$pid" "$(tr '\n' ' ' <"$err_file")" >&2
+      if [ "$eval_status" -eq 0 ] && [ -n "$measured" ]; then
+        measured="evalwarn"
+      fi
+    fi
+    rm -f "$err_file"
+    [ "$eval_status" -ne 0 ] && measured="error"
   fi
   measured="${measured:-0}"
 
