@@ -18,6 +18,7 @@ How to write a knowledge base entry after extracting session insights.
 
 ```yaml
 ---
+title: <session topic — sentence case, ≤ 70 chars>
 date: YYYY-MM-DD
 session: <session UUID or "unknown">
 tags: [tag1, tag2]
@@ -25,6 +26,7 @@ types: [PROBLEM|PATTERN|DECISION|MISTAKE, ...]
 ---
 ```
 
+- `title` — REQUIRED. Astro wiki collection schema (`website/src/content.config.ts`) rejects entries without it; missing `title` breaks the Vercel build with `InvalidContentEntryDataError`.
 - `date` — ISO 8601
 - `session` — UUID from the JSONL filename (e.g. `19dbee80-1992-4851-95fe-44a25a68a639`)
 - `tags` — 1-4 lowercase keywords describing the domain (e.g. `plugin`, `testing`, `git`)

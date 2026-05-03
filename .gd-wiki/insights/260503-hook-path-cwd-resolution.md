@@ -1,4 +1,5 @@
 ---
+title: Hook path CWD resolution — three-layer plugin fix
 date: 2026-05-03
 session: cc0aaaaf-4bfb-4285-bb80-6c2f0b57457f
 tags: [plugin, hooks, cli, settings, migration]
