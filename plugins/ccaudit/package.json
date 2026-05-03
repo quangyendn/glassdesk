@@ -1,5 +1,5 @@
 {
-  "name": "ccaudit",
+  "name": "@yennqdn/ccaudit",
   "version": "0.2.0",
   "description": "Audit Claude Code setup against a 20-pattern catalog (cost-overhead + best-practice compliance).",
   "license": "ISC",

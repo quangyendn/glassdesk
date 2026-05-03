@@ -1,4 +1,4 @@
-# PUBLISHING.md — ccaudit npm release runbook
+# PUBLISHING.md — @yennqdn/ccaudit npm release runbook
 
 Manual flow. No CI automation (yet). Run from the repo with a clean git tree on `main`.
 
@@ -11,22 +11,13 @@ Manual flow. No CI automation (yet). Run from the repo with a clean git tree on 
 - [ ] Baseline sanity: `bash plugins/ccaudit/skills/audit/scripts/audit.sh` exits 0.
 - [ ] Node wrapper sanity: `node plugins/ccaudit/bin/ccaudit.js` exits 0 and matches baseline output.
 
-## 1. Pick the package name
+## 1. Package name
 
-Check availability:
+Published under the scoped name `@yennqdn/ccaudit`.
 
-```bash
-npm view ccaudit
-```
+The unscoped `ccaudit` is blocked by npm's name-similarity policy (collides with the existing `cc-audit` package — 403 on PUT). Do not attempt to revert to the unscoped name; it will fail.
 
-- **404 → unscoped name is free.** Keep `package.json` `"name": "ccaudit"`. Continue to step 2.
-- **Returns metadata → name taken.** Edit `package.json`:
-  ```json
-  "name": "@quangyendn/ccaudit"
-  ```
-  Update the README's `Quick start` section to use the scoped name as primary. Continue to step 2.
-
-(Scoped packages always require `--access public` to be public — already in the publish command below.)
+Scoped packages always require `--access public` to be public — already in the publish command below.
 
 ## 2. Bump version (if not already done)
 
@@ -71,7 +62,7 @@ From a fresh tmpdir, ignoring local install:
 
 ```bash
 cd "$(mktemp -d)"
-npx -y ccaudit@latest         # or @quangyendn/ccaudit@latest
+npx -y @yennqdn/ccaudit@latest
 echo "exit=$?"
 ```
 
@@ -89,13 +80,13 @@ git push --tags
 Within 72 hours of publish:
 
 ```bash
-npm unpublish ccaudit@<version>
+npm unpublish @yennqdn/ccaudit@<version>
 ```
 
 After 72 hours, unpublish is forbidden — use deprecate instead:
 
 ```bash
-npm deprecate ccaudit@<version> "broken — use @latest"
+npm deprecate @yennqdn/ccaudit@<version> "broken — use @latest"
 ```
 
 Then patch and re-publish with bumped version.

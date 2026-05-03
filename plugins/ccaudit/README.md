@@ -7,10 +7,8 @@ Audit Claude Code setup against a 20-pattern catalog (9 cost-overhead + 11 best-
 Run the audit against the current project — no install:
 
 ```bash
-npx -y ccaudit
+npx -y @yennqdn/ccaudit
 ```
-
-(If `ccaudit` is unavailable on npm, use the scoped fallback `npx -y @quangyendn/ccaudit`.)
 
 The audit reads `~/.claude/CLAUDE.md`, `./CLAUDE.md`, `./.claude/CLAUDE.md`, and `./CLAUDE.local.md` from the directory you invoke it in. Run from a project root for project-scoped findings.
 
