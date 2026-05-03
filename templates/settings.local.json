@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node .claude/hooks/session-init.cjs"
+            "command": "node \"${CLAUDE_PROJECT_DIR:-$PWD}/.claude/hooks/session-init.cjs\""
           }
         ]
       }
@@ -15,7 +15,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node .claude/hooks/dev-rules-reminder.cjs"
+            "command": "node \"${CLAUDE_PROJECT_DIR:-$PWD}/.claude/hooks/dev-rules-reminder.cjs\""
           }
         ]
       }
