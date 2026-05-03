@@ -41,6 +41,23 @@
         "claude-flow",
         "productivity"
       ]
+    },
+    {
+      "name": "ccaudit",
+      "description": "Audit Claude Code setup against a 20-pattern catalog (9 cost-overhead + 11 best-practice compliance) and recommend prioritized fixes.",
+      "version": "0.1.0",
+      "author": {
+        "name": "glassdesk contributors"
+      },
+      "source": "./plugins/ccaudit",
+      "category": "development",
+      "keywords": [
+        "claude-code",
+        "audit",
+        "token-optimization",
+        "diagnostics",
+        "cost-reduction"
+      ]
     }
   ]
 }
