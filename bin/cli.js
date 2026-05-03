@@ -147,6 +147,38 @@ export function mergeHookEntries(userEntries, tplEntries) {
   });
 }
 
+// Migration: legacy template (≤ v0.1.1) wrote hook commands as
+// `node .claude/hooks/{session-init,dev-rules-reminder}.cjs` — a relative
+// path that breaks when Claude Code spawns the hook from a CWD ≠ project
+// root (subdirectory launch, nested .claude/, etc.) → MODULE_NOT_FOUND
+// (loader:1404). Newer template uses ${CLAUDE_PROJECT_DIR:-$PWD}. Strip
+// the stale entries on update so the new entry replaces them instead of
+// piling up as a duplicate.
+const STALE_GLASSDESK_HOOK_RE = /^node \.claude\/hooks\/(session-init|dev-rules-reminder)\.cjs$/;
+
+export function purgeStaleGlassdeskHooks(hooksObj, eventNames) {
+  if (!hooksObj || typeof hooksObj !== 'object') return [];
+  const removed = [];
+  for (const event of eventNames) {
+    if (!Array.isArray(hooksObj[event])) continue;
+    hooksObj[event] = hooksObj[event]
+      .map((rawEntry) => {
+        const entry = normalizeHookEntry(rawEntry);
+        if (!entry || !Array.isArray(entry.hooks)) return entry;
+        const kept = entry.hooks.filter((h) => {
+          if (typeof h?.command === 'string' && STALE_GLASSDESK_HOOK_RE.test(h.command)) {
+            removed.push(`${event}: ${h.command}`);
+            return false;
+          }
+          return true;
+        });
+        return { ...entry, hooks: kept };
+      })
+      .filter((entry) => entry && Array.isArray(entry.hooks) && entry.hooks.length > 0);
+  }
+  return removed;
+}
+
 export function mergeSettings(existing, template) {
   const merged = JSON.parse(JSON.stringify(existing ?? {}));
   const conflicts = [];
@@ -155,6 +187,8 @@ export function mergeSettings(existing, template) {
   // Claude Code format: { matcher?: string, hooks: [{ type, command }] }.
   if (template.hooks) {
     merged.hooks ??= {};
+    const purged = purgeStaleGlassdeskHooks(merged.hooks, Object.keys(template.hooks));
+    for (const cmd of purged) conflicts.push(`hooks: removed stale glassdesk entry — ${cmd}`);
     for (const [event, tplEntries] of Object.entries(template.hooks)) {
       const userEntries = merged.hooks[event] ?? [];
       merged.hooks[event] = mergeHookEntries(userEntries, tplEntries);

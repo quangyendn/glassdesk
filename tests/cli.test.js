@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
-import { parseArgs, detectInstall, mergeSettings, copyPluginFiles, writeManifest } from '../bin/cli.js';
+import { parseArgs, detectInstall, mergeSettings, copyPluginFiles, writeManifest, purgeStaleGlassdeskHooks } from '../bin/cli.js';
 
 test('parseArgs: bare init', () => {
   assert.deepEqual(parseArgs(['init']), {
@@ -269,6 +269,70 @@ test('writeManifest: writes JSON with version and POSIX paths', () => {
   assert.equal(manifest.version, '2.0.0');
   assert.match(manifest.installedAt, /^\d{4}-\d{2}-\d{2}T/);
   assert.deepEqual(manifest.files, ['commands/plan.md', 'skills/planning/SKILL.md']);
+});
+
+// ----- purgeStaleGlassdeskHooks: legacy template migration -----
+
+test('purgeStaleGlassdeskHooks: removes legacy session-init and dev-rules-reminder entries', () => {
+  const hooksObj = {
+    SessionStart: [
+      { hooks: [{ type: 'command', command: 'node .claude/hooks/session-init.cjs' }] },
+    ],
+    UserPromptSubmit: [
+      { hooks: [{ type: 'command', command: 'node .claude/hooks/dev-rules-reminder.cjs' }] },
+    ],
+  };
+  const removed = purgeStaleGlassdeskHooks(hooksObj, ['SessionStart', 'UserPromptSubmit']);
+  assert.equal(removed.length, 2);
+  assert.deepEqual(hooksObj.SessionStart, []);
+  assert.deepEqual(hooksObj.UserPromptSubmit, []);
+});
+
+test('purgeStaleGlassdeskHooks: leaves user hooks and unknown commands alone', () => {
+  const hooksObj = {
+    SessionStart: [
+      { hooks: [{ type: 'command', command: 'node .claude/hooks/session-init.cjs' }] },
+      { hooks: [{ type: 'command', command: 'echo user-hook' }] },
+    ],
+  };
+  const removed = purgeStaleGlassdeskHooks(hooksObj, ['SessionStart']);
+  assert.equal(removed.length, 1);
+  assert.equal(hooksObj.SessionStart.length, 1);
+  assert.equal(hooksObj.SessionStart[0].hooks[0].command, 'echo user-hook');
+});
+
+test('purgeStaleGlassdeskHooks: ignores events not present in eventNames', () => {
+  const hooksObj = {
+    SessionStart: [
+      { hooks: [{ type: 'command', command: 'node .claude/hooks/session-init.cjs' }] },
+    ],
+  };
+  const removed = purgeStaleGlassdeskHooks(hooksObj, ['UserPromptSubmit']);
+  assert.equal(removed.length, 0);
+  assert.equal(hooksObj.SessionStart.length, 1);
+});
+
+test('mergeSettings: upgrade replaces stale glassdesk hook with new template entry, reports conflict', () => {
+  const existing = {
+    hooks: {
+      SessionStart: [
+        { hooks: [{ type: 'command', command: 'node .claude/hooks/session-init.cjs' }] },
+      ],
+    },
+  };
+  const template = {
+    hooks: {
+      SessionStart: [
+        { hooks: [{ type: 'command', command: 'node "${CLAUDE_PROJECT_DIR:-$PWD}/.claude/hooks/session-init.cjs"' }] },
+      ],
+    },
+  };
+  const { merged, conflicts } = mergeSettings(existing, template);
+  // Stale entry removed; new entry from template only.
+  assert.equal(merged.hooks.SessionStart.length, 1);
+  assert.equal(merged.hooks.SessionStart[0].hooks.length, 1);
+  assert.match(merged.hooks.SessionStart[0].hooks[0].command, /\$\{CLAUDE_PROJECT_DIR:-\$PWD\}/);
+  assert.ok(conflicts.some((c) => /removed stale glassdesk entry/.test(c)));
 });
 
 import { looksLikeProjectRoot } from '../bin/cli.js';
