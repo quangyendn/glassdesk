@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "ccaudit",
-  "description": "Audit Claude Code setup for the 9 invisible token-waste patterns and recommend prioritized fixes.",
+  "description": "Audit Claude Code setup against a 20-pattern catalog (9 cost-overhead + 11 best-practice compliance) and recommend prioritized fixes.",
   "version": "0.1.0",
   "author": {
     "name": "glassdesk contributors"

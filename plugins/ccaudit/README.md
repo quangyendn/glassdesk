@@ -1,69 +1,37 @@
-# Claude Code Audit — Skill + Command
+# ccaudit — Claude Code Audit Plugin
 
-Optimize Claude Code by eliminating the 9 invisible token-waste patterns that consume up to 73% of input tokens before any prompt is read.
-
-Based on a 90-day, 430-hour, $1,340 instrumentation study.
-
-## What's in this bundle
-
-```
-claude-code-audit/
-├── SKILL.md                       # Skill manifest + workflow
-├── commands/
-│   └── audit-claude.md            # /audit-claude slash command
-├── scripts/
-│   ├── audit.sh                   # Diagnostic script (run anywhere)
-│   └── analyze-session.py         # Optional deeper proxy-log analysis
-└── references/
-    ├── patterns.md                # The 9 patterns + cost share
-    └── fixes.md                   # 30-second fix recipe per pattern
-```
+Audit Claude Code setup against a 20-pattern catalog (9 cost-overhead + 11 best-practice compliance) and recommend prioritized fixes. The cost-overhead tier is grounded in a 90-day, 430-hour, $1,340 instrumentation study showing these waste patterns can consume up to 73% of input tokens before any prompt is read.
 
 ## Install
 
-### As a Claude Code skill (user-level)
+From the `glassdesk-marketplace`:
 
-```bash
-# 1. Copy the skill folder
-mkdir -p ~/.claude/skills
-cp -r claude-code-audit ~/.claude/skills/
-
-# 2. Copy the slash command
-mkdir -p ~/.claude/commands
-cp claude-code-audit/commands/audit-claude.md ~/.claude/commands/
-
-# 3. Make scripts executable
-chmod +x ~/.claude/skills/claude-code-audit/scripts/audit.sh
-chmod +x ~/.claude/skills/claude-code-audit/scripts/analyze-session.py
+```
+/plugin marketplace add glassdesk-marketplace <marketplace-source>
+/plugin install ccaudit@glassdesk-marketplace
 ```
 
-### As a project-scoped skill
-
-```bash
-mkdir -p .claude/skills .claude/commands
-cp -r claude-code-audit .claude/skills/
-cp claude-code-audit/commands/audit-claude.md .claude/commands/
-chmod +x .claude/skills/claude-code-audit/scripts/audit.sh
-```
+Replace `<marketplace-source>` with the path or URL where the `glassdesk-marketplace` is hosted (e.g. a local clone of this repo, or a remote git URL once published).
 
 ## Use
 
-In Claude Code:
+Invoke the audit skill directly:
 
 ```
-/audit-claude
+/ccaudit:audit
 ```
 
-Or simply describe the goal — the skill auto-triggers on phrases like:
+Or trigger by natural language — the skill auto-activates on phrases like:
+
 - "audit claude code"
 - "optimize claude code"
 - "tối ưu claude code"
 - "kiểm tra claude code"
 - "claude code đang tốn token / hit usage limit"
 
-## What you'll get
+## What you get
 
-1. A diagnostic report covering all 9 patterns with PASS / WARN / FAIL.
+1. A diagnostic report covering all 20 patterns with PASS / WARN / FAIL.
 2. The top 3 fixes ranked by token savings.
 3. An offer to walk through each fix interactively.
 
@@ -78,10 +46,22 @@ Or simply describe the goal — the skill auto-triggers on phrases like:
 | Always-on MCPs           | 12     | 3     |
 | SessionStart hooks       | 9      | 2     |
 
+## Layout
+
+```
+plugins/ccaudit/
+├── .claude-plugin/plugin.json
+└── skills/audit/
+    ├── SKILL.md
+    ├── references/
+    │   ├── patterns.md          # Index of all 20 audit patterns
+    │   ├── patterns/            # 20 individual pattern files (T1-01..T1-09, T2-01..T2-11)
+    │   └── fixes.md             # 30-second fix recipe per pattern
+    └── scripts/
+        ├── audit.sh             # Diagnostic script
+        └── analyze-session.py
+```
+
 ## Re-audit cadence
 
 Run weekly. Overhead creep is the default state.
-
-```bash
-bash ~/.claude/skills/claude-code-audit/scripts/audit.sh
-```
