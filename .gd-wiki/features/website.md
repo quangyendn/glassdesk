@@ -1,6 +1,6 @@
 ---
 title: "Website (Astro 5)"
-updated: 2026-05-01
+updated: 2026-05-04
 tags: [category/feature, website, astro, documentation]
 summary: "The glassdesk public website is an Astro 5 site that sources its content directly from .gd-wiki/, treating the wiki vault as the single source of truth for docs."
 ---
@@ -48,6 +48,21 @@ The dynamic `docs/[...slug].astro` route maps `.gd-wiki/<category>/<page>.md` to
 ## LLM Crawlability
 
 `public/llms.txt` provides a structured index following the `llms.txt` convention. `llms-full.txt.ts` generates a full-text version at build time from all wiki pages. Both are intended to make the site's knowledge accessible to LLM-powered tools.
+
+## Styles & Typography
+
+> **Design refresh in-progress (Phase 01 shipped)**
+
+`website/src/styles/global.css` now defines a structured CSS token system:
+- **Backgrounds:** `--bg-primary/secondary/card/elevated`
+- **Borders:** `--border-subtle/strong`
+- **Accents:** `--accent-cyan/neon/violet`
+- **Text:** `--text-primary/secondary/muted`
+- **Layout:** `--maxw-*`, `--radius-*`
+
+Legacy tokens (`--bg`, `--fg`, `--muted`, `--accent`, `--border`, `--code-bg/fg`) are kept as aliases for `/docs/*` pages until Phase 4.
+
+`website/src/styles/fonts.css` self-hosts **Geist** (400–700) and **Geist Mono** (400–600) via the `geist` npm package (files in `website/public/fonts/`). **Inter** is loaded from Google Fonts via `Base.astro` (preconnect + `display=swap`). CSS custom properties: `--font-heading` (Geist), `--font-body` (Inter), `--font-mono` (Geist Mono).
 
 ## Related Pages
 

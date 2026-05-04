@@ -1,4 +1,5 @@
 ---
+import "../styles/fonts.css";
 import "../styles/global.css";
 import Header from "../components/Header.astro";
 import Footer from "../components/Footer.astro";
@@ -54,6 +55,10 @@ const websiteJsonLd = {
       type="application/ld+json"
       set:html={JSON.stringify(websiteJsonLd).replace(/<\/script/gi, "<\\/script")}
     />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" />
 
     <slot name="head" />
   </head>

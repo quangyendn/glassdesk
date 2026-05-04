@@ -13,6 +13,8 @@
     "@astrojs/sitemap": "^3.6.0",
     "astro": "^5.16.0",
     "astro-pagefind": "^1.8.6",
+    "geist": "^1.7.0",
+    "lucide-static": "^1.14.0",
     "pagefind": "^1.4.0",
     "remark-wiki-link": "^2.0.1"
   },
