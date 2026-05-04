@@ -17,7 +17,7 @@
 
 const crypto = require('crypto');
 const path = require('path');
-const { writeEnv, writeSessionState, detectSerena, buildSerenaHint, isGitWorktree, buildWorktreeActivationHint, ensureWorktreeSerenaProject } = require('./lib/gd-config-utils.cjs');
+const { writeEnv, writeSessionState, detectSerena, buildSerenaHint, isGitWorktree, buildWorktreeActivationHint, ensureWorktreeSerenaProject, ensureWorktreeSymlinks } = require('./lib/gd-config-utils.cjs');
 
 const envFile = process.env.CLAUDE_ENV_FILE;
 
@@ -67,6 +67,13 @@ if (!serenaActive) {
   //      (which would route edits to the wrong worktree).
   ensureWorktreeSerenaProject(process.cwd());
   console.log(buildWorktreeActivationHint(process.cwd()));
+}
+
+// ───────── Worktree symlink setup (independent of Serena) ─────────
+// Idempotently creates folder symlinks (default: plans/) from main repo into worktree.
+// No-op when cwd is the main repo. Defensive: never throws, never blocks session start.
+if (isGitWorktree(process.cwd())) {
+  ensureWorktreeSymlinks(process.cwd(), {}).catch(() => { /* defensive: never block session */ });
 }
 
 process.exit(0);

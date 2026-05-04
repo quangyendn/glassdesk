@@ -29,6 +29,8 @@
 
 ### Added
 
+- **Worktree symlinks — SessionStart auto-links `plans/`** — `session-init.cjs` now calls `ensureWorktreeSymlinks` (new helper in `hooks/lib/gd-config-utils.cjs`) on every session start inside a git worktree. Creates `<worktree>/plans → <main-repo>/plans` symlink idempotently; skips if path is already tracked by git. Config override via `.claude/worktree-symlinks.json` (default: `{"symlinks":["plans"],"createTargetIfMissing":true,"lockFile":true}`). Lock file at `<worktree>/.gd-worktree-symlinks.lock` records active symlinks.
+
 - **`gd-implementer` agent** — new standard-tier (Sonnet) subagent that owns Step 2 (Implementation) in the `building` skill dispatch chain. Reads a phase file, performs all source-code edits, runs the declared type-check, and returns a structured `Implementation Summary` the orchestrator gates on. Tests are never run by this agent — `gd-tester` owns Step 3. Supports multi-stack type-checking (`ts`, `rust`, `ruby`, `python`, `go`) with optional parallel execution via `typecheck_parallel_safe: true` in phase frontmatter.
 - **`building` skill — mandatory dispatch contract** — `SKILL.md` now enforces that the main thread MUST dispatch `gd-implementer` for Step 2 and MUST NOT edit source files directly. If `gd-implementer` is unavailable (ghost-agent), execution stops rather than silently falling back to main-thread edits. Mirrors the orchestrate-only pattern from the `planning` skill to avoid premium-tier (Opus) token spend on first-draft edits.
 - **Reference doc `references/execution-gates.md`** — canonical Mandatory Subagents table, Step Output Format spec, and Step 2 Failure Escalation rules (1-retry cap → `gd-debugger` escalation).

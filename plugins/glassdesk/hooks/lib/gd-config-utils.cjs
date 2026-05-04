@@ -908,6 +908,155 @@ function getGitBranch() {
   return execSafe('git branch --show-current');
 }
 
+/**
+ * Load the worktree-symlinks config (plugin default + optional project override).
+ *
+ * Resolution order:
+ *   1. Hardcoded DEFAULT (symlinks: ['plans'], createTargetIfMissing: true, lockFile: true)
+ *   2. Plugin default: $GD_PLUGIN_PATH/config/worktree-symlinks.json  (shallow merge)
+ *   3. Project override: <cwd>/.claude/worktree-symlinks.json          (symlinks[] fully replaced; other keys merged)
+ *
+ * MUST NOT throw.
+ *
+ * @returns {{ symlinks: string[], createTargetIfMissing: boolean, lockFile: boolean }}
+ */
+function loadWorktreeSymlinksConfig() {
+  const DEFAULT = { symlinks: ['plans'], createTargetIfMissing: true, lockFile: true };
+  let result = { ...DEFAULT };
+
+  // Plugin default — read from GD_PLUGIN_PATH
+  try {
+    const pluginPath = process.env.GD_PLUGIN_PATH;
+    if (pluginPath) {
+      const p = path.join(pluginPath, 'config', 'worktree-symlinks.json');
+      if (fs.existsSync(p)) result = { ...result, ...JSON.parse(fs.readFileSync(p, 'utf8')) };
+    }
+  } catch (_) { /* ignore — fall back to default */ }
+
+  // Project override — full replacement of symlinks[], merge other keys
+  try {
+    const overridePath = path.join(process.cwd(), '.claude', 'worktree-symlinks.json');
+    if (fs.existsSync(overridePath)) {
+      const override = JSON.parse(fs.readFileSync(overridePath, 'utf8'));
+      result = { ...result, ...override }; // symlinks[] from override fully replaces
+    }
+  } catch (_) { /* ignore */ }
+
+  return result;
+}
+
+/**
+ * Idempotently creates folder symlinks from the main repo root into the current worktree.
+ * No-op if cwd is not a git worktree.
+ *
+ * Defensive contract (mirrors ensureWorktreeSerenaProject):
+ *   - Never throws; all I/O wrapped in try/catch.
+ *   - Logs via process.stdout.write for session-context injection.
+ *   - Never symlinks a path that is tracked by git in the main repo.
+ *   - Never replaces a pre-existing real directory or a mismatched symlink.
+ *   - Idempotent: re-running skips already-correct symlinks; updates lock updatedAt.
+ *
+ * @param {string} cwd - Working directory (worktree path).
+ * @param {object} _hookConfig - Full hook config (reserved for future verbosity control).
+ * @returns {Promise<{created: string[], skipped: string[], warned: string[]}>}
+ */
+async function ensureWorktreeSymlinks(cwd, _hookConfig) {
+  const EMPTY = { created: [], skipped: [], warned: [] };
+  try {
+    // Guard: only act in a worktree (not the main repo)
+    if (!isGitWorktree(cwd)) return EMPTY;
+
+    const { execSync } = require('child_process');
+    const opts = { cwd, stdio: ['ignore', 'pipe', 'ignore'], timeout: 2000 };
+
+    // Resolve main repo root from the worktree's git common-dir
+    const commonDir = execSync('git rev-parse --git-common-dir', opts).toString().trim();
+    const absCommon = path.isAbsolute(commonDir) ? commonDir : path.resolve(cwd, commonDir);
+    const mainRoot = path.dirname(absCommon); // <main>/.git → <main>
+
+    const cfg = loadWorktreeSymlinksConfig();
+    const created = [], skipped = [], warned = [];
+
+    for (const name of (cfg.symlinks || [])) {
+      // Path-traversal / injection guard: reject anything that is not a simple flat name
+      if (typeof name !== 'string' || !name || name.includes('/') || name.includes('\\') ||
+          name === '..' || name === '.' || name.startsWith('.') || name.includes('\0')) {
+        process.stdout.write(`[gd-symlink] WARN: invalid symlink name ${JSON.stringify(name)}; skipping
+`);
+        warned.push(name); continue;
+      }
+      const linkPath = path.join(cwd, name);
+      const targetPath = path.join(mainRoot, name);
+
+      // Defensive guard: never symlink a tracked path in main repo
+      try {
+        const { execFileSync } = require('child_process');
+        execFileSync('git', ['-C', mainRoot, 'ls-files', '--error-unmatch', '--', name],
+          { stdio: 'pipe', timeout: 2000 });
+        // Exit 0 = tracked → refuse
+        process.stdout.write(`[gd-symlink] WARN: ${name} is tracked in main repo; skipping
+`);
+        warned.push(name);
+        continue;
+      } catch (_) { /* non-zero exit = untracked → safe to proceed */ }
+
+      // Idempotency: inspect existing path
+      let st;
+      try { st = fs.lstatSync(linkPath); } catch (_) { st = null; }
+
+      if (st && st.isSymbolicLink()) {
+        let actualTarget;
+        try { actualTarget = fs.readlinkSync(linkPath); } catch (_) { actualTarget = null; }
+        if (actualTarget !== null) {
+          const resolved = path.resolve(path.dirname(linkPath), actualTarget);
+          if (resolved === targetPath) { skipped.push(name); continue; }
+          process.stdout.write(`[gd-symlink] WARN: ${linkPath} points to ${resolved} (expected ${targetPath}); skipping
+`);
+          warned.push(name);
+          continue;
+        }
+      }
+      if (st) {
+        process.stdout.write(`[gd-symlink] WARN: ${linkPath} exists as a real ${st.isDirectory() ? 'directory' : 'file'}; skipping
+`);
+        warned.push(name);
+        continue;
+      }
+
+      // Create target in main repo if missing
+      if (cfg.createTargetIfMissing && !fs.existsSync(targetPath)) {
+        fs.mkdirSync(targetPath, { recursive: true });
+      }
+
+      fs.symlinkSync(targetPath, linkPath, 'dir');
+      created.push(name);
+      process.stdout.write(`[gd-symlink] created: ${linkPath} → ${targetPath}
+`);
+    }
+
+    // Write / refresh lock file
+    if (cfg.lockFile && (created.length || skipped.length)) {
+      const lockPath = path.join(cwd, '.gd-worktree-symlinks.lock');
+      let existing = { created: [] };
+      try { existing = JSON.parse(fs.readFileSync(lockPath, 'utf8')); } catch (_) {}
+      const allActive = Array.from(new Set([...(existing.created || []), ...created, ...skipped]));
+      const tmp = `${lockPath}.tmp.${process.pid}`;
+      fs.writeFileSync(tmp, JSON.stringify({
+        created: allActive,
+        createdAt: existing.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }, null, 2));
+      fs.renameSync(tmp, lockPath);
+    }
+
+    return { created, skipped, warned };
+  } catch (e) {
+    process.stdout.write(`[gd-symlink] ERROR: ${e.message}; symlink setup skipped
+`);
+    return EMPTY;
+  }
+}
+
 module.exports = {
   CONFIG_PATH,
   LOCAL_CONFIG_PATH,
@@ -929,6 +1078,8 @@ module.exports = {
   isGitWorktree,
   buildWorktreeActivationHint,
   ensureWorktreeSerenaProject,
+  ensureWorktreeSymlinks,
+  loadWorktreeSymlinksConfig,
   sniffYamlLanguages,
   getSessionTempPath,
   readSessionState,

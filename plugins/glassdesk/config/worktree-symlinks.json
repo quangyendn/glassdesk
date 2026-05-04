@@ -1,0 +1,5 @@
+{
+  "symlinks": ["plans"],
+  "createTargetIfMissing": true,
+  "lockFile": true
+}
