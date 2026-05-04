@@ -1,5 +1,7 @@
 ---
 import Base from "../layouts/Base.astro";
+import Icon from "../components/Icon.astro";
+import NeonStreaks from "../components/NeonStreaks.astro";
 
 const softwareJsonLd = {
   "@context": "https://schema.org",
@@ -9,7 +11,7 @@ const softwareJsonLd = {
   operatingSystem: "Cross-platform",
   url: "https://glassdesk.vercel.app",
   description:
-    "Agentic SDLC plugin for Claude Code — slash commands, skills, and agents covering DISCOVER → PLAN → BUILD → VERIFY → REVIEW → SHIP, with .gd-wiki/ as living project memory.",
+    "Glassdesk is an Agentic SDLC plugin for Claude Code — turn raw ideas into shipped code through a disciplined six-stage workflow with persistent project memory in .gd-wiki/.",
   offers: {
     "@type": "Offer",
     price: "0",
@@ -31,89 +33,260 @@ const softwareJsonLd = {
     set:html={JSON.stringify(softwareJsonLd).replace(/<\/script/gi, "<\\/script")}
   />
 
-  <main>
-    <section aria-labelledby="hero-h">
-      <h1 id="hero-h">GlassDesk</h1>
-      <p class="tagline">
-        Agentic SDLC plugin for Claude Code — DISCOVER · PLAN · BUILD · VERIFY ·
-        REVIEW · SHIP, with <code>.gd-wiki/</code> as living project memory.
+  <!-- ===== A: Hero ===== -->
+  <section class="hero">
+    <NeonStreaks />
+    <div class="hero__content">
+      <span class="badge-pill">v0.2 · MIT LICENSE</span>
+      <h1 class="hero__headline">Ship software with high confidence</h1>
+      <p class="hero__subhead">
+        Glassdesk is an Agentic SDLC plugin for Claude Code — turn raw ideas into shipped code through a disciplined six-stage workflow with persistent project memory in .gd-wiki/.
       </p>
-      <a class="cta" href="/docs/architecture/plugin-system">Read the docs</a>
-    </section>
 
-    <section aria-labelledby="install-h">
-      <h2 id="install-h">Install</h2>
-      <ol>
-        <li>Fork or clone the GlassDesk repository.</li>
-        <li>
-          Add it as a Claude Code marketplace:
-          <pre><code>claude plugin marketplace add &lt;path-to-your-fork&gt;</code></pre>
-        </li>
-        <li>
-          Install the plugin:
-          <pre><code>claude plugin install glassdesk</code></pre>
-        </li>
-        <li>
-          Verify:
-          <pre><code>claude plugin list</code></pre>
-        </li>
+      <ol class="pipeline" aria-label="Workflow stages">
+        <li class="pipeline__step">DISCOVER</li>
+        <li class="pipeline__step">PLAN</li>
+        <li class="pipeline__step">BUILD</li>
+        <li class="pipeline__step">VERIFY</li>
+        <li class="pipeline__step">REVIEW</li>
+        <li class="pipeline__step pipeline__step--ship">SHIP</li>
       </ol>
-      <p>
-        Short alias also works:
-        <code>claude plugin install gd</code>.
+
+      <div class="cta-row">
+        <a class="btn btn--primary" href="/docs/architecture/plugin-system">
+          Read the docs <Icon name="arrow-right" size={16} />
+        </a>
+        <a
+          class="btn btn--secondary"
+          href="https://github.com/quangyendn/glassdesk"
+          target="_blank"
+          rel="noopener"
+        >
+          <Icon name="github" size={16} />
+          View on GitHub
+        </a>
+      </div>
+
+      <p class="social-proof">27 COMMANDS &nbsp;·&nbsp; 11 SKILLS &nbsp;·&nbsp; OPEN SOURCE</p>
+    </div>
+  </section>
+
+  <!-- ===== B: Install ===== -->
+  <section class="install" id="install">
+    <p class="eyebrow eyebrow--cyan">01 — INSTALL</p>
+    <h2 class="section-title">Up and running in 60 seconds.</h2>
+
+    <div class="install__grid">
+      <!-- Step 01: neon -->
+      <article class="step-card step-card--neon">
+        <p class="step-card__num">01</p>
+        <h3>Fork or clone</h3>
+        <p class="step-card__desc">Fork or clone the GlassDesk repository.</p>
+        <pre class="step-card__code"><code>git clone https://github.com/quangyendn/glassdesk</code></pre>
+      </article>
+
+      <!-- Step 02: cyan -->
+      <article class="step-card step-card--cyan">
+        <p class="step-card__num">02</p>
+        <h3>Add via marketplace</h3>
+        <p class="step-card__desc">Add it as a Claude Code marketplace:</p>
+        <pre class="step-card__code"><code>claude plugin marketplace add &lt;path-to-your-fork&gt;</code></pre>
+      </article>
+
+      <!-- Step 03: violet -->
+      <article class="step-card step-card--violet">
+        <p class="step-card__num">03</p>
+        <h3>Install the plugin</h3>
+        <p class="step-card__desc">Install the plugin:</p>
+        <pre class="step-card__code"><code>claude plugin install glassdesk</code></pre>
+      </article>
+
+      <!-- Step 04: neon -->
+      <article class="step-card step-card--neon">
+        <p class="step-card__num">04</p>
+        <h3>Verify</h3>
+        <p class="step-card__desc">Verify:</p>
+        <pre class="step-card__code"><code>claude plugin list</code></pre>
+      </article>
+    </div>
+  </section>
+
+  <!-- ===== C: Capabilities ===== -->
+  <section class="capabilities" id="capabilities">
+    <p class="eyebrow eyebrow--violet">02 — CAPABILITIES</p>
+    <h2 class="section-title">Everything an SDLC agent needs.</h2>
+    <p class="capabilities__sub">
+      Built for teams who want repeatable rigor without giving up speed. Every command, skill, and agent is composable.
+    </p>
+
+    <div class="bento">
+      <!-- Row 1: 2-col -->
+      <div class="bento__row bento__row--2">
+        <!-- 27 slash commands -->
+        <div class="bento__card bento__card--commands">
+          <p class="stat stat--neon">27</p>
+          <h3>Slash commands</h3>
+          <p class="bento__card-desc">
+            Full-lifecycle commands spanning every phase of development — from exploring ideas to shipping code.
+          </p>
+          <ul class="tag-row">
+            <li class="tag">Discover</li>
+            <li class="tag">Plan</li>
+            <li class="tag">Build</li>
+            <li class="tag">+More</li>
+          </ul>
+        </div>
+
+        <!-- 11 skills -->
+        <div class="bento__card bento__card--skills">
+          <p class="stat stat--cyan">11</p>
+          <h3>Specialized skills</h3>
+          <p class="bento__card-desc">
+            Composable skill modules that power every command — mix and match for any workflow.
+          </p>
+          <ul class="skill-list">
+            <li>/plan · /plan:hard</li>
+            <li>/code · /code:auto</li>
+            <li>/debug · /fix</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Row 2: 3-col -->
+      <div class="bento__row bento__row--3">
+        <!-- Living wiki -->
+        <div class="bento__card bento__card--feature">
+          <div class="icon-tile icon-tile--neon">
+            <Icon name="book-open" size={22} color="var(--accent-neon)" />
+          </div>
+          <h3>Living wiki</h3>
+          <p class="bento__card-desc">
+            Project memory in .gd-wiki/ — distill commits into pages, query with grounded answers via /ask:wiki.
+          </p>
+        </div>
+
+        <!-- Multi-agent orchestration -->
+        <div class="bento__card bento__card--feature">
+          <div class="icon-tile icon-tile--violet">
+            <Icon name="network" size={22} color="var(--accent-violet)" />
+          </div>
+          <h3>Multi-agent orchestration</h3>
+          <p class="bento__card-desc">
+            Hierarchical, mesh, star and adaptive topologies via claude-flow MCP — fan out work in parallel.
+          </p>
+        </div>
+
+        <!-- AI-friendly -->
+        <div class="bento__card bento__card--feature">
+          <div class="icon-tile icon-tile--cyan">
+            <Icon name="sparkles" size={22} color="var(--accent-cyan)" />
+          </div>
+          <h3>AI-friendly by default</h3>
+          <p class="bento__card-desc">
+            llms.txt files, crawler allowlists, and structured docs that downstream agents can actually parse.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== D: Documentation ===== -->
+  <section class="docs-section">
+    <div class="docs-section__header">
+      <div>
+        <p class="eyebrow eyebrow--violet">03 — DOCUMENTATION</p>
+        <h2 class="section-title">Read the manual.</h2>
+      </div>
+      <a class="btn btn--ghost" href="/docs/architecture/plugin-system">
+        Browse all docs <Icon name="arrow-right" size={14} />
+      </a>
+    </div>
+
+    <div class="docs-grid">
+      <!-- Architecture -->
+      <article class="doc-card doc-card--neon">
+        <div class="doc-card__top">
+          <div class="icon-tile icon-tile--neon">
+            <Icon name="layers" size={18} color="var(--accent-neon)" />
+          </div>
+          <span class="doc-card__num">01</span>
+        </div>
+        <h3>Architecture</h3>
+        <p class="doc-card__desc">System map and component boundaries. Understand the plugin layout and how phases connect.</p>
+        <a class="doc-card__link doc-card__link--neon" href="/docs/architecture/plugin-system">
+          <span>Read</span> <Icon name="arrow-up-right" size={14} />
+        </a>
+      </article>
+
+      <!-- Features -->
+      <article class="doc-card doc-card--cyan">
+        <div class="doc-card__top">
+          <div class="icon-tile icon-tile--cyan">
+            <Icon name="zap" size={18} color="var(--accent-cyan)" />
+          </div>
+          <span class="doc-card__num">02</span>
+        </div>
+        <h3>Features</h3>
+        <p class="doc-card__desc">Slash command and skill catalogue. Every command described with purpose and usage.</p>
+        <a class="doc-card__link doc-card__link--cyan" href="/docs/features/planning">
+          <span>Read</span> <Icon name="arrow-up-right" size={14} />
+        </a>
+      </article>
+
+      <!-- Decisions -->
+      <article class="doc-card doc-card--violet">
+        <div class="doc-card__top">
+          <div class="icon-tile icon-tile--violet">
+            <Icon name="git-pull-request" size={18} color="var(--accent-violet)" />
+          </div>
+          <span class="doc-card__num">03</span>
+        </div>
+        <h3>Decisions</h3>
+        <p class="doc-card__desc">ADRs and locked-in trade-offs. Why we chose each approach and what the alternatives were.</p>
+        <a class="doc-card__link doc-card__link--violet" href="/docs/decisions/model-tier-policy">
+          <span>Read</span> <Icon name="arrow-up-right" size={14} />
+        </a>
+      </article>
+
+      <!-- Risks -->
+      <article class="doc-card doc-card--neon">
+        <div class="doc-card__top">
+          <div class="icon-tile icon-tile--neon">
+            <Icon name="shield-alert" size={18} color="var(--accent-neon)" />
+          </div>
+          <span class="doc-card__num">04</span>
+        </div>
+        <h3>Risks</h3>
+        <p class="doc-card__desc">Tracked engineering risks. Known gotchas, mitigations, and rollback strategies.</p>
+        <a class="doc-card__link doc-card__link--neon" href="/docs/risks/plugin-double-nesting-trap">
+          <span>Read</span> <Icon name="arrow-up-right" size={14} />
+        </a>
+      </article>
+    </div>
+  </section>
+
+  <!-- ===== F: CTA ===== -->
+  <section class="cta-section">
+    <div class="cta-card">
+      <p class="eyebrow eyebrow--neon">— START SHIPPING</p>
+      <h2 class="cta-card__headline">A disciplined agent. Six stages. One repo.</h2>
+      <p class="cta-card__sub">
+        Free, MIT licensed, and built in the open. Drop Glassdesk into Claude Code and watch your SDLC become repeatable.
       </p>
-    </section>
-
-    <section aria-labelledby="capabilities-h">
-      <h2 id="capabilities-h">Capabilities</h2>
-      <ul>
-        <li>
-          <strong>27 slash commands</strong> across DISCOVER · PLAN · BUILD ·
-          VERIFY · REVIEW · SHIP · WIKI · COMPOUND.
-        </li>
-        <li>
-          <strong>11 skills</strong> — planning, building, debugging, fixing,
-          scouting, brainstorming, code-review, pair-programming, compounding,
-          ai-multimodal, media-processing.
-        </li>
-        <li>
-          <strong>Living wiki</strong> — <code>.gd-wiki/</code> distilled from
-          commits via <code>/wiki:update</code>; queryable with <code
-            >/ask:wiki</code
-          >.
-        </li>
-        <li>
-          <strong>Multi-agent orchestration</strong> — parallel research,
-          planning, and review with claude-flow.
-        </li>
-        <li>
-          <strong>Agent-friendly</strong> — <a href="/llms.txt">llms.txt</a>,
-          <a href="/llms-full.txt">llms-full.txt</a>, sitemap, and AI-crawler
-          allow-list.
-        </li>
-      </ul>
-    </section>
-
-    <section aria-labelledby="docs-h">
-      <h2 id="docs-h">Documentation</h2>
-      <ul>
-        <li>
-          <a href="/docs/architecture/plugin-system">Architecture</a> — system
-          map and component boundaries
-        </li>
-        <li>
-          <a href="/docs/features/planning">Features</a> — slash command and
-          skill catalogue
-        </li>
-        <li>
-          <a href="/docs/decisions/model-tier-policy">Decisions</a> — ADRs and
-          locked-in trade-offs
-        </li>
-        <li>
-          <a href="/docs/risks/plugin-double-nesting-trap">Risks</a> — tracked
-          engineering risks
-        </li>
-      </ul>
-    </section>
-  </main>
+      <div class="cta-buttons">
+        <a class="btn btn--primary" href="#install">
+          Install Glassdesk <Icon name="arrow-right" size={16} />
+        </a>
+        <a
+          class="btn btn--secondary"
+          href="https://github.com/quangyendn/glassdesk"
+          target="_blank"
+          rel="noopener"
+        >
+          <Icon name="github" size={16} />
+          Star on GitHub
+        </a>
+      </div>
+    </div>
+  </section>
 </Base>

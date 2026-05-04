@@ -1,10 +1,76 @@
 ---
-const year = new Date().getFullYear();
+import Icon from "./Icon.astro";
 ---
 
 <footer class="site-footer">
-  <p>
-    MIT licensed — GlassDesk contributors · {year} · sourced from
-    <code>.gd-wiki/</code>
-  </p>
+  <!-- Top: 4-column grid -->
+  <div class="footer-top">
+
+    <!-- Brand column -->
+    <div class="footer-brand">
+      <a href="/" class="brand" aria-label="Glassdesk home">
+        <span class="brand__mark" aria-hidden="true">G</span>
+        <span class="brand__name">Glassdesk</span>
+      </a>
+      <p class="footer-tagline">
+        Agentic SDLC plugin for Claude Code. Built with .gd-wiki/ as project memory.
+      </p>
+    </div>
+
+    <!-- Product column -->
+    <div class="footer-col">
+      <h3 class="footer-col__heading">Product</h3>
+      <ul>
+        <li><a href="/#capabilities">Commands</a></li>
+        <li><a href="/docs/features/planning">Skills</a></li>
+      </ul>
+    </div>
+
+    <!-- Docs column -->
+    <div class="footer-col">
+      <h3 class="footer-col__heading">Docs</h3>
+      <ul>
+        <li><a href="/docs/architecture/plugin-system">Architecture</a></li>
+      </ul>
+    </div>
+
+    <!-- Community column -->
+    <div class="footer-col">
+      <h3 class="footer-col__heading">Community</h3>
+      <ul>
+        <li>
+          <a href="https://github.com/quangyendn/glassdesk" target="_blank" rel="noopener">
+            GitHub
+          </a>
+        </li>
+        <li>
+          <a href="https://github.com/quangyendn/glassdesk/issues" target="_blank" rel="noopener">
+            Issues
+          </a>
+        </li>
+        <li>
+          <a href="https://github.com/quangyendn/glassdesk/graphs/contributors" target="_blank" rel="noopener">
+            Contributors
+          </a>
+        </li>
+      </ul>
+    </div>
+
+  </div>
+
+  <!-- Bottom row -->
+  <div class="footer-bottom">
+    <p class="footer-copyright">© 2026 Glassdesk · MIT License · Content sourced from .gd-wiki/</p>
+    <div class="footer-social">
+      <a
+        href="https://github.com/quangyendn/glassdesk"
+        target="_blank"
+        rel="noopener"
+        aria-label="Glassdesk on GitHub"
+        class="footer-social__link"
+      >
+        <Icon name="github" size={16} />
+      </a>
+    </div>
+  </div>
 </footer>
