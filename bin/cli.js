@@ -154,7 +154,7 @@ export function mergeHookEntries(userEntries, tplEntries) {
 // (loader:1404). Newer template uses ${CLAUDE_PROJECT_DIR:-$PWD}. Strip
 // the stale entries on update so the new entry replaces them instead of
 // piling up as a duplicate.
-const STALE_GLASSDESK_HOOK_RE = /^node \.claude\/hooks\/(session-init|dev-rules-reminder)\.cjs$/;
+const STALE_GLASSDESK_HOOK_RE = /^node \.claude\/hooks\/(session-init|dev-rules-reminder|session-end)\.cjs$/;
 
 export function purgeStaleGlassdeskHooks(hooksObj, eventNames) {
   if (!hooksObj || typeof hooksObj !== 'object') return [];
