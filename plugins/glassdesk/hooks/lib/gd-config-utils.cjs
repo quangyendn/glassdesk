@@ -564,6 +564,141 @@ function buildSerenaHint() {
 }
 
 /**
+ * Detect whether the given path is a git worktree (i.e., not the main worktree).
+ * In a worktree, `git rev-parse --absolute-git-dir` and `git rev-parse --git-common-dir`
+ * resolve to DIFFERENT absolute paths. In the main worktree they match.
+ *
+ * MUST NOT throw. Returns false on any git failure (no git repo, etc.).
+ *
+ * @param {string} cwd - Working directory to inspect.
+ * @returns {boolean} True iff cwd is inside a non-main worktree.
+ */
+function isGitWorktree(cwd) {
+  try {
+    const { execSync } = require('child_process');
+    const opts = { cwd, stdio: ['ignore', 'pipe', 'ignore'], timeout: 2000 };
+    const gitDir = execSync('git rev-parse --absolute-git-dir', opts).toString().trim();
+    const commonDir = execSync('git rev-parse --git-common-dir', opts).toString().trim();
+    const absCommon = path.isAbsolute(commonDir) ? commonDir : path.resolve(cwd, commonDir);
+    return path.resolve(gitDir) !== path.resolve(absCommon);
+  } catch (_) {
+    return false;
+  }
+}
+
+/**
+ * Build the worktree-safety hint shown when Serena is active AND the CWD is a
+ * git worktree. Reminds Claude/agents to call `activate_project` with the
+ * absolute CWD path (never by project name) — name-lookup picks the FIRST
+ * registered path in `~/.serena/serena_config.yml`, which is usually the main
+ * repo, causing edits to land in the wrong tree.
+ *
+ * Plain text, ≤500 chars, ≤10 lines. Auto-injected as Claude session context.
+ *
+ * @param {string} cwd - Absolute path of the worktree.
+ * @returns {string} Hint message.
+ */
+function buildWorktreeActivationHint(cwd) {
+  return [
+    '[glassdesk] Worktree detected. Serena activation safety:',
+    `  → Always call activate_project("${cwd}") with this ABSOLUTE path.`,
+    '  → NEVER call activate_project by project name (e.g. "glassdesk") — it routes',
+    '    to the FIRST registered path in ~/.serena/serena_config.yml (usually main repo)',
+    '    and edits land in the wrong worktree.',
+    '  Reference: ${CLAUDE_PLUGIN_ROOT}/docs/serena-preference.md#activation-rule-worktree-safety',
+  ].join('\n');
+}
+
+/**
+ * Auto-bootstrap a per-worktree `.serena/project.yml` so each worktree has a
+ * UNIQUE `project_name`. Without this, name-lookup activation routes file
+ * operations to whichever path was registered first in
+ * `~/.serena/serena_config.yml` — usually the main repo — causing
+ * `replace_symbol_body` calls to land in the wrong tree.
+ *
+ * Idempotent — only writes when:
+ *   1. The worktree's `.serena/project.yml` does not exist, OR
+ *   2. Its `project_name` matches the MAIN repo's `project_name` (i.e. it was
+ *      copied verbatim, the unsafe default). Anything else is preserved.
+ *
+ * MUST NOT throw. Returns a small summary object for logging/tests.
+ *
+ * @param {string} cwd - Absolute path of a git worktree (caller pre-checks via isGitWorktree).
+ * @returns {{written?: string, skipped?: string, name?: string}}
+ */
+function ensureWorktreeSerenaProject(cwd) {
+  try {
+    const fs = require('fs');
+    const { execSync } = require('child_process');
+
+    // Resolve main repo root from worktree's `git common-dir`.
+    let mainRoot;
+    const opts = { cwd, stdio: ['ignore', 'pipe', 'ignore'], timeout: 2000 };
+    const commonDir = execSync('git rev-parse --git-common-dir', opts).toString().trim();
+    const absCommon = path.isAbsolute(commonDir) ? commonDir : path.resolve(cwd, commonDir);
+    mainRoot = path.dirname(absCommon); // <main>/.git → <main>
+
+    // Derive main project name (regex-grep, no YAML dep).
+    const NAME_RE = /^project_name:\s*["']?([^"'\n]+?)["']?\s*$/m;
+    const mainYml = path.join(mainRoot, '.serena', 'project.yml');
+    let mainName = null;
+    if (fs.existsSync(mainYml)) {
+      const m = fs.readFileSync(mainYml, 'utf8').match(NAME_RE);
+      if (m) mainName = m[1].trim();
+    }
+    if (!mainName) mainName = path.basename(mainRoot);
+
+    // Derive branch slug for the unique name (sanitize for YAML / filesystem safety).
+    let branchSlug;
+    try {
+      branchSlug = execSync('git rev-parse --abbrev-ref HEAD', opts)
+        .toString().trim().replace(/[^a-zA-Z0-9_-]+/g, '-').slice(0, 60);
+    } catch (_) {
+      branchSlug = path.basename(cwd);
+    }
+    if (!branchSlug || branchSlug === 'HEAD') branchSlug = path.basename(cwd);
+
+    const targetName = `${mainName}-${branchSlug}`;
+
+    // Idempotency: if existing name is non-empty and DIFFERENT from main, leave alone.
+    const wtYml = path.join(cwd, '.serena', 'project.yml');
+    if (fs.existsSync(wtYml)) {
+      const existing = fs.readFileSync(wtYml, 'utf8');
+      const m = existing.match(NAME_RE);
+      const existingName = m && m[1].trim();
+      if (existingName && existingName !== mainName) {
+        return { skipped: 'unique name already set', name: existingName };
+      }
+    }
+
+    // Write minimal-but-correct project.yml. User can extend later.
+    fs.mkdirSync(path.dirname(wtYml), { recursive: true });
+    const yml = [
+      '# Auto-generated by glassdesk session-init for git worktree isolation.',
+      '# Idempotent: re-run will not overwrite once project_name is customized.',
+      '',
+      `project_name: "${targetName}"`,
+      'languages:',
+      '  - python',
+      'encoding: "utf-8"',
+      'ignore_all_files_in_gitignore: true',
+      '',
+      '# Worktree isolation: prevent Serena/LSP from escaping the worktree root',
+      '# back into the parent dir or sibling worktrees.',
+      'ignored_paths:',
+      '  - "../**"',
+      '',
+      'read_only: false',
+      '',
+    ].join('\n');
+    fs.writeFileSync(wtYml, yml);
+    return { written: targetName };
+  } catch (e) {
+    return { skipped: `error: ${e.message}` };
+  }
+}
+
+/**
  * Get reports path based on plan resolution
  * Only uses plan-specific path for 'session' resolved plans (explicitly active)
  * Branch-matched (suggested) plans use default path to avoid pollution
@@ -750,6 +885,9 @@ module.exports = {
   writeEnv,
   detectSerena,
   buildSerenaHint,
+  isGitWorktree,
+  buildWorktreeActivationHint,
+  ensureWorktreeSerenaProject,
   getSessionTempPath,
   readSessionState,
   writeSessionState,

@@ -17,7 +17,7 @@
 
 const crypto = require('crypto');
 const path = require('path');
-const { writeEnv, writeSessionState, detectSerena, buildSerenaHint } = require('./lib/gd-config-utils.cjs');
+const { writeEnv, writeSessionState, detectSerena, buildSerenaHint, isGitWorktree, buildWorktreeActivationHint, ensureWorktreeSerenaProject } = require('./lib/gd-config-utils.cjs');
 
 const envFile = process.env.CLAUDE_ENV_FILE;
 
@@ -58,6 +58,15 @@ try { serenaActive = detectSerena(); } catch (_) { serenaActive = false; }
 writeEnv(envFile, 'GD_SERENA_AVAILABLE', serenaActive ? '1' : '0');
 if (!serenaActive) {
   console.log(buildSerenaHint());
+} else if (isGitWorktree(process.cwd())) {
+  // Serena IS active AND we're in a git worktree → make the activation safe:
+  //   1. Auto-write a per-worktree `.serena/project.yml` with a unique
+  //      `project_name` and `ignored_paths: ["../**"]` (idempotent).
+  //   2. Inject an absolute-path activation hint so subsequent
+  //      `activate_project` calls don't fall back to name-based lookup
+  //      (which would route edits to the wrong worktree).
+  ensureWorktreeSerenaProject(process.cwd());
+  console.log(buildWorktreeActivationHint(process.cwd()));
 }
 
 process.exit(0);

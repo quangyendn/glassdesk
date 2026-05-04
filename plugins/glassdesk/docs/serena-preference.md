@@ -45,6 +45,24 @@ Note: `.svelte` `.astro` `.erb` `.slim` `.haml` are NOT confirmed in Serena's LS
 
 Serena requires `mcp__plugin_serena_serena__onboarding` once per project to index symbols. This is **user-triggered**, not automatic. Hooks must NOT call onboarding. The first call indexes the repo (~30k–80k tokens for ~1000-file repos); subsequent sessions reuse the index.
 
+## Activation Rule (worktree safety)
+
+**Always call `activate_project` with the absolute `$CWD`, never with a project name.**
+
+```
+✅ activate_project("/Users/me/proj/.worktrees/feature-x")
+❌ activate_project("myproj")    # name lookup picks the FIRST registered path → main repo
+```
+
+**Why:** Serena's global registry (`~/.serena/serena_config.yml`) keys lookups by `project_name`. When the same name is registered for both the main repo and a worktree (a default that happens whenever `.serena/project.yml` is shared/copied), name-based activation routes ALL file operations — including edits — to whichever path was registered first. The result is `replace_symbol_body` calls landing in the wrong worktree.
+
+**How to apply:**
+- In agents/skills that expose `activate_project`, pass `process.cwd()` / shell `$PWD` resolved to absolute path.
+- Never hard-code the project name in a tool call.
+- If the user prompt says "activate glassdesk", resolve to the absolute path of the current shell CWD before calling Serena.
+
+This rule pairs with the worktree `ignored_paths` guard in each `.serena/project.yml` to make cross-tree contamination impossible.
+
 ## Conflict Note
 
 If the user has Serena rules in their global `~/.claude/CLAUDE.md`, this plugin's instruction is redundant but harmless. No deduplication required — the global rule and the plugin pointer agree.
