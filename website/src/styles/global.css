@@ -669,3 +669,739 @@ body.landing {
     gap: 16px;
   }
 }
+
+/* ==========================================================================
+   Phase 03 — NeonStreaks
+   ========================================================================== */
+.neon-streaks {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0.6;
+  z-index: 0;
+}
+
+.streak {
+  position: absolute;
+  transform-origin: center;
+  filter: blur(40px);
+}
+
+.streak--1 {
+  width: 1100px;
+  height: 4px;
+  left: -100px;
+  top: 180px;
+  transform: rotate(-8deg);
+  background: var(--accent-violet);
+  opacity: .55;
+  filter: blur(40px);
+}
+
+.streak--2 {
+  width: 1300px;
+  height: 5px;
+  left: 300px;
+  top: 420px;
+  transform: rotate(6deg);
+  background: var(--accent-cyan);
+  opacity: .4;
+  filter: blur(50px);
+}
+
+.streak--3 {
+  width: 1200px;
+  height: 3px;
+  left: -200px;
+  top: 680px;
+  transform: rotate(-4deg);
+  background: var(--accent-neon);
+  opacity: .35;
+  filter: blur(35px);
+}
+
+.streak--4 {
+  width: 900px;
+  height: 3px;
+  left: 600px;
+  top: 80px;
+  transform: rotate(10deg);
+  background: var(--accent-violet);
+  opacity: .3;
+  filter: blur(45px);
+}
+
+.streak-glow {
+  position: absolute;
+  left: 420px;
+  top: 250px;
+  width: 600px;
+  height: 300px;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--accent-violet) 70%, transparent), transparent 70%);
+  opacity: .35;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .neon-streaks {
+    display: none;
+  }
+}
+
+/* ==========================================================================
+   Phase 03 — Landing page layout reset
+   ========================================================================== */
+
+/* Override legacy landing section margin so sections are flush */
+body.landing main {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* ==========================================================================
+   Phase 03 — Shared landing primitives
+   ========================================================================== */
+
+/* Eyebrow labels */
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  margin: 0 0 16px;
+}
+
+.eyebrow--neon   { color: var(--accent-neon); }
+.eyebrow--cyan   { color: var(--accent-cyan); }
+.eyebrow--violet { color: var(--accent-violet); }
+
+/* Section title */
+.section-title {
+  font-family: var(--font-heading);
+  font-size: clamp(2rem, 4vw, 3.25rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  color: var(--text-primary);
+  margin: 0 0 24px;
+}
+
+/* Button system */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-family: var(--font-heading);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: filter 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+  white-space: nowrap;
+}
+.btn:hover {
+  text-decoration: none;
+}
+
+.btn--primary {
+  background: var(--accent-neon);
+  color: var(--bg-primary);
+}
+.btn--primary:hover {
+  filter: brightness(1.08);
+}
+
+.btn--secondary {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  border: 1px solid var(--border-strong);
+}
+.btn--secondary:hover {
+  border-color: var(--text-muted);
+}
+
+.btn--ghost {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+}
+.btn--ghost:hover {
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+
+/* Icon tile */
+.icon-tile {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  flex-shrink: 0;
+}
+
+.icon-tile--neon   { background: color-mix(in srgb, var(--accent-neon)   12%, transparent); }
+.icon-tile--cyan   { background: color-mix(in srgb, var(--accent-cyan)   12%, transparent); }
+.icon-tile--violet { background: color-mix(in srgb, var(--accent-violet) 12%, transparent); }
+
+/* ==========================================================================
+   Phase 03 — Hero section
+   ========================================================================== */
+.hero {
+  position: relative;
+  padding: 120px 120px 140px;
+  background: var(--bg-primary);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.hero__content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  max-width: 900px;
+  width: 100%;
+  text-align: center;
+}
+
+/* Badge pill */
+.badge-pill {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 1.2px;
+  color: var(--accent-neon);
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  padding: 8px 14px;
+  border-radius: 999px;
+  text-transform: uppercase;
+}
+
+/* Hero headline */
+.hero__headline {
+  font-family: var(--font-heading);
+  font-size: clamp(2.5rem, 6vw, 5.75rem);
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.02;
+  color: var(--text-primary);
+  margin: 0;
+  text-align: center;
+}
+
+/* Hero subhead */
+.hero__subhead {
+  font-family: var(--font-body);
+  font-size: 20px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  max-width: 720px;
+  margin: 0;
+  text-align: center;
+}
+
+/* Pipeline chips */
+.pipeline {
+  display: flex;
+  align-items: center;
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0;
+  gap: 0;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.pipeline__step {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  padding: 6px 12px;
+  border-radius: 4px;
+}
+
+.pipeline__step:not(:last-child)::after {
+  content: "›";
+  color: var(--text-muted);
+  margin: 0 6px;
+  font-size: 14px;
+}
+
+.pipeline__step--ship {
+  color: var(--accent-neon);
+  border-color: var(--accent-neon);
+}
+
+/* CTA row */
+.cta-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* Social proof */
+.social-proof {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 1.5px;
+  color: var(--text-muted);
+  margin: 0;
+  text-transform: uppercase;
+}
+
+/* ==========================================================================
+   Phase 03 — Install section
+   ========================================================================== */
+.install {
+  padding: 120px 120px;
+  background: var(--bg-secondary);
+}
+
+.install__grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+  margin-top: 48px;
+}
+
+/* Step card base */
+.step-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.step-card h3 {
+  font-family: var(--font-heading);
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.step-card__num {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  margin: 0;
+}
+
+.step-card__desc {
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.step-card__code {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  margin: 4px 0 0;
+  overflow-x: auto;
+}
+
+.step-card__code code {
+  background: none;
+  padding: 0;
+  color: var(--accent-neon);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+/* Per-card accent colors for the step number */
+.step-card--neon .step-card__num   { color: var(--accent-neon); }
+.step-card--cyan .step-card__num   { color: var(--accent-cyan); }
+.step-card--violet .step-card__num { color: var(--accent-violet); }
+
+/* Per-card top border accent */
+.step-card--neon   { border-top: 2px solid var(--accent-neon); }
+.step-card--cyan   { border-top: 2px solid var(--accent-cyan); }
+.step-card--violet { border-top: 2px solid var(--accent-violet); }
+
+/* ==========================================================================
+   Phase 03 — Capabilities section
+   ========================================================================== */
+.capabilities {
+  padding: 120px 120px;
+  background: var(--bg-primary);
+}
+
+.capabilities__sub {
+  font-family: var(--font-body);
+  font-size: 18px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  max-width: 700px;
+  margin: 0 0 48px;
+}
+
+/* Bento layout */
+.bento {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.bento__row {
+  display: grid;
+  gap: 20px;
+}
+
+.bento__row--2 {
+  grid-template-columns: 1fr 1fr;
+}
+
+.bento__row--3 {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+
+/* Bento card base */
+.bento__card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  padding: 36px;
+}
+
+.bento__card h3 {
+  font-family: var(--font-heading);
+  font-size: 20px;
+  font-weight: 600;
+  margin: 12px 0 8px;
+  color: var(--text-primary);
+}
+
+.bento__card-desc {
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+/* Stat number */
+.stat {
+  font-family: var(--font-heading);
+  font-size: 72px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  margin: 0 0 8px;
+}
+
+.stat--neon { color: var(--accent-neon); }
+.stat--cyan { color: var(--accent-cyan); }
+
+/* Tag row */
+.tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  list-style: none;
+  padding: 0;
+  margin: 16px 0 0;
+}
+
+.tag {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  padding: 4px 10px;
+  border-radius: 4px;
+}
+
+/* Skill list */
+.skill-list {
+  list-style: none;
+  padding: 0;
+  margin: 16px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.skill-list li {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-secondary);
+  padding: 8px 12px;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+}
+
+/* Feature card: icon-tile + text */
+.bento__card--feature {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* ==========================================================================
+   Phase 03 — Documentation section
+   ========================================================================== */
+.docs-section {
+  padding: 120px 120px;
+  background: var(--bg-secondary);
+}
+
+.docs-section__header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 48px;
+  flex-wrap: wrap;
+}
+
+.docs-section__header .section-title {
+  margin-bottom: 0;
+}
+
+/* Docs grid */
+.docs-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+}
+
+/* Doc card base */
+.doc-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: border-color 0.15s ease;
+}
+
+.doc-card:hover {
+  border-color: var(--border-strong);
+}
+
+.doc-card h3 {
+  font-family: var(--font-heading);
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.doc-card__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.doc-card__num {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+}
+
+.doc-card__desc {
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  margin: 0;
+  flex: 1;
+}
+
+.doc-card__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+  margin-top: auto;
+  transition: opacity 0.15s ease;
+}
+.doc-card__link:hover {
+  text-decoration: none;
+  opacity: 0.8;
+}
+
+.doc-card__link--neon   { color: var(--accent-neon); }
+.doc-card__link--cyan   { color: var(--accent-cyan); }
+.doc-card__link--violet { color: var(--accent-violet); }
+
+/* Top border accents per card */
+.doc-card--neon   { border-top: 2px solid var(--accent-neon); }
+.doc-card--cyan   { border-top: 2px solid var(--accent-cyan); }
+.doc-card--violet { border-top: 2px solid var(--accent-violet); }
+
+/* ==========================================================================
+   Phase 03 — CTA section
+   ========================================================================== */
+.cta-section {
+  padding: 100px 120px;
+  background: var(--bg-primary);
+}
+
+.cta-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-2xl);
+  padding: 72px 80px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  text-align: center;
+  overflow: hidden;
+  position: relative;
+}
+
+.cta-card__headline {
+  font-family: var(--font-heading);
+  font-size: clamp(2rem, 5vw, 4rem);
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.05;
+  color: var(--text-primary);
+  max-width: 880px;
+  margin: 0;
+}
+
+.cta-card__sub {
+  font-family: var(--font-body);
+  font-size: 18px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  max-width: 640px;
+  margin: 0;
+}
+
+.cta-buttons {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 8px;
+}
+
+/* ==========================================================================
+   Phase 03 — Responsive breakpoints
+   ========================================================================== */
+
+/* <= 960px */
+@media (max-width: 960px) {
+  .hero {
+    padding: 80px 60px 100px;
+  }
+
+  .install {
+    padding: 80px 60px;
+  }
+
+  .install__grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .capabilities {
+    padding: 80px 60px;
+  }
+
+  .bento__row--2,
+  .bento__row--3 {
+    grid-template-columns: 1fr;
+  }
+
+  .docs-section {
+    padding: 80px 60px;
+  }
+
+  .docs-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .cta-section {
+    padding: 80px 60px;
+  }
+
+  .cta-card {
+    padding: 48px 40px;
+  }
+}
+
+/* <= 640px */
+@media (max-width: 640px) {
+  .hero {
+    padding: 60px 24px 80px;
+  }
+
+  .install {
+    padding: 60px 24px;
+  }
+
+  .install__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .capabilities {
+    padding: 60px 24px;
+  }
+
+  .docs-section {
+    padding: 60px 24px;
+  }
+
+  .docs-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .docs-section__header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .cta-section {
+    padding: 60px 24px;
+  }
+
+  .cta-card {
+    padding: 40px 24px;
+    border-radius: var(--radius-xl);
+  }
+
+  section {
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+}
