@@ -49,7 +49,7 @@
 - 2 zero-LLM Bash scripts: `bin/plan-list` and `bin/plan-status` (Node.js ESM, no deps). Replace LLM-driven `/plan:list` and `/plan:status` with mechanical formatters.
 - 4 commands thinned to delegation: `/plan:list` and `/plan:status` (Bash-only via the new scripts), `/plan:archive` (fast tier via `plan-archiver`), `/test:ui` (standard tier via `ui-tester`). Each command body now ≤15 lines vs previous 30-90.
 - `/plan:archive` default behavior changed: when no path arg given, archive ONLY plans with `status=done|completed` in frontmatter. In-progress plans get a WARN and are skipped. Pass an explicit path to archive in-progress plans.
-- **`/worktree:remove`** — slash command for safe worktree teardown. Discovers managed symlinks via `.gd-worktree-symlinks.lock`, prompts `[y/N]`, unlinks with `fs.unlinkSync` (never `rm -rf`), then `git worktree remove`. Cwd guard prevents removing the active worktree.
+- **SessionEnd auto-cleanup** — replaces the former `/worktree:remove` slash command. A new `SessionEnd` hook (`hooks/session-end.cjs`) calls `cleanupWorktreeOnExit` (new helper in `hooks/lib/gd-config-utils.cjs`) on every Claude session exit. Guards applied in order: (1) no-op if CWD is not a git worktree; (2) no-op if `.gd-worktree-symlinks.lock` is absent; (3) skip with a warning if uncommitted changes exist — user keeps work, cleanup retries on next exit; (4) unlink each symlink via `fs.unlinkSync` (never `rm -rf`) and verify main-repo target is intact; (5) remove worktree via `git worktree remove` (no `--force`). Registered in `.claude/settings.local.json` under `"SessionEnd"`. Note: event key `SessionEnd` used per plugin convention; if it does not fire, adjust to `Stop` in settings.
 
 ### Changed
 

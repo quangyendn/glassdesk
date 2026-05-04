@@ -1057,6 +1057,105 @@ async function ensureWorktreeSymlinks(cwd, _hookConfig) {
   }
 }
 
+/**
+ * Auto-cleanup managed worktree symlinks and remove the worktree on session exit.
+ *
+ * Safety contract (applied in order):
+ *   1. No-op if cwd is not a git worktree.
+ *   2. No-op if <cwd>/.gd-worktree-symlinks.lock is absent (we didn't manage it).
+ *   3. Abort if uncommitted changes — user keeps work; next exit retries.
+ *   4. Unlink each symlink atomically via fs.unlinkSync (never rm -rf); verify main target intact.
+ *   5. Remove worktree via `git worktree remove` (no --force).
+ *   6. Defensive throughout — entire body in try/catch; never throws; exits 0.
+ *
+ * @param {string} cwd - Working directory (current worktree path).
+ * @returns {Promise<{skipped?: string, removed?: boolean, aborted?: boolean|string, unlinked?: string[], error?: string}>}
+ */
+async function cleanupWorktreeOnExit(cwd) {
+  try {
+    // Guard 1: must be a worktree
+    if (!isGitWorktree(cwd)) return { skipped: 'not a worktree' };
+
+    // Guard 2: must have our lock file
+    const lockPath = path.join(cwd, '.gd-worktree-symlinks.lock');
+    if (!fs.existsSync(lockPath)) return { skipped: 'no lock file' };
+
+    let lock;
+    try { lock = JSON.parse(fs.readFileSync(lockPath, 'utf8')); }
+    catch (_) { return { skipped: 'corrupt lock file' }; }
+    if (!Array.isArray(lock.created) || lock.created.length === 0) {
+      return { skipped: 'empty lock' };
+    }
+
+    // Guard 3: no uncommitted changes
+    const { execFileSync } = require('child_process');
+    let dirty = '';
+    try {
+      dirty = execFileSync('git', ['-C', cwd, 'status', '--porcelain'],
+        { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 5000 });
+    } catch (e) {
+      process.stdout.write(`[gd-cleanup] git status failed in ${cwd}; aborting cleanup\n`);
+      return { skipped: 'git status failed' };
+    }
+    if (dirty.trim().length > 0) {
+      process.stdout.write(`[gd-cleanup] WARN: uncommitted changes in ${cwd}; skipping cleanup\n`);
+      return { skipped: 'uncommitted changes' };
+    }
+
+    // Resolve main repo root from worktree's git common-dir
+    const commonDirRaw = execFileSync('git', ['-C', cwd, 'rev-parse', '--git-common-dir'],
+      { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 2000 }).trim();
+    const absCommon = path.isAbsolute(commonDirRaw) ? commonDirRaw : path.resolve(cwd, commonDirRaw);
+    const mainRoot = path.dirname(absCommon); // <main>/.git → <main>
+
+    // Guard 4: unlink each symlink atomically + verify main target intact
+    const unlinked = [];
+    for (const name of lock.created) {
+      // Defensive name shape guard (mirrors ensureWorktreeSymlinks)
+      if (typeof name !== 'string' || !name || name.includes('/') || name.includes('\\') ||
+          name === '..' || name === '.' || name.startsWith('.') || name.includes('\0')) {
+        process.stdout.write(`[gd-cleanup] WARN: invalid name in lock ${JSON.stringify(name)}; skipping\n`);
+        continue;
+      }
+      const linkPath = path.join(cwd, name);
+      const targetPath = path.join(mainRoot, name);
+
+      let st;
+      try { st = fs.lstatSync(linkPath); } catch (_) { st = null; }
+      if (!st || !st.isSymbolicLink()) continue; // already gone or not a symlink we own
+
+      try {
+        fs.unlinkSync(linkPath);
+      } catch (e) {
+        process.stdout.write(`[gd-cleanup] ERROR: unlink failed for ${linkPath}: ${e.message}; aborting\n`);
+        return { aborted: true, unlinked, reason: e.message };
+      }
+
+      // Verify main target is still intact after unlink
+      if (!fs.existsSync(targetPath)) {
+        process.stdout.write(`[gd-cleanup] CRITICAL: main target ${targetPath} missing after unlink; aborting\n`);
+        return { aborted: true, unlinked, reason: 'main target gone' };
+      }
+      unlinked.push(name);
+    }
+
+    // Guard 5: remove worktree via git (no --force)
+    try {
+      execFileSync('git', ['-C', mainRoot, 'worktree', 'remove', cwd],
+        { stdio: ['ignore', 'pipe', 'pipe'], timeout: 10000 });
+      process.stdout.write(`[gd-cleanup] removed worktree ${cwd} (unlinked: ${unlinked.join(',')})\n`);
+      return { removed: true, unlinked };
+    } catch (e) {
+      const stderr = (e.stderr && e.stderr.toString()) || e.message;
+      process.stdout.write(`[gd-cleanup] WARN: git worktree remove failed: ${stderr.trim()}\n`);
+      return { aborted: 'git refused', unlinked, stderr };
+    }
+  } catch (e) {
+    process.stdout.write(`[gd-cleanup] unexpected error: ${e.message}\n`);
+    return { error: e.message };
+  }
+}
+
 module.exports = {
   CONFIG_PATH,
   LOCAL_CONFIG_PATH,
@@ -1079,6 +1178,7 @@ module.exports = {
   buildWorktreeActivationHint,
   ensureWorktreeSerenaProject,
   ensureWorktreeSymlinks,
+  cleanupWorktreeOnExit,
   loadWorktreeSymlinksConfig,
   sniffYamlLanguages,
   getSessionTempPath,

@@ -192,7 +192,7 @@ Opening a Claude session in a git worktree automatically symlinks `plans/` (and 
 
 Configuration: add `.claude/worktree-symlinks.json` in the project root to override the default symlink list (`["plans"]`) — the override fully replaces `symlinks[]`, it does not merge.
 
-Cleanup: run `/worktree:remove <path>` from the main repo (or another worktree), not raw `git worktree remove` — the command unlinks managed symlinks and verifies main-repo targets before removing the worktree.
+Cleanup: automatic on session exit. A `SessionEnd` hook unlinks the managed symlinks and then runs `git worktree remove` — no manual command needed. If the worktree has uncommitted changes, cleanup is skipped — your work stays. Commit and exit again to clean up. Never uses `rm -rf`; always verifies the main-repo target is intact before removing the worktree.
 
 > **Note:** Windows symlink support (junction/copy fallback) is not yet implemented. The hook silently no-ops on `win32`.
 
