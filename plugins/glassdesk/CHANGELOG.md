@@ -49,6 +49,7 @@
 - 2 zero-LLM Bash scripts: `bin/plan-list` and `bin/plan-status` (Node.js ESM, no deps). Replace LLM-driven `/plan:list` and `/plan:status` with mechanical formatters.
 - 4 commands thinned to delegation: `/plan:list` and `/plan:status` (Bash-only via the new scripts), `/plan:archive` (fast tier via `plan-archiver`), `/test:ui` (standard tier via `ui-tester`). Each command body now ≤15 lines vs previous 30-90.
 - `/plan:archive` default behavior changed: when no path arg given, archive ONLY plans with `status=done|completed` in frontmatter. In-progress plans get a WARN and are skipped. Pass an explicit path to archive in-progress plans.
+- **`/worktree:remove`** — slash command for safe worktree teardown. Discovers managed symlinks via `.gd-worktree-symlinks.lock`, prompts `[y/N]`, unlinks with `fs.unlinkSync` (never `rm -rf`), then `git worktree remove`. Cwd guard prevents removing the active worktree.
 
 ### Changed
 
