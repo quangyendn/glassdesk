@@ -51,7 +51,7 @@ The dynamic `docs/[...slug].astro` route maps `.gd-wiki/<category>/<page>.md` to
 
 ## Styles & Typography
 
-> **Design refresh in-progress (Phase 01 shipped)**
+> **Design refresh in-progress (Phase 04 shipped)**
 
 `website/src/styles/global.css` now defines a structured CSS token system:
 - **Backgrounds:** `--bg-primary/secondary/card/elevated`
@@ -60,7 +60,7 @@ The dynamic `docs/[...slug].astro` route maps `.gd-wiki/<category>/<page>.md` to
 - **Text:** `--text-primary/secondary/muted`
 - **Layout:** `--maxw-*`, `--radius-*`
 
-Legacy tokens (`--bg`, `--fg`, `--muted`, `--accent`, `--border`, `--code-bg/fg`) are kept as aliases for `/docs/*` pages until Phase 4.
+Legacy tokens (`--bg`, `--fg`, `--muted`, `--accent`, `--border`, `--code-bg/fg`) were kept as aliases for `/docs/*` pages until Phase 4 (now removed — see below).
 
 ### Phase 02 — Header, Footer & Icon system (in-progress)
 
@@ -71,6 +71,16 @@ Legacy tokens (`--bg`, `--fg`, `--muted`, `--accent`, `--border`, `--code-bg/fg`
 `Footer.astro` rewritten: four-column top section (Brand, Product, Docs, Community) containing only resolved links; bottom row carries copyright and a GitHub social icon. No TODO placeholders remain.
 
 `website/src/styles/fonts.css` self-hosts **Geist** (400–700) and **Geist Mono** (400–600) via the `geist` npm package (files in `website/public/fonts/`). **Inter** is loaded from Google Fonts via `Base.astro` (preconnect + `display=swap`). CSS custom properties: `--font-heading` (Geist), `--font-body` (Inter), `--font-mono` (Geist Mono).
+
+### Phase 03 — Landing rewrite
+
+`NeonStreaks.astro` added as a decorative background component: 4 blurred color streaks plus a radial glow, `aria-hidden`, respects `prefers-reduced-motion`.
+
+`index.astro` fully rewritten into 5 sections: Hero (badge, headline, subhead, 6-step pipeline visual, dual CTAs, social proof row), Install (4 cards: fork / marketplace / install / verify, per Q4 spec override), Capabilities (2+3 bento card grid), Documentation (4-card grid linking to architecture, features, decisions, and risks pages), and a closing CTA card.
+
+`pageClass="landing"` and SoftwareApplication JSON-LD schema are preserved; JSON-LD description text updated to mirror the new hero subhead.
+
+`global.css` extended with hero, pipeline, install, bento, docs-grid, and cta-card style blocks; `clamp()`-based fluid typography; responsive breakpoints at 960 px and 640 px.
 
 ## Related Pages
 
