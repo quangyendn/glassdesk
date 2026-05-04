@@ -62,6 +62,14 @@ The dynamic `docs/[...slug].astro` route maps `.gd-wiki/<category>/<page>.md` to
 
 Legacy tokens (`--bg`, `--fg`, `--muted`, `--accent`, `--border`, `--code-bg/fg`) are kept as aliases for `/docs/*` pages until Phase 4.
 
+### Phase 02 — Header, Footer & Icon system (in-progress)
+
+`Icon.astro` added: accepts a kebab-case `name` prop, resolves to PascalCase, looks up the SVG from `lucide-static`, and renders a fallback span for unknown names.
+
+`Header.astro` rewritten: sticky + backdrop-blur bar with a neon "G" brand mark, four nav links (Docs, Commands, Skills, GitHub), a restyled Search trigger with ⌘K hint, and a neon "Get started" CTA.
+
+`Footer.astro` rewritten: four-column top section (Brand, Product, Docs, Community) containing only resolved links; bottom row carries copyright and a GitHub social icon. No TODO placeholders remain.
+
 `website/src/styles/fonts.css` self-hosts **Geist** (400–700) and **Geist Mono** (400–600) via the `geist` npm package (files in `website/public/fonts/`). **Inter** is loaded from Google Fonts via `Base.astro` (preconnect + `display=swap`). CSS custom properties: `--font-heading` (Geist), `--font-body` (Inter), `--font-mono` (Geist Mono).
 
 ## Related Pages

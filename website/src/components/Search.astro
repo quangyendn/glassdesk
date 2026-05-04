@@ -1,9 +1,12 @@
 ---
 // Lazy-loaded Pagefind search modal.
+import Icon from "./Icon.astro";
 ---
 
 <button id="search-open" class="search-trigger" aria-label="Open search">
-  Search
+  <Icon name="search" size={14} />
+  <span class="search-trigger__label">Search docs</span>
+  <kbd class="search-trigger__kbd">⌘K</kbd>
 </button>
 <dialog id="search-dialog" aria-label="Search">
   <div id="pagefind-ui"></div>
@@ -36,4 +39,14 @@
     dlg.showModal();
   });
   close?.addEventListener("click", () => dlg?.close());
+</script>
+
+<script>
+  // ⌘K / Ctrl+K shortcut — open search dialog.
+  document.addEventListener("keydown", (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+      e.preventDefault();
+      (document.querySelector(".search-trigger") as HTMLButtonElement | null)?.click();
+    }
+  });
 </script>

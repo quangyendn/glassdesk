@@ -3,10 +3,29 @@ import Search from "./Search.astro";
 ---
 
 <header class="site-header">
-  <a href="/" class="brand" aria-label="GlassDesk home">GlassDesk</a>
-  <nav aria-label="Primary">
-    <a href="/docs/architecture/plugin-system">Docs</a>
-    <a href="https://github.com/quangyendn/glassdesk" rel="noopener">GitHub</a>
-    <Search />
-  </nav>
+  <div class="site-header__inner">
+    <!-- Brand mark -->
+    <a href="/" class="brand" aria-label="Glassdesk home">
+      <span class="brand__mark" aria-hidden="true">G</span>
+      <span class="brand__name">Glassdesk</span>
+    </a>
+
+    <!-- Primary nav -->
+    <nav class="nav-links" aria-label="Primary">
+      <a href="/docs/architecture/plugin-system">Docs</a>
+      <a href="/#capabilities">Commands</a>
+      <a href="/docs/features/planning">Skills</a>
+      <a
+        href="https://github.com/glassdesk/glassdesk"
+        target="_blank"
+        rel="noopener"
+      >GitHub</a>
+    </nav>
+
+    <!-- Right actions -->
+    <div class="nav-actions">
+      <Search />
+      <a class="cta-primary" href="/docs/architecture/plugin-system">Get started</a>
+    </div>
+  </div>
 </header>
