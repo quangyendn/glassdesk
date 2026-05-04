@@ -352,7 +352,7 @@ body.landing {
   gap: 2rem;
   max-width: 1440px;
   margin: 0 auto;
-  padding: 0 40px;
+  padding: 0 120px;
   height: 60px;
 }
 
@@ -479,7 +479,7 @@ body.landing {
     display: none;
   }
   .site-header__inner {
-    padding: 0 20px;
+    padding: 0 60px;
     gap: 16px;
   }
   .search-trigger__label {
@@ -493,7 +493,7 @@ body.landing {
 .site-footer {
   background: var(--bg-secondary);
   border-top: 1px solid var(--border-subtle);
-  padding: 64px 120px 40px;
+  padding: 64px 360px 40px;
 }
 
 /* Footer top: 4-column grid */
@@ -792,7 +792,7 @@ body.landing main {
    ========================================================================== */
 .hero {
   position: relative;
-  padding: 120px 120px 140px;
+  padding: 120px 360px 140px;
   background: var(--bg-primary);
   display: flex;
   flex-direction: column;
@@ -908,7 +908,7 @@ body.landing main {
    Phase 03 — Install section
    ========================================================================== */
 .install {
-  padding: 120px 120px;
+  padding: 120px 360px;
   background: var(--bg-secondary);
 }
 
@@ -986,7 +986,7 @@ body.landing main {
    Phase 03 — Capabilities section
    ========================================================================== */
 .capabilities {
-  padding: 120px 120px;
+  padding: 120px 360px;
   background: var(--bg-primary);
 }
 
@@ -1109,7 +1109,7 @@ body.landing main {
    Phase 03 — Documentation section
    ========================================================================== */
 .docs-section {
-  padding: 120px 120px;
+  padding: 120px 360px;
   background: var(--bg-secondary);
 }
 
@@ -1208,7 +1208,7 @@ body.landing main {
    Phase 03 — CTA section
    ========================================================================== */
 .cta-section {
-  padding: 100px 120px;
+  padding: 100px 360px;
   background: var(--bg-primary);
 }
 
@@ -1262,11 +1262,11 @@ body.landing main {
 /* <= 960px */
 @media (max-width: 960px) {
   .hero {
-    padding: 80px 60px 100px;
+    padding: 80px 180px 100px;
   }
 
   .install {
-    padding: 80px 60px;
+    padding: 80px 180px;
   }
 
   .install__grid {
@@ -1274,7 +1274,7 @@ body.landing main {
   }
 
   .capabilities {
-    padding: 80px 60px;
+    padding: 80px 180px;
   }
 
   .bento__row--2,
@@ -1283,7 +1283,7 @@ body.landing main {
   }
 
   .docs-section {
-    padding: 80px 60px;
+    padding: 80px 180px;
   }
 
   .docs-grid {
@@ -1291,7 +1291,7 @@ body.landing main {
   }
 
   .cta-section {
-    padding: 80px 60px;
+    padding: 80px 180px;
   }
 
   .cta-card {
@@ -1302,11 +1302,11 @@ body.landing main {
 /* <= 640px */
 @media (max-width: 640px) {
   .hero {
-    padding: 60px 24px 80px;
+    padding: 60px 72px 80px;
   }
 
   .install {
-    padding: 60px 24px;
+    padding: 60px 72px;
   }
 
   .install__grid {
@@ -1314,11 +1314,11 @@ body.landing main {
   }
 
   .capabilities {
-    padding: 60px 24px;
+    padding: 60px 72px;
   }
 
   .docs-section {
-    padding: 60px 24px;
+    padding: 60px 72px;
   }
 
   .docs-grid {
@@ -1331,7 +1331,7 @@ body.landing main {
   }
 
   .cta-section {
-    padding: 60px 24px;
+    padding: 60px 72px;
   }
 
   .cta-card {
@@ -1340,8 +1340,8 @@ body.landing main {
   }
 
   section {
-    padding-left: 24px;
-    padding-right: 24px;
+    padding-left: 72px;
+    padding-right: 72px;
   }
 }
 

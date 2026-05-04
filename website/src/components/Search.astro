@@ -27,9 +27,10 @@ import Icon from "./Icon.astro";
     if (!dlg) return;
     if (!initialised) {
       try {
-        const mod = (await import(
-          /* @vite-ignore */ "/pagefind/pagefind-ui.js"
-        )) as { PagefindUI: new (opts: Record<string, unknown>) => unknown };
+        const pagefindUrl = "/pagefind/pagefind-ui.js";
+        const mod = (await import(/* @vite-ignore */ pagefindUrl)) as {
+          PagefindUI: new (opts: Record<string, unknown>) => unknown;
+        };
         new mod.PagefindUI({ element: "#pagefind-ui", showImages: false });
         initialised = true;
       } catch (err) {
