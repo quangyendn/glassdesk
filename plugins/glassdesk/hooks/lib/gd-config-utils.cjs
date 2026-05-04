@@ -609,6 +609,46 @@ function buildWorktreeActivationHint(cwd) {
   ].join('\n');
 }
 
+
+/**
+ * Parse the `languages:` list out of a Serena project.yml content string.
+ * Handles both YAML forms:
+ *   block: `languages:\n  - python\n  - typescript`
+ *   inline: `languages: [python, typescript]`
+ * Strips quotes and empties; returns null when the field is missing or empty
+ * so the caller can fall back to a default.
+ *
+ * Why a regex parser instead of a YAML library: keeps the hooks dep-free
+ * (zero npm install needed for SessionStart). The two formats above cover
+ * 100% of project.yml templates Serena ships.
+ *
+ * @param {string} content - Raw text of project.yml (may be empty).
+ * @returns {string[]|null}
+ */
+function sniffYamlLanguages(content) {
+  if (!content) return null;
+  // Block form: `languages:\n  - foo\n  - bar`
+  const blockMatch = content.match(/^languages:[ \t]*\n((?:[ \t]*-[ \t]+\S.*\n?)+)/m);
+  if (blockMatch) {
+    const items = blockMatch[1]
+      .split('\n')
+      .filter((l) => l.trim().startsWith('-'))
+      .map((l) => l.replace(/^\s*-\s*/, '').trim().replace(/^["']|["']$/g, ''))
+      .filter(Boolean);
+    if (items.length) return items;
+  }
+  // Inline form: `languages: [foo, bar]`
+  const inlineMatch = content.match(/^languages:[ \t]*\[([^\]]*)\]/m);
+  if (inlineMatch) {
+    const items = inlineMatch[1]
+      .split(',')
+      .map((s) => s.trim().replace(/^["']|["']$/g, ''))
+      .filter(Boolean);
+    if (items.length) return items;
+  }
+  return null;
+}
+
 /**
  * Auto-bootstrap a per-worktree `.serena/project.yml` so each worktree has a
  * UNIQUE `project_name`. Without this, name-lookup activation routes file
@@ -638,15 +678,16 @@ function ensureWorktreeSerenaProject(cwd) {
     const absCommon = path.isAbsolute(commonDir) ? commonDir : path.resolve(cwd, commonDir);
     mainRoot = path.dirname(absCommon); // <main>/.git → <main>
 
-    // Derive main project name (regex-grep, no YAML dep).
+    // Read main repo's .serena/project.yml ONCE; sniff name + languages from it.
     const NAME_RE = /^project_name:\s*["']?([^"'\n]+?)["']?\s*$/m;
     const mainYml = path.join(mainRoot, '.serena', 'project.yml');
-    let mainName = null;
+    let mainContent = '';
     if (fs.existsSync(mainYml)) {
-      const m = fs.readFileSync(mainYml, 'utf8').match(NAME_RE);
-      if (m) mainName = m[1].trim();
+      try { mainContent = fs.readFileSync(mainYml, 'utf8'); } catch (_) { /* no-op */ }
     }
-    if (!mainName) mainName = path.basename(mainRoot);
+    const nameMatch = mainContent.match(NAME_RE);
+    const mainName = (nameMatch && nameMatch[1].trim()) || path.basename(mainRoot);
+    const languages = sniffYamlLanguages(mainContent) || ['python'];
 
     // Derive branch slug for the unique name (sanitize for YAML / filesystem safety).
     let branchSlug;
@@ -679,7 +720,7 @@ function ensureWorktreeSerenaProject(cwd) {
       '',
       `project_name: "${targetName}"`,
       'languages:',
-      '  - python',
+      ...languages.map((lang) => `  - ${lang}`),
       'encoding: "utf-8"',
       'ignore_all_files_in_gitignore: true',
       '',
@@ -888,6 +929,7 @@ module.exports = {
   isGitWorktree,
   buildWorktreeActivationHint,
   ensureWorktreeSerenaProject,
+  sniffYamlLanguages,
   getSessionTempPath,
   readSessionState,
   writeSessionState,
