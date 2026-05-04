@@ -928,6 +928,7 @@ body.landing main {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  min-width: 0;
 }
 
 .step-card h3 {
@@ -961,6 +962,7 @@ body.landing main {
   padding: 12px 14px;
   margin: 4px 0 0;
   overflow-x: auto;
+  max-width: 100%;
 }
 
 .step-card__code code {
