@@ -83,10 +83,6 @@ Key agents and their dispatch sources:
 | `gd-git-manager` | fast | `/git:cm`, `/git:cp`, `/git:pr` |
 | `gd-plan-archiver` | fast | `/plan:archive` |
 
-## Multi-Agent Orchestration
-
-Optional [[claude-flow-integration|Claude Flow]] integration enables parallel agent execution via MCP tools (`swarm_init`, `agent_spawn`, `task_orchestrate`). Claude Flow is an opt-in dependency (`npm i -g claude-flow@alpha`) — the plugin functions without it.
-
 ## Path Resolution at Runtime
 
 The `session-init.cjs` hook fires on SessionStart and exports three environment variables:

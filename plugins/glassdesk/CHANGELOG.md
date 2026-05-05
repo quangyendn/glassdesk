@@ -14,7 +14,7 @@
 
 - Serena is **not** a hard dependency. Plugin works clean without it; no commands break.
 - First use per project: Serena requires a one-time `onboarding` task — user-triggered, never auto. ~30k–80k tokens for ~1000-file repos.
-- Non-code skills (`wiki`, `brainstorming`, `compounding`, `media-processing`, `ai-multimodal`, `pair-programming`, `code-review`) are intentionally untouched — they operate on `.md`/`.json`/media where Serena is irrelevant.
+- Non-code skills (`wiki`, `brainstorming`, `compounding`, `media-processing`, `ai-multimodal`, `code-review`) are intentionally untouched — they operate on `.md`/`.json`/media where Serena is irrelevant.
 - The optional `hooks/serena-enforce.cjs.example` artifact considered during planning was DROPPED — users with the global `~/.claude/hooks/enforce-serena.sh` would double-block.
 - Validation A/B (≥40% token reduction on `/scout`) deferred to follow-up — instrumentation is in place; runtime measurement requires toggling Serena on/off and recording in `validation-results.md`.
 

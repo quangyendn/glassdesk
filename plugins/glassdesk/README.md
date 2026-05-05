@@ -98,7 +98,6 @@ Three commands that make glassdesk self-improving:
 | `compounding` | Session insight extraction, knowledge base, improvement proposals |
 | `debugging` | Systematic four-phase debugging with root cause tracing |
 | `code-review` | Receive/request reviews, verification gates |
-| `pair-programming` | Driver/navigator modes, TDD, mentoring |
 | `ai-multimodal` | Image/video/audio processing via Gemini API |
 | `media-processing` | FFmpeg, ImageMagick, background removal |
 
@@ -156,9 +155,6 @@ Run once per clone. Skip if you don't want the guard.
 ## Optional Dependencies
 
 ```bash
-# Claude Flow (multi-agent orchestration)
-npm install -g claude-flow@alpha
-
 # AI Multimodal (image/video/audio)
 pip install google-genai
 export GEMINI_API_KEY=...

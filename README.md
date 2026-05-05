@@ -78,9 +78,6 @@ claude plugin marketplace remove glassdesk-marketplace
 
 # Execute the plan
 /code:auto
-
-# Use multi-agent orchestration
-/claude-flow swarm "Parallel code generation"
 ```
 
 ## Core Capabilities

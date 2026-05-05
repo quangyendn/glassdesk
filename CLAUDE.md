@@ -62,7 +62,7 @@ Available commands in `.claude/commands/` — 27 total:
 
 ## Skills
 
-Skills available in `plugins/glassdesk/skills/` (11 total):
+Skills available in `plugins/glassdesk/skills/` (10 total):
 - `planning` - Plan creation, organization, and validation
 - `building` - Phase-by-phase plan execution with verification gates
 - `code-review` - Code review reception, requesting reviews, verification gates
@@ -70,19 +70,9 @@ Skills available in `plugins/glassdesk/skills/` (11 total):
 - `fixing` - Fast fix and test-failure recovery workflows
 - `scouting` - Codebase exploration with internal and external tools
 - `brainstorming` - Option evaluation, design decisions, spec formalization
-- `pair-programming` - Driver/navigator modes, TDD, mentor, debug sessions
 - `compounding` - Session insight extraction, knowledge base, improvement proposals
 - `ai-multimodal` - Image generation/analysis, video processing, audio transcription
 - `media-processing` - FFmpeg video encoding, ImageMagick editing, background removal
-
-## Claude-Flow Integration
-
-For parallel agent execution, see `.claude/docs/claude-flow-parallel-guide.md`.
-
-**MCP Tools:**
-- `swarm_init` - Initialize multi-agent topology (hierarchical, mesh, star, ring, hybrid, adaptive)
-- `agent_spawn` - Spawn an agent (call repeatedly or via `task_orchestrate` for batch fan-out)
-- `task_orchestrate` - Parallel/sequential/adaptive strategies
 
 ## Workflows
 
@@ -95,7 +85,6 @@ Workflow guides in `./.claude/workflows/`:
 Workflow steps:
 1. **Plan First:** Use `/plan:hard` to create implementation plan
 2. **Execute:** Use `/code:auto` to implement the plan
-3. **Parallel:** Use claude-flow MCP tools for parallel processing
 
 ## GitHub Actions Templates
 
@@ -134,7 +123,6 @@ Response verbosity levels in `.claude/output-styles/`:
 Plugin docs in `plugins/glassdesk/docs/`:
 - `quick-start.md` — 5-minute setup and SDLC walkthrough
 - `migration-v0.2.md` — upgrading from v0.1.x
-- `claude-flow-parallel-guide.md` — parallel agent execution reference
 
 Changelog: `plugins/glassdesk/CHANGELOG.md`
 
@@ -145,7 +133,6 @@ User specs (output of `/spec`): `docs/specs/`
 **Required:** Node.js 18+, Git
 
 **Recommended:**
-- `claude-flow` - parallel multi-agent execution (`npm i -g claude-flow@alpha`)
 - `gh` - GitHub CLI for git/PR commands (`brew install gh`)
 
 **Optional by feature:**
