@@ -1,5 +1,6 @@
 {
   "symlinks": ["plans"],
+  "claudeSubdirs": ["commands", "agents", "skills", "workflows", "scripts", "output-styles"],
   "createTargetIfMissing": true,
   "lockFile": true
 }

@@ -918,10 +918,10 @@ function getGitBranch() {
  *
  * MUST NOT throw.
  *
- * @returns {{ symlinks: string[], createTargetIfMissing: boolean, lockFile: boolean }}
+ * @returns {{ symlinks: string[], claudeSubdirs: string[], createTargetIfMissing: boolean, lockFile: boolean }}
  */
 function loadWorktreeSymlinksConfig() {
-  const DEFAULT = { symlinks: ['plans'], createTargetIfMissing: true, lockFile: true };
+  const DEFAULT = { symlinks: ['plans'], claudeSubdirs: [], createTargetIfMissing: true, lockFile: true };
   let result = { ...DEFAULT };
 
   // Plugin default — read from GD_PLUGIN_PATH
@@ -943,6 +943,169 @@ function loadWorktreeSymlinksConfig() {
   } catch (_) { /* ignore */ }
 
   return result;
+}
+
+/**
+ * Validates that a claudeSubdirs name is safe (alphanumeric, dash, underscore only).
+ * Rejects names that could be used for path traversal or injection.
+ *
+ * @param {string} name
+ * @returns {boolean}
+ */
+function isValidClaudeSubdirName(name) {
+  return typeof name === 'string' && /^[a-zA-Z0-9_-]+$/.test(name);
+}
+
+/**
+ * Idempotently creates `.claude/<name>` symlinks inside a worktree, pointing to
+ * the corresponding subdirs in the main repo's `.claude/` directory.
+ *
+ * - Ensures `<worktreeRoot>/.claude/` exists (mkdirSync recursive).
+ * - Validates each name matches `^[a-zA-Z0-9_-]+$`.
+ * - Skips if target (`<mainRoot>/.claude/<name>`) does not exist.
+ * - If linkPath is already a correct symlink -> skip (idempotent).
+ * - If linkPath is a stale/wrong symlink -> unlink + recreate.
+ * - If linkPath is a real directory -> silent skip with log line.
+ * - Self-heals dangling symlinks (target was deleted, then recreated).
+ *
+ * @param {string} worktreeRoot - Absolute path to the worktree root.
+ * @param {string} mainRoot - Absolute path to the main repo root.
+ * @param {string[]} names - Array of validated claudeSubdirs names.
+ * @returns {{ created: string[], skipped: string[], warned: string[] }}
+ */
+function ensureClaudeSubdirSymlinks(worktreeRoot, mainRoot, names) {
+  const created = [], skipped = [], warned = [];
+
+  // Self-symlink guard: never link a repo to itself
+  if (mainRoot === worktreeRoot) return { created, skipped, warned };
+  if (!Array.isArray(names) || names.length === 0) return { created, skipped, warned };
+
+  // Ensure .claude/ directory exists in worktree
+  const claudeDir = path.join(worktreeRoot, '.claude');
+  try {
+    fs.mkdirSync(claudeDir, { recursive: true });
+  } catch (e) {
+    process.stdout.write(`[ensureWorktreeSymlinks] ERROR: cannot create ${claudeDir}: ${e.message}\n`);
+    return { created, skipped, warned };
+  }
+
+  for (const name of names) {
+    // Validate name shape
+    if (!isValidClaudeSubdirName(name)) {
+      process.stdout.write(`[ensureWorktreeSymlinks] WARN: invalid claudeSubdirs name ${JSON.stringify(name)}; skipping\n`);
+      warned.push(name);
+      continue;
+    }
+
+    const target = path.join(mainRoot, '.claude', name);
+    const linkPath = path.join(worktreeRoot, '.claude', name);
+
+    // Skip if target doesn't exist in main repo
+    if (!fs.existsSync(target)) {
+      process.stdout.write(`[ensureWorktreeSymlinks] debug: main has no .claude/${name}; skipping\n`);
+      skipped.push(name);
+      continue;
+    }
+
+    // Inspect existing linkPath
+    let st;
+    try { st = fs.lstatSync(linkPath); } catch (_) { st = null; }
+
+    if (st) {
+      if (st.isSymbolicLink()) {
+        // Check if it's already pointing at the correct target
+        let actualTarget = null;
+        try { actualTarget = fs.readlinkSync(linkPath); } catch (_) {}
+        if (actualTarget !== null) {
+          const resolved = path.resolve(path.dirname(linkPath), actualTarget);
+          if (resolved === target) {
+            skipped.push(name);
+            continue;
+          }
+          // Stale or wrong target -- unlink and recreate
+          try { fs.unlinkSync(linkPath); } catch (e) {
+            process.stdout.write(`[ensureWorktreeSymlinks] ERROR: cannot unlink stale .claude/${name}: ${e.message}\n`);
+            warned.push(name);
+            continue;
+          }
+        }
+      } else {
+        // Real directory (or file) -- skip silently with required log format
+        process.stdout.write(`[ensureWorktreeSymlinks] skipped ${name}: real dir present\n`);
+        skipped.push(name);
+        continue;
+      }
+    }
+
+    // Create the symlink
+    try {
+      fs.symlinkSync(target, linkPath, 'dir');
+      created.push(name);
+      process.stdout.write(`[ensureWorktreeSymlinks] created: ${linkPath} -> ${target}\n`);
+    } catch (e) {
+      process.stdout.write(`[ensureWorktreeSymlinks] ERROR: symlinkSync failed for .claude/${name}: ${e.message}\n`);
+      warned.push(name);
+    }
+  }
+
+  return { created, skipped, warned };
+}
+
+/**
+ * Removes `.claude/<name>` symlinks in the worktree that were created by
+ * `ensureClaudeSubdirSymlinks`. Only unlinks entries that are currently symlinks
+ * (never touches real directories). `hooks/` is explicitly excluded -- it must
+ * persist across sessions (bootstrap-paradox guard).
+ *
+ * @param {string} worktreeRoot - Absolute path to the worktree root.
+ * @param {string[]} names - Array of claudeSubdirs names to clean up.
+ * @returns {{ unlinked: string[], skipped: string[] }}
+ */
+function cleanupClaudeSubdirSymlinks(worktreeRoot, names) {
+  const unlinked = [], skipped = [];
+
+  if (!Array.isArray(names) || names.length === 0) return { unlinked, skipped };
+
+  for (const name of names) {
+    // hooks/ must always persist (bootstrap-paradox: hook chain depends on it)
+    if (name === 'hooks') {
+      skipped.push(name);
+      continue;
+    }
+
+    if (!isValidClaudeSubdirName(name)) {
+      process.stdout.write(`[gd-cleanup] WARN: invalid claudeSubdirs name ${JSON.stringify(name)}; skipping\n`);
+      skipped.push(name);
+      continue;
+    }
+
+    const linkPath = path.join(worktreeRoot, '.claude', name);
+
+    let st;
+    try { st = fs.lstatSync(linkPath); } catch (_) { st = null; }
+
+    if (!st) {
+      skipped.push(name); // already gone
+      continue;
+    }
+
+    if (!st.isSymbolicLink()) {
+      // Real directory -- never touch
+      skipped.push(name);
+      continue;
+    }
+
+    try {
+      fs.unlinkSync(linkPath);
+      unlinked.push(name);
+      process.stdout.write(`[gd-cleanup] unlinked .claude/${name} symlink\n`);
+    } catch (e) {
+      process.stdout.write(`[gd-cleanup] ERROR: unlink failed for .claude/${name}: ${e.message}\n`);
+      skipped.push(name);
+    }
+  }
+
+  return { unlinked, skipped };
 }
 
 /**
@@ -1032,6 +1195,14 @@ async function ensureWorktreeSymlinks(cwd, _hookConfig) {
       created.push(name);
       process.stdout.write(`[gd-symlink] created: ${linkPath} → ${targetPath}
 `);
+    }
+
+    // claudeSubdirs tier: symlink .claude/<name> entries (post flat-name loop)
+    if (Array.isArray(cfg.claudeSubdirs) && cfg.claudeSubdirs.length > 0) {
+      const subResult = ensureClaudeSubdirSymlinks(cwd, mainRoot, cfg.claudeSubdirs);
+      subResult.created.forEach(n => created.push('.claude/' + n));
+      subResult.skipped.forEach(n => skipped.push('.claude/' + n));
+      subResult.warned.forEach(n => warned.push('.claude/' + n));
     }
 
     // Write / refresh lock file
@@ -1139,6 +1310,12 @@ async function cleanupWorktreeOnExit(cwd) {
       unlinked.push(name);
     }
 
+    // claudeSubdirs tier cleanup: remove .claude/<name> symlinks (hooks/ excluded)
+    const cfg2 = loadWorktreeSymlinksConfig();
+    if (Array.isArray(cfg2.claudeSubdirs) && cfg2.claudeSubdirs.length > 0) {
+      cleanupClaudeSubdirSymlinks(cwd, cfg2.claudeSubdirs);
+    }
+
     // Guard 5: remove worktree via git (no --force)
     try {
       execFileSync('git', ['-C', mainRoot, 'worktree', 'remove', cwd],
@@ -1178,7 +1355,9 @@ module.exports = {
   buildWorktreeActivationHint,
   ensureWorktreeSerenaProject,
   ensureWorktreeSymlinks,
+  ensureClaudeSubdirSymlinks,
   cleanupWorktreeOnExit,
+  cleanupClaudeSubdirSymlinks,
   loadWorktreeSymlinksConfig,
   sniffYamlLanguages,
   getSessionTempPath,
