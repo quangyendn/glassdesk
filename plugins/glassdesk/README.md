@@ -186,6 +186,16 @@ Prerequisites: Python + [`uv`](https://docs.astral.sh/uv/) (Serena's MCP server 
 
 When Serena is absent, glassdesk shows a one-time install hint per session and falls back to built-in `Read`/`Grep`/`Edit`. **No commands break.** First-time use per project triggers a one-time `onboarding` task (user-confirmed, ~30k–80k tokens for ~1000-file repos). Tool routing is documented in `docs/serena-preference.md`.
 
+## Worktree integration
+
+Opening a Claude session in a git worktree automatically symlinks `plans/` (and any other configured folders) from the main repo into the worktree, so `/plan` output is written to `<main>/plans/` and persists intact after `git worktree remove`. A lock file at `<worktree>/.gd-worktree-symlinks.lock` records what was linked for drift-resistant cleanup.
+
+Configuration: add `.claude/worktree-symlinks.json` in the project root to override the default symlink list (`["plans"]`) — the override fully replaces `symlinks[]`, it does not merge.
+
+Cleanup: automatic on session exit. A `SessionEnd` hook unlinks the managed symlinks and then runs `git worktree remove` — no manual command needed. If the worktree has uncommitted changes, cleanup is skipped — your work stays. Commit and exit again to clean up. Never uses `rm -rf`; always verifies the main-repo target is intact before removing the worktree.
+
+> **Note:** Windows symlink support (junction/copy fallback) is not yet implemented. The hook silently no-ops on `win32`.
+
 ## Documentation
 
 - [Quick Start](docs/quick-start.md) — 5-minute setup and SDLC walkthrough
