@@ -1,6 +1,6 @@
 ---
 title: "Plugin System Architecture"
-updated: 2026-05-03
+updated: 2026-05-05
 tags: [category/architecture, plugin, commands, agents, skills]
 ---
 
@@ -22,7 +22,8 @@ plugins/glassdesk/
 │   └── models.yml               # tier → model mapping (single source of truth)
 ├── bin/                         # zero-LLM CLI scripts (plan-list, plan-status, sync-models)
 ├── hooks/
-│   ├── session-init.cjs         # SessionStart hook — sets GD_PLUGIN_PATH, GD_SESSION_ID, GD_SERENA_AVAILABLE
+│   ├── session-init.cjs         # SessionStart hook — sets GD_PLUGIN_PATH, GD_SESSION_ID, GD_SERENA_AVAILABLE; auto-symlinks plans/ + .claude/ subdirs into worktrees
+│   ├── session-end.cjs          # SessionEnd hook — removes managed worktree symlinks and prunes the worktree if clean (no uncommitted changes)
 │   └── lib/gd-config-utils.cjs  # shared config helpers for hooks
 └── scripts/
     ├── install-dev-hooks.sh     # optional pre-commit drift guard
@@ -97,7 +98,7 @@ The `glassdesk-marketplace` (`/.claude-plugin/marketplace.json`) registers three
 
 | Name | Source | Description |
 |------|--------|-------------|
-| `glassdesk` | `./plugins/glassdesk` | Full SDLC framework (40+ commands, 10 agents, 7 skills) |
+| `glassdesk` | `./plugins/glassdesk` | Full SDLC framework (27 commands, 10 agents, 11 skills) |
 | `gd` | `./plugins/glassdesk` | Short alias for `glassdesk` |
 | `ccaudit` | `./plugins/ccaudit` | 2-tier 20-pattern Claude Code audit tool |
 

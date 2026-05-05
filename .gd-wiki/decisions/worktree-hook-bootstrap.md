@@ -7,6 +7,8 @@ summary: "Hook commands in settings.local.json are wrapped in a self-bootstrappi
 
 `npx glassdesk init/update` now wraps every hook command entry in a self-bootstrapping bash preamble. On first SessionStart inside a git worktree the wrapper creates `<worktree>/.claude/hooks → <main>/.claude/hooks` as a symlink, then `exec`s the real hook. The symlink persists; subsequent sessions skip bootstrap.
 
+Once the hook is running, `session-init.cjs` also auto-symlinks configurable paths (default: `plans/`) and `.claude/` subdirs (commands, agents, skills, etc.) from the main repo into the worktree, governed by `config/worktree-symlinks.json`. On SessionEnd, `session-end.cjs` removes those managed symlinks and prunes the worktree via `git worktree remove` — but only when there are no uncommitted changes; if changes exist it logs a warning and defers cleanup to the next session exit.
+
 ## Problem
 
 A chicken-and-egg crash blocked every fresh git worktree session:
