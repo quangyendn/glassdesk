@@ -1,30 +1,27 @@
 ---
-title: "Claude Flow Integration"
-updated: 2026-04-29
-tags: [category/decision, claude-flow, multi-agent, orchestration]
-summary: "Claude Flow is an opt-in external dependency for parallel multi-agent execution; glassdesk functions fully without it using sequential Task tool dispatch."
+title: "Claude Flow Integration (Superseded)"
+updated: 2026-05-05
+status: superseded
+tags: [category/decision, claude-flow, multi-agent, orchestration, superseded]
+summary: "Superseded 2026-05-05: Claude Flow integration removed from glassdesk. Plugin uses Claude Code's built-in Task tool exclusively for subagent dispatch."
 ---
 
-Claude Flow (`claude-flow@alpha`) is an opt-in external dependency for parallel multi-agent execution. Glassdesk functions fully without it using sequential Task tool dispatch via the standard Claude Code agent system.
+> **Status: SUPERSEDED (2026-05-05)** — Claude Flow integration has been removed from glassdesk. Plugin now relies solely on Claude Code's built-in Task tool for subagent dispatch. References, docs, the `pair-programming` skill, and the `claude-flow-parallel-guide.md` reference doc were removed in the same change.
+>
+> Rationale: external dependency added cost and maintenance overhead while providing limited additional value over sequential Task dispatch in real-world use. Removing it simplifies the install path and aligns with YAGNI.
 
-## Decision
+## Original Decision (kept for ADR history)
 
-Claude Flow is not a hard dependency. The plugin uses Claude Code's built-in Task tool for subagent dispatch in all commands and skills. Claude Flow's `swarm_init`, `agent_spawn`, and `task_orchestrate` MCP tools are available as additive capabilities for users who want parallel execution on large tasks.
+Claude Flow (`claude-flow@alpha`) was an opt-in external dependency for parallel multi-agent execution. Glassdesk functioned fully without it using sequential Task tool dispatch via the standard Claude Code agent system.
 
-## When Claude Flow Adds Value
+Claude Flow was not a hard dependency. The plugin used Claude Code's built-in Task tool for subagent dispatch in all commands and skills. Claude Flow's `swarm_init`, `agent_spawn`, and `task_orchestrate` MCP tools were available as additive capabilities for users who wanted parallel execution on large tasks.
+
+### When Claude Flow Added Value
 
 - Running multiple independent research agents in parallel during `/plan:hard`
 - Fan-out exploration across many files simultaneously during deep `/scout:ext` runs
 - Batch operations where sequential Task calls would take too long
 
-## Installation
-
-```bash
-npm install -g claude-flow@alpha
-```
-
-Install once per machine. The plugin checks for Claude Flow availability at dispatch time and degrades gracefully to sequential dispatch when absent.
-
 ## Related Pages
 
-- [[plugin-system]] — base agent dispatch architecture without Claude Flow
+- [[plugin-system]] — base agent dispatch architecture

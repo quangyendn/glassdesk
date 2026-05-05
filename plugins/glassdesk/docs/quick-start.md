@@ -138,6 +138,5 @@ See `plugins/glassdesk/skills/wiki/SKILL.md` for the storage contract, decision 
 | AI Multimodal | `pip install google-genai` + `GEMINI_API_KEY` |
 | Media Processing | `brew install ffmpeg imagemagick && npm i -g rmbg-cli` |
 | External Scouts | `npm i -g @anthropic/gemini-cli` |
-| Parallel Agents | `npm i -g claude-flow@alpha` |
 | Wiki Maintainer | `npm i -g @tobilu/qmd` (>=2.1.0) + `brew install sqlite` (macOS) |
 | Symbol-aware code tools (50–90% token reduction) | `/plugin install serena@claude-plugins-official` (needs Python + `uv`) |

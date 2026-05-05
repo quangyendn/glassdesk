@@ -36,7 +36,7 @@ trap 'rm -f "$OUT"' EXIT
 qmd query "$QUERY_DOC" -c "$COLL" --json -n 9 --min-score "$MIN" > "$OUT" 2>/dev/null || echo '[]' > "$OUT"
 ```
 
-`mktemp` isolates concurrent invocations (e.g. `/plan:hard` parallel researchers, claude-flow swarm). On non-zero exit, file holds `[]` so downstream parsing stays graceful — never block the skill.
+`mktemp` isolates concurrent invocations (e.g. `/plan:hard` parallel researchers). On non-zero exit, file holds `[]` so downstream parsing stays graceful — never block the skill.
 
 ## JSON Schema (empirical, 2026-04-30)
 
