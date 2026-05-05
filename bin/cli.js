@@ -156,6 +156,54 @@ export function mergeHookEntries(userEntries, tplEntries) {
 // piling up as a duplicate.
 const STALE_GLASSDESK_HOOK_RE = /^node \.claude\/hooks\/(session-init|dev-rules-reminder|session-end)\.cjs$/;
 
+// Detection regex for wrapped glassdesk hook commands (v0.2+). Matches the
+// unique preamble of the self-bootstrapping bash wrapper so mergeSettings can
+// identify already-wrapped entries and avoid double-wrapping on re-update.
+// Loose enough to survive minor whitespace/quoting edits; specific enough not
+// to match unrelated bash -c commands.
+export const WRAPPED_GLASSDESK_HOOK_RE = /^bash -c 'C="\$\{CLAUDE_PROJECT_DIR:-\$PWD\}"; H="\$C\/\.claude\/hooks\/[\w.-]+\.cjs"/;
+
+// Build the self-bootstrapping shell wrapper command for a glassdesk hook.
+//
+// The wrapper:
+//   1. Resolves the project root via CLAUDE_PROJECT_DIR (set by Claude Code)
+//      or falls back to $PWD.
+//   2. Checks if the hook file is already reachable (symlink or real file).
+//   3. If not, discovers the main worktree via `git rev-parse --git-common-dir`
+//      and symlinks <main>/.claude/hooks into the worktree .claude/ directory.
+//   4. exec's node on the hook — replacing the wrapper process (no zombie).
+//
+// The returned string is the raw shell command, NOT JSON-stringified.
+// Caller is responsible for serialising it into settings.local.json.
+//
+// @param {string} hookFile  Basename of the hook (e.g. "session-init.cjs").
+//                           Must match /^[a-zA-Z0-9._-]+$/. No path separators.
+// @returns {string}         Shell command string ready for the "command" field.
+// @throws {TypeError}       If hookFile is not a plain basename string.
+export function wrapHookCommand(hookFile) {
+  if (typeof hookFile !== 'string' || hookFile.length === 0) {
+    throw new TypeError(`wrapHookCommand: hookFile must be a non-empty string, got ${JSON.stringify(hookFile)}`);
+  }
+  if (!/^[a-zA-Z0-9._-]+$/.test(hookFile)) {
+    throw new TypeError(
+      `wrapHookCommand: hookFile must be a plain basename (no slashes, no ".." sequences), got ${JSON.stringify(hookFile)}`
+    );
+  }
+  return (
+    `bash -c 'C="\${CLAUDE_PROJECT_DIR:-$PWD}"; ` +
+    `H="$C/.claude/hooks/${hookFile}"; ` +
+    `if [ ! -e "$H" ]; then ` +
+    `G=$(git -C "$C" rev-parse --git-common-dir 2>/dev/null); ` +
+    `if [ -n "$G" ]; then ` +
+    `M=$(dirname "$G"); ` +
+    `if [ -d "$M/.claude/hooks" ] && [ "$M" != "$C" ]; then ` +
+    `mkdir -p "$C/.claude"; ` +
+    `ln -sfn "$M/.claude/hooks" "$C/.claude/hooks"; ` +
+    `fi; fi; fi; ` +
+    `[ -e "$H" ] && exec node "$H"'`
+  );
+}
+
 export function purgeStaleGlassdeskHooks(hooksObj, eventNames) {
   if (!hooksObj || typeof hooksObj !== 'object') return [];
   const removed = [];
