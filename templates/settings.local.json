@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PROJECT_DIR:-$PWD}/.claude/hooks/session-init.cjs\""
+            "command": "bash -c 'C=\"${CLAUDE_PROJECT_DIR:-$PWD}\"; H=\"$C/.claude/hooks/session-init.cjs\"; if [ ! -e \"$H\" ]; then G=$(git -C \"$C\" rev-parse --git-common-dir 2>/dev/null); if [ -n \"$G\" ]; then M=$(dirname \"$G\"); if [ -d \"$M/.claude/hooks\" ] && [ \"$M\" != \"$C\" ]; then mkdir -p \"$C/.claude\"; ln -sfn \"$M/.claude/hooks\" \"$C/.claude/hooks\"; fi; fi; fi; [ -e \"$H\" ] && exec node \"$H\"'"
           }
         ]
       }
@@ -15,7 +15,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PROJECT_DIR:-$PWD}/.claude/hooks/dev-rules-reminder.cjs\""
+            "command": "bash -c 'C=\"${CLAUDE_PROJECT_DIR:-$PWD}\"; H=\"$C/.claude/hooks/dev-rules-reminder.cjs\"; if [ ! -e \"$H\" ]; then G=$(git -C \"$C\" rev-parse --git-common-dir 2>/dev/null); if [ -n \"$G\" ]; then M=$(dirname \"$G\"); if [ -d \"$M/.claude/hooks\" ] && [ \"$M\" != \"$C\" ]; then mkdir -p \"$C/.claude\"; ln -sfn \"$M/.claude/hooks\" \"$C/.claude/hooks\"; fi; fi; fi; [ -e \"$H\" ] && exec node \"$H\"'"
           }
         ]
       }
@@ -25,7 +25,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PROJECT_DIR:-$PWD}/.claude/hooks/session-end.cjs\""
+            "command": "bash -c 'C=\"${CLAUDE_PROJECT_DIR:-$PWD}\"; H=\"$C/.claude/hooks/session-end.cjs\"; if [ ! -e \"$H\" ]; then G=$(git -C \"$C\" rev-parse --git-common-dir 2>/dev/null); if [ -n \"$G\" ]; then M=$(dirname \"$G\"); if [ -d \"$M/.claude/hooks\" ] && [ \"$M\" != \"$C\" ]; then mkdir -p \"$C/.claude\"; ln -sfn \"$M/.claude/hooks\" \"$C/.claude/hooks\"; fi; fi; fi; [ -e \"$H\" ] && exec node \"$H\"'"
           }
         ]
       }

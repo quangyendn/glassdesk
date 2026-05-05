@@ -154,7 +154,90 @@ export function mergeHookEntries(userEntries, tplEntries) {
 // (loader:1404). Newer template uses ${CLAUDE_PROJECT_DIR:-$PWD}. Strip
 // the stale entries on update so the new entry replaces them instead of
 // piling up as a duplicate.
-const STALE_GLASSDESK_HOOK_RE = /^node \.claude\/hooks\/(session-init|dev-rules-reminder|session-end)\.cjs$/;
+//
+// IMPORTANT: This regex matches ONLY the truly-relative form (no env var, no
+// absolute path) — the pre-bug-fix install artifact that must be DELETED.
+// Do NOT widen this to match the absolute-env form below — that form must be
+// MIGRATED (rewritten to wrapped bash -c), not purged, so that the migration
+// log fires correctly (AC9 idempotency intent).
+//   (a) relative: `node .claude/hooks/<hook>.cjs`  <- STALE: delete
+const STALE_GLASSDESK_HOOK_RE =
+  /^node \.claude\/hooks\/(session-init|dev-rules-reminder|session-end)\.cjs$/;
+
+// Matches the absolute-env legacy form written by glassdesk v0.1.x installs
+// (pre-wrapping):
+//   (b) absolute-env: `node "${CLAUDE_PROJECT_DIR[:-$PWD]}/.claude/hooks/<hook>.cjs"`
+// These entries should be MIGRATED to the wrapped bash -c form by
+// migrateHookCommandsToWrapped, NOT purged.  Keeping them out of
+// STALE_GLASSDESK_HOOK_RE ensures purgeStaleGlassdeskHooks does not
+// destroy them before migration can see and rewrite them.
+export const LEGACY_GLASSDESK_HOOK_RE =
+  /^node "\$\{CLAUDE_PROJECT_DIR(?::-\$PWD)?\}\/.claude\/hooks\/([\w.-]+\.cjs)"$/;
+
+// Detection regex for wrapped glassdesk hook commands (v0.2+). Matches the
+// unique preamble of the self-bootstrapping bash wrapper so mergeSettings can
+// identify already-wrapped entries and avoid double-wrapping on re-update.
+// Loose enough to survive minor whitespace/quoting edits; specific enough not
+// to match unrelated bash -c commands.
+export const WRAPPED_GLASSDESK_HOOK_RE = /^bash -c 'C=\"\$\{CLAUDE_PROJECT_DIR:-\$PWD\}\"; H=\"\$C\/\.claude\/hooks\/[\w.-]+\.cjs\"/;
+
+// Returns true iff cmdString is already in the wrapped bash -c form written
+// by wrapHookCommand. Used by mergeSettings to skip migration for entries
+// that are already up-to-date (idempotency guard).
+export function isWrappedHook(cmdString) {
+  return typeof cmdString === 'string' && WRAPPED_GLASSDESK_HOOK_RE.test(cmdString);
+}
+
+// Extract the hook basename (e.g. "session-init.cjs") from either a legacy
+// `node "${CLAUDE_PROJECT_DIR...}/.claude/hooks/<file>"` command or the
+// wrapped bash -c form.  Returns null when extraction fails (e.g. user has
+// hand-edited the command beyond recognition) — callers should log warn + skip.
+export function extractHookBasename(cmdString) {
+  if (typeof cmdString !== 'string') return null;
+  const m = cmdString.match(/\.claude\/hooks\/([\w.-]+\.cjs)/);
+  return m ? m[1] : null;
+}
+
+// Build the self-bootstrapping shell wrapper command for a glassdesk hook.
+//
+// The wrapper:
+//   1. Resolves the project root via CLAUDE_PROJECT_DIR (set by Claude Code)
+//      or falls back to $PWD.
+//   2. Checks if the hook file is already reachable (symlink or real file).
+//   3. If not, discovers the main worktree via `git rev-parse --git-common-dir`
+//      and symlinks <main>/.claude/hooks into the worktree .claude/ directory.
+//   4. exec's node on the hook — replacing the wrapper process (no zombie).
+//
+// The returned string is the raw shell command, NOT JSON-stringified.
+// Caller is responsible for serialising it into settings.local.json.
+//
+// @param {string} hookFile  Basename of the hook (e.g. "session-init.cjs").
+//                           Must match /^[a-zA-Z0-9._-]+$/. No path separators.
+// @returns {string}         Shell command string ready for the "command" field.
+// @throws {TypeError}       If hookFile is not a plain basename string.
+export function wrapHookCommand(hookFile) {
+  if (typeof hookFile !== 'string' || hookFile.length === 0) {
+    throw new TypeError(`wrapHookCommand: hookFile must be a non-empty string, got ${JSON.stringify(hookFile)}`);
+  }
+  if (!/^[a-zA-Z0-9._-]+$/.test(hookFile)) {
+    throw new TypeError(
+      `wrapHookCommand: hookFile must be a plain basename (no slashes, no ".." sequences), got ${JSON.stringify(hookFile)}`
+    );
+  }
+  return (
+    `bash -c 'C="\${CLAUDE_PROJECT_DIR:-$PWD}"; ` +
+    `H="$C/.claude/hooks/${hookFile}"; ` +
+    `if [ ! -e "$H" ]; then ` +
+    `G=$(git -C "$C" rev-parse --git-common-dir 2>/dev/null); ` +
+    `if [ -n "$G" ]; then ` +
+    `M=$(dirname "$G"); ` +
+    `if [ -d "$M/.claude/hooks" ] && [ "$M" != "$C" ]; then ` +
+    `mkdir -p "$C/.claude"; ` +
+    `ln -sfn "$M/.claude/hooks" "$C/.claude/hooks"; ` +
+    `fi; fi; fi; ` +
+    `[ -e "$H" ] && exec node "$H"'`
+  );
+}
 
 export function purgeStaleGlassdeskHooks(hooksObj, eventNames) {
   if (!hooksObj || typeof hooksObj !== 'object') return [];
@@ -179,6 +262,47 @@ export function purgeStaleGlassdeskHooks(hooksObj, eventNames) {
   return removed;
 }
 
+// Migrate legacy glassdesk hook commands (node "${CLAUDE_PROJECT_DIR...}" form)
+// to the wrapped bash -c form in-place on a hooksObj.  Already-wrapped entries
+// are left untouched (idempotency).  Foreign hooks are left untouched.
+// Returns an array of migration log strings (one per rewritten command).
+//
+// Uses LEGACY_GLASSDESK_HOOK_RE (not STALE_GLASSDESK_HOOK_RE) as the trigger
+// — STALE covers only truly-relative form which is deleted by purge; LEGACY
+// covers the absolute-env form which survives purge and arrives here for
+// migration.  This split is critical: purge runs BEFORE migration, so any
+// entry matched by STALE is already gone by the time migration iterates.
+function migrateHookCommandsToWrapped(hooksObj, eventNames) {
+  if (!hooksObj || typeof hooksObj !== 'object') return [];
+  const migrated = [];
+  for (const event of eventNames) {
+    if (!Array.isArray(hooksObj[event])) continue;
+    for (const rawEntry of hooksObj[event]) {
+      const entry = normalizeHookEntry(rawEntry);
+      if (!entry || !Array.isArray(entry.hooks)) continue;
+      for (const h of entry.hooks) {
+        if (typeof h?.command !== 'string') continue;
+        // Skip already-wrapped entries — idempotency guard.
+        if (isWrappedHook(h.command)) continue;
+        // Only migrate commands that match the absolute-env legacy form.
+        // Foreign hooks (no LEGACY_GLASSDESK_HOOK_RE match) are left untouched.
+        const legacyMatch = LEGACY_GLASSDESK_HOOK_RE.exec(h.command);
+        if (!legacyMatch) continue;
+        const basename = legacyMatch[1];
+        // If basename extraction succeeds, rewrite to wrapped form.
+        try {
+          const wrapped = wrapHookCommand(basename);
+          migrated.push(`${event}: migrated hook command to wrapped form — ${basename}`);
+          h.command = wrapped;
+        } catch (err) {
+          log.warn(`hooks: could not wrap ${event} hook "${h.command}" — ${err.message}; skipping`);
+        }
+      }
+    }
+  }
+  return migrated;
+}
+
 export function mergeSettings(existing, template) {
   const merged = JSON.parse(JSON.stringify(existing ?? {}));
   const conflicts = [];
@@ -189,6 +313,14 @@ export function mergeSettings(existing, template) {
     merged.hooks ??= {};
     const purged = purgeStaleGlassdeskHooks(merged.hooks, Object.keys(template.hooks));
     for (const cmd of purged) conflicts.push(`hooks: removed stale glassdesk entry — ${cmd}`);
+    // Migrate any surviving legacy `node "${CLAUDE_PROJECT_DIR...}"` entries
+    // to the wrapped bash -c form.  Already-wrapped entries are left untouched.
+    // Use all keys from merged.hooks (not just template keys) so that legacy
+    // entries in events not covered by the template are also migrated.
+    const migratedCmds = migrateHookCommandsToWrapped(merged.hooks, Object.keys(merged.hooks));
+    if (migratedCmds.length > 0) {
+      log.info(`[glassdesk] migrated ${migratedCmds.length} hook command${migratedCmds.length === 1 ? '' : 's'} to wrapped form`);
+    }
     for (const [event, tplEntries] of Object.entries(template.hooks)) {
       const userEntries = merged.hooks[event] ?? [];
       merged.hooks[event] = mergeHookEntries(userEntries, tplEntries);

@@ -112,3 +112,4 @@ The `glassdesk-marketplace` (`/.claude-plugin/marketplace.json`) registers three
 - [[agent-naming-standardization]] — `gd-` prefix decision
 - [[plugin-flat-structure]] — why no `.claude/` wrapper in plugin source
 - [[ccaudit]] — standalone audit plugin registered in this marketplace
+- [[worktree-hook-bootstrap]] — how hook commands self-bootstrap `.claude/hooks/` in fresh worktrees via install-time shell wrapper

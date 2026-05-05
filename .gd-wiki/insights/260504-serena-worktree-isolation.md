@@ -69,3 +69,7 @@ Editing the hook source created a tool deadlock: (a) `enforce-serena.sh` PreTool
 `ensureWorktreeSerenaProject` skips if the worktree already has a `.serena/project.yml` with a `project_name` that DIFFERS from main's. Reasoning: any non-default name signals user customization and should be preserved. This avoids "auto-fix on every session" jitter while still self-healing trees that were copied verbatim from main (the unsafe default state). Trade-off accepted: if the user manually sets the worktree name to literally match main's name (which is the bug we're fixing), we'll overwrite it — but doing that is the bug. The function returns `{written}` or `{skipped, name}` for diagnostics.
 
 > Evidence: smoke test T5 set `project_name: "my-custom-name"`, re-ran hook, verified preserved unchanged.
+
+## Related
+
+- [[worktree-hook-bootstrap]] — extends the three-layer defense pattern to fix the chicken-and-egg `MODULE_NOT_FOUND` crash in fresh worktrees (hook bootstrap layer)

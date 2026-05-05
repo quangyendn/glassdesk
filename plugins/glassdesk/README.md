@@ -186,13 +186,19 @@ Prerequisites: Python + [`uv`](https://docs.astral.sh/uv/) (Serena's MCP server 
 
 When Serena is absent, glassdesk shows a one-time install hint per session and falls back to built-in `Read`/`Grep`/`Edit`. **No commands break.** First-time use per project triggers a one-time `onboarding` task (user-confirmed, ~30k–80k tokens for ~1000-file repos). Tool routing is documented in `docs/serena-preference.md`.
 
-## Worktree integration
+## Worktree support
 
-Opening a Claude session in a git worktree automatically symlinks `plans/` (and any other configured folders) from the main repo into the worktree, so `/plan` output is written to `<main>/plans/` and persists intact after `git worktree remove`. A lock file at `<worktree>/.gd-worktree-symlinks.lock` records what was linked for drift-resistant cleanup.
+Glassdesk works in git worktrees out of the box — no manual setup required.
+
+- On first session start in a worktree, hook commands self-bootstrap: the wrapper symlinks `<main>/.claude/hooks/` into the worktree and then `exec`s the real hook. Subsequent sessions reuse the symlink.
+- The following `.claude/` subdirectories are also symlinked into the worktree on first SessionStart: `commands/`, `agents/`, `skills/`, `workflows/`, `scripts/`, `output-styles/`.
+- `plans/` (and any other paths in `.claude/worktree-symlinks.json`) are symlinked so `/plan` output is written to `<main>/plans/` and persists after `git worktree remove`.
+- A lock file at `<worktree>/.gd-worktree-symlinks.lock` records active symlinks for drift-resistant cleanup.
+- **Existing installs:** run `npx glassdesk update` once to migrate `settings.local.json` to the new wrapped format. Migration is idempotent — re-running on an already-migrated file is a no-op.
 
 Configuration: add `.claude/worktree-symlinks.json` in the project root to override the default symlink list (`["plans"]`) — the override fully replaces `symlinks[]`, it does not merge.
 
-Cleanup: automatic on session exit. A `SessionEnd` hook unlinks the managed symlinks and then runs `git worktree remove` — no manual command needed. If the worktree has uncommitted changes, cleanup is skipped — your work stays. Commit and exit again to clean up. Never uses `rm -rf`; always verifies the main-repo target is intact before removing the worktree.
+Cleanup: automatic on session exit. The `SessionEnd` hook unlinks managed symlinks and runs `git worktree remove`. If the worktree has uncommitted changes, cleanup is skipped — your work stays. Never uses `rm -rf`.
 
 > **Note:** Windows symlink support (junction/copy fallback) is not yet implemented. The hook silently no-ops on `win32`.
 
