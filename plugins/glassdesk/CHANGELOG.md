@@ -20,6 +20,12 @@
 
 ## [Unreleased]
 
+### Changed
+
+- **`/debug` renamed to `/gd-debug` for `npx glassdesk init/update`** — Claude Code 2.x ships a built-in `/debug` slash command (enables session debug logging) that always wins against project-scope `.claude/commands/debug.md`, so the bundled command was unreachable after npx install. The npx installer now copies `commands/debug.md` → `commands/gd-debug.md` and rewrites `/debug` → `/gd-debug` in all copied `.md` references. Plugin source is unchanged: marketplace installs continue to expose `/glassdesk:debug` via plugin namespacing. Re-run `npx glassdesk update` once to apply.
+- **`/plan` renamed to `/plan:fast` for `npx glassdesk init/update`** — same rationale: built-in `/plan [description]` (enter plan mode) shadows project-scope `/plan`. The npx installer now copies `commands/plan.md` → `commands/plan/fast.md` (joining the existing `plan/` namespace alongside `:hard`, `:list`, `:status`, `:archive`, `:validate`) and rewrites bare `/plan` → `/plan:fast` in copied `.md` references. Existing variants are unaffected. Marketplace plugin install continues to expose the bare command as `/glassdesk:plan`. Re-run `npx glassdesk update` once to apply.
+- **Command-ref rewrite regex tightened** — negative lookahead now excludes `:` and `/` in addition to `\w.-`, preserving colon variants (`/plan:hard`) and path segments (`commands/plan/hard.md`) from accidental rewrite. Side benefit: the rewrite is now idempotent, so re-running `npx glassdesk update` does not double-mangle.
+
 ### Fixed
 
 - **Worktree hook bootstrap (`MODULE_NOT_FOUND` on SessionStart)** — Hook commands in `.claude/settings.local.json` are now wrapped in a self-bootstrapping shell preamble. On first session start inside a git worktree the wrapper symlinks `<main>/.claude/hooks/` into the worktree, then `exec`s the real hook. Subsequent sessions reuse the symlink (idempotent). Resolves `MODULE_NOT_FOUND` at `cjs/loader:1404` that crashed every fresh worktree session. Re-run `npx glassdesk update` once to migrate existing installs.

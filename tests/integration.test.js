@@ -182,10 +182,13 @@ test('rewrite: post-init no .md contains $GD_PLUGIN_PATH; project-relative .clau
 test('rewrite: subagent env-isolation — rewritten command runs with cwd=project root and minimal env', () => {
   const cwd = mkProject();
   runCli(['init', '--yes'], { cwd });
-  // Pull the actual rewritten command line from a known file.
-  const planMd = fs.readFileSync(path.join(cwd, '.claude', 'commands', 'plan.md'), 'utf8');
+  // Pull the actual rewritten command line from a known file. Use plan/hard.md
+  // because plan.md is renamed to plan/fast.md by RENAME_MAP — plan/hard.md is
+  // path-stable across the rename and carries the same set-active-plan.cjs
+  // invocation.
+  const planMd = fs.readFileSync(path.join(cwd, '.claude', 'commands', 'plan', 'hard.md'), 'utf8');
   const match = planMd.match(/node "[^"]*set-active-plan\.cjs"/);
-  assert.ok(match, 'expected rewritten node invocation in plan.md');
+  assert.ok(match, 'expected rewritten node invocation in plan/hard.md');
   // Simulate subagent: NO GD_PLUGIN_PATH, NO GD_SESSION_ID, NO CLAUDE_PROJECT_DIR.
   // Rely solely on cwd=project root (which Claude Code's Bash tool always sets).
   const r = spawnSync('bash', ['-c', `${match[0]} plans/dummy`], {
@@ -201,7 +204,9 @@ test('rewrite: subagent env-isolation — rewritten command runs with cwd=projec
 test('rewrite: update re-rewrites tampered $GD_PLUGIN_PATH back to project-relative .claude', () => {
   const cwd = mkProject();
   runCli(['init', '--yes'], { cwd });
-  const target = path.join(cwd, '.claude', 'commands', 'plan.md');
+  // plan.md is renamed to plan/fast.md; use plan/hard.md (path-stable) which
+  // has the same $GD_PLUGIN_PATH reference for tamper-and-update assertion.
+  const target = path.join(cwd, '.claude', 'commands', 'plan', 'hard.md');
   // Tamper: replace the rewritten path back to the legacy env-var form.
   const tampered = fs.readFileSync(target, 'utf8').replace(/"\.claude\//g, '"$GD_PLUGIN_PATH/');
   fs.writeFileSync(target, tampered);
