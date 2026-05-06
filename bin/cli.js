@@ -19,6 +19,39 @@ const COPY_SKIPLIST = new Set([
   '.DS_Store',
   'CHANGELOG.md',
 ]);
+// Plugin-source paths whose copied filename MUST differ from source to avoid
+// collision with a Claude Code built-in slash command. When installed as a
+// plugin (marketplace), commands are namespaced (`/glassdesk:debug`) so source
+// names are fine. The npx-into-`.claude/` install has no namespace — the
+// project-scope `/debug`, `/plan` are shadowed by the built-in counterparts
+// (debug logging, plan-mode entry), so the project-copies are renamed and all
+// references in copied `.md` are rewritten to match (see COMMAND_REWRITES).
+//
+// Keys are POSIX rel paths under plugins/glassdesk/. Values are dest rel paths
+// under <project>/.claude/. Renaming into a subdirectory (e.g. plan.md →
+// plan/fast.md) is supported — copyPluginFiles creates the parent dir on copy.
+export const RENAME_MAP = new Map([
+  ['commands/debug.md', 'commands/gd-debug.md'],
+  // `/plan` → `/plan:fast`: built-in `/plan [description]` enters plan mode
+  // and shadows project-scope `/plan`. Move the bare command into the existing
+  // `commands/plan/` namespace as a `:fast` variant alongside `:hard`,
+  // `:list`, etc. — variants are unaffected by the built-in.
+  ['commands/plan.md', 'commands/plan/fast.md'],
+]);
+// Slash-command name rewrites applied to copied .md files in <project>/.claude/.
+// Each entry rewrites `/{from}` → `/{to}` when the match is NOT followed by
+// `[\w.:/-]` — preserves:
+//   - Filename refs:        `commands/plan.md`, `/debug.md`
+//   - Colon variants:       `/plan:hard`, `/plan:list`, `/debug:hard` (future)
+//   - Path segments:        `commands/plan/hard.md`
+//   - Identifier extensions:`/debugger`, `/planning`
+// Excluding `:` and `/` also makes the rewrite idempotent: a re-run finds the
+// already-rewritten `/plan:fast` blocked by the `:` lookahead and skips it.
+// Keep keys in sync with RENAME_MAP basenames.
+export const COMMAND_REWRITES = new Map([
+  ['debug', 'gd-debug'],
+  ['plan', 'plan:fast'],
+]);
 const FLAG_ALIASES = {
   '--yes': 'yes',
   '-y': 'yes',
@@ -380,7 +413,10 @@ export function copyPluginFiles(srcDir, destDir, dryRun) {
       if (COPY_SKIPLIST.has(entry.name)) continue;
       const rel = relSubdir ? `${relSubdir}/${entry.name}` : entry.name;
       const absChildSrc = path.join(srcDir, rel);
-      const absChildDest = path.join(destDir, rel);
+      // Apply RENAME_MAP for files only (directories never collide with
+      // built-ins). dest rel may differ from src rel; manifest tracks dest.
+      const destRel = entry.isFile() ? (RENAME_MAP.get(rel) ?? rel) : rel;
+      const absChildDest = path.join(destDir, destRel);
       if (entry.isDirectory()) {
         if (!dryRun) fs.mkdirSync(absChildDest, { recursive: true });
         walk(rel);
@@ -389,7 +425,7 @@ export function copyPluginFiles(srcDir, destDir, dryRun) {
           fs.mkdirSync(path.dirname(absChildDest), { recursive: true });
           fs.copyFileSync(absChildSrc, absChildDest);
         }
-        collected.push(rel);
+        collected.push(destRel);
       }
     }
   }
@@ -411,6 +447,50 @@ const REWRITE_TOKEN = '$GD_PLUGIN_PATH';
 // Word boundary avoids accidental rewrite of future identifiers like $GD_PLUGIN_PATHS.
 const REWRITE_TOKEN_RE = /\$GD_PLUGIN_PATH\b/g;
 const REWRITE_REPLACEMENT = '.claude';
+
+// Rewrite slash-command references in copied .md files to match RENAME_MAP.
+// Walks `rootDir` and, for each .md, applies COMMAND_REWRITES with a negative
+// lookahead `(?![\w.-])` so filename mentions (`commands/debug.md`) and
+// identifier extensions (`/debugger`) are preserved. Variant refs like
+// `/debug:hard` would also be rewritten — acceptable as no such variant exists
+// today and any future variant should follow the renamed base.
+export function rewriteCommandRefs(rootDir, { dryRun = false } = {}) {
+  if (COMMAND_REWRITES.size === 0) return { scanned: 0, rewritten: 0 };
+  const patterns = [...COMMAND_REWRITES.entries()].map(([from, to]) => ({
+    re: new RegExp(`\\/${from}(?![\\w.:/-])`, 'g'),
+    replacement: `/${to}`,
+  }));
+  let scanned = 0;
+  let rewritten = 0;
+  const stack = [rootDir];
+  while (stack.length) {
+    const dir = stack.pop();
+    let entries;
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const entry of entries) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        stack.push(full);
+        continue;
+      }
+      if (!entry.isFile() || !entry.name.endsWith('.md')) continue;
+      scanned++;
+      const src = fs.readFileSync(full, 'utf8');
+      let next = src;
+      for (const { re, replacement } of patterns) {
+        next = next.replace(re, replacement);
+      }
+      if (next === src) continue;
+      if (!dryRun) fs.writeFileSync(full, next);
+      rewritten++;
+    }
+  }
+  return { scanned, rewritten };
+}
 
 export function rewritePluginPathRefs(rootDir, { dryRun = false } = {}) {
   let scanned = 0;
@@ -545,6 +625,8 @@ async function runInstall(cwd, mode, flags) {
     // .md entry, audit this preview path.
     const rwPreview = rewritePluginPathRefs(BUNDLED_PLUGIN_DIR, { dryRun: true });
     log.plain(`  Would rewrite $GD_PLUGIN_PATH in ${rwPreview.rewritten}/${rwPreview.scanned} .md files.`);
+    const cmdPreview = rewriteCommandRefs(BUNDLED_PLUGIN_DIR, { dryRun: true });
+    log.plain(`  Would rewrite slash-command refs in ${cmdPreview.rewritten}/${cmdPreview.scanned} .md files.`);
     return 0;
   }
 
@@ -570,6 +652,12 @@ async function runInstall(cwd, mode, flags) {
   // subagent contexts (see rewritePluginPathRefs for rationale).
   const rw = rewritePluginPathRefs(claudeDir, { dryRun: false });
   log.plain(`  Rewrote $GD_PLUGIN_PATH in ${rw.rewritten}/${rw.scanned} .md files.`);
+
+  // Rewrite slash-command references that conflict with Claude Code built-ins
+  // (e.g. /debug → /gd-debug). Source plugin dir is unchanged so plugin-mode
+  // marketplace install still resolves `/glassdesk:debug`.
+  const cmdRw = rewriteCommandRefs(claudeDir, { dryRun: false });
+  log.plain(`  Rewrote slash-command refs in ${cmdRw.rewritten}/${cmdRw.scanned} .md files.`);
 
   // Write merged settings only after copy succeeded — otherwise hooks would
   // reference files that aren't on disk.

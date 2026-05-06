@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
-import { parseArgs, detectInstall, mergeSettings, copyPluginFiles, writeManifest, purgeStaleGlassdeskHooks } from '../bin/cli.js';
+import { parseArgs, detectInstall, mergeSettings, copyPluginFiles, writeManifest, purgeStaleGlassdeskHooks, rewriteCommandRefs, RENAME_MAP, COMMAND_REWRITES } from '../bin/cli.js';
 
 test('parseArgs: bare init', () => {
   assert.deepEqual(parseArgs(['init']), {
@@ -232,15 +232,17 @@ test('copyPluginFiles: copies tree recursively', () => {
   const src = mkTmp();
   const dest = mkTmp();
   fs.mkdirSync(path.join(src, 'commands'));
-  fs.writeFileSync(path.join(src, 'commands', 'plan.md'), 'plan content');
+  // Use a non-renamed command so this test exercises plain pass-through.
+  // RENAME_MAP coverage is tested separately.
+  fs.writeFileSync(path.join(src, 'commands', 'scout.md'), 'scout content');
   fs.mkdirSync(path.join(src, 'skills', 'planning'), { recursive: true });
   fs.writeFileSync(path.join(src, 'skills', 'planning', 'SKILL.md'), 'skill content');
 
   const files = copyPluginFiles(src, dest, false);
 
-  assert.equal(fs.readFileSync(path.join(dest, 'commands', 'plan.md'), 'utf8'), 'plan content');
+  assert.equal(fs.readFileSync(path.join(dest, 'commands', 'scout.md'), 'utf8'), 'scout content');
   assert.equal(fs.readFileSync(path.join(dest, 'skills', 'planning', 'SKILL.md'), 'utf8'), 'skill content');
-  assert.deepEqual(files.sort(), ['commands/plan.md', 'skills/planning/SKILL.md']);
+  assert.deepEqual(files.sort(), ['commands/scout.md', 'skills/planning/SKILL.md']);
 });
 
 test('copyPluginFiles: dryRun does not write but returns file list', () => {
@@ -259,6 +261,175 @@ test('copyPluginFiles: overwrites existing files', () => {
   fs.writeFileSync(path.join(dest, 'a.md'), 'old');
   copyPluginFiles(src, dest, false);
   assert.equal(fs.readFileSync(path.join(dest, 'a.md'), 'utf8'), 'new');
+});
+
+// ----- RENAME_MAP: avoid built-in /debug collision in npx-into-.claude install -----
+
+test('RENAME_MAP: includes commands/debug.md → commands/gd-debug.md', () => {
+  assert.equal(RENAME_MAP.get('commands/debug.md'), 'commands/gd-debug.md');
+});
+
+test('copyPluginFiles: renames files listed in RENAME_MAP and tracks dest in manifest', () => {
+  const src = mkTmp();
+  const dest = mkTmp();
+  fs.mkdirSync(path.join(src, 'commands'));
+  fs.writeFileSync(path.join(src, 'commands', 'debug.md'), 'debug content');
+  // Untouched control: scout.md is not in RENAME_MAP — must pass through unchanged.
+  fs.writeFileSync(path.join(src, 'commands', 'scout.md'), 'scout content');
+
+  const files = copyPluginFiles(src, dest, false);
+
+  // Renamed file lands at gd-debug.md; original name is NOT created.
+  assert.ok(fs.existsSync(path.join(dest, 'commands', 'gd-debug.md')));
+  assert.equal(fs.existsSync(path.join(dest, 'commands', 'debug.md')), false);
+  assert.equal(fs.readFileSync(path.join(dest, 'commands', 'gd-debug.md'), 'utf8'), 'debug content');
+  // Untouched file stays put.
+  assert.ok(fs.existsSync(path.join(dest, 'commands', 'scout.md')));
+  // Manifest reflects renamed dest path, not source.
+  assert.deepEqual(files.sort(), ['commands/gd-debug.md', 'commands/scout.md']);
+});
+
+test('copyPluginFiles: dryRun returns renamed dest paths without writing', () => {
+  const src = mkTmp();
+  const dest = mkTmp();
+  fs.mkdirSync(path.join(src, 'commands'));
+  fs.writeFileSync(path.join(src, 'commands', 'debug.md'), 'x');
+  const files = copyPluginFiles(src, dest, true);
+  assert.equal(fs.existsSync(path.join(dest, 'commands', 'gd-debug.md')), false);
+  assert.deepEqual(files, ['commands/gd-debug.md']);
+});
+
+// ----- rewriteCommandRefs: /debug → /gd-debug in copied .md -----
+
+test('COMMAND_REWRITES: maps debug → gd-debug', () => {
+  assert.equal(COMMAND_REWRITES.get('debug'), 'gd-debug');
+});
+
+test('rewriteCommandRefs: rewrites /debug to /gd-debug in .md files', () => {
+  const root = mkTmp();
+  const file = path.join(root, 'docs.md');
+  fs.writeFileSync(file, '- `/debug` is the command\n- Use `/debug` here.\n');
+  const result = rewriteCommandRefs(root, { dryRun: false });
+  assert.equal(result.scanned, 1);
+  assert.equal(result.rewritten, 1);
+  const out = fs.readFileSync(file, 'utf8');
+  assert.match(out, /\/gd-debug/);
+  assert.doesNotMatch(out, /\/debug\b(?!.md)/);
+});
+
+test('rewriteCommandRefs: preserves /debug.md filename mentions and /debugger identifiers', () => {
+  const root = mkTmp();
+  const file = path.join(root, 'manifest.md');
+  fs.writeFileSync(
+    file,
+    'Files: commands/debug.md and /debug.md\nClass: /debugger should not change\nCommand: /debug works\n'
+  );
+  rewriteCommandRefs(root, { dryRun: false });
+  const out = fs.readFileSync(file, 'utf8');
+  assert.match(out, /commands\/debug\.md/);
+  assert.match(out, /\/debug\.md/);
+  assert.match(out, /\/debugger/);
+  assert.match(out, /\/gd-debug works/);
+});
+
+test('rewriteCommandRefs: dryRun does not modify files but reports counts', () => {
+  const root = mkTmp();
+  const file = path.join(root, 'a.md');
+  fs.writeFileSync(file, 'use `/debug` here');
+  const result = rewriteCommandRefs(root, { dryRun: true });
+  assert.equal(result.scanned, 1);
+  assert.equal(result.rewritten, 1);
+  assert.equal(fs.readFileSync(file, 'utf8'), 'use `/debug` here');
+});
+
+test('rewriteCommandRefs: skips non-.md files', () => {
+  const root = mkTmp();
+  fs.writeFileSync(path.join(root, 'config.json'), '{"cmd": "/debug"}');
+  const result = rewriteCommandRefs(root, { dryRun: false });
+  assert.equal(result.scanned, 0);
+  assert.equal(result.rewritten, 0);
+  assert.match(fs.readFileSync(path.join(root, 'config.json'), 'utf8'), /\/debug/);
+});
+
+// ----- /plan → /plan:fast rename + variant preservation -----
+
+test('RENAME_MAP: includes commands/plan.md → commands/plan/fast.md', () => {
+  assert.equal(RENAME_MAP.get('commands/plan.md'), 'commands/plan/fast.md');
+});
+
+test('COMMAND_REWRITES: maps plan → plan:fast', () => {
+  assert.equal(COMMAND_REWRITES.get('plan'), 'plan:fast');
+});
+
+test('copyPluginFiles: renames plan.md into plan/fast.md alongside existing variants', () => {
+  const src = mkTmp();
+  const dest = mkTmp();
+  fs.mkdirSync(path.join(src, 'commands', 'plan'), { recursive: true });
+  fs.writeFileSync(path.join(src, 'commands', 'plan.md'), 'fast plan');
+  fs.writeFileSync(path.join(src, 'commands', 'plan', 'hard.md'), 'hard plan');
+  fs.writeFileSync(path.join(src, 'commands', 'plan', 'list.md'), 'list plans');
+
+  const files = copyPluginFiles(src, dest, false);
+
+  // Renamed base lands inside the existing namespace dir.
+  assert.equal(fs.readFileSync(path.join(dest, 'commands', 'plan', 'fast.md'), 'utf8'), 'fast plan');
+  // Source plan.md is NOT created at top level on dest.
+  assert.equal(fs.existsSync(path.join(dest, 'commands', 'plan.md')), false);
+  // Variants pass through untouched.
+  assert.equal(fs.readFileSync(path.join(dest, 'commands', 'plan', 'hard.md'), 'utf8'), 'hard plan');
+  assert.equal(fs.readFileSync(path.join(dest, 'commands', 'plan', 'list.md'), 'utf8'), 'list plans');
+  // Manifest reflects renamed dest paths.
+  assert.deepEqual(
+    files.sort(),
+    ['commands/plan/fast.md', 'commands/plan/hard.md', 'commands/plan/list.md']
+  );
+});
+
+test('rewriteCommandRefs: rewrites /plan to /plan:fast in .md files', () => {
+  const root = mkTmp();
+  const file = path.join(root, 'workflow.md');
+  fs.writeFileSync(file, 'Step 1: run `/plan` to create a plan.\n');
+  rewriteCommandRefs(root, { dryRun: false });
+  const out = fs.readFileSync(file, 'utf8');
+  assert.match(out, /\/plan:fast/);
+});
+
+test('rewriteCommandRefs: preserves /plan:hard, /plan.md, /planning, commands/plan/hard.md', () => {
+  const root = mkTmp();
+  const file = path.join(root, 'doc.md');
+  fs.writeFileSync(
+    file,
+    [
+      'Variant: /plan:hard runs deep research',
+      'Filename: commands/plan.md is the entry point',
+      'Skill: /planning is the harness',
+      'Path: commands/plan/hard.md is the variant',
+      'Bare: use /plan now',
+    ].join('\n') + '\n'
+  );
+  rewriteCommandRefs(root, { dryRun: false });
+  const out = fs.readFileSync(file, 'utf8');
+  // Variants/filenames/identifiers/path-segments untouched.
+  assert.match(out, /\/plan:hard runs/);
+  assert.match(out, /commands\/plan\.md is/);
+  assert.match(out, /\/planning is/);
+  assert.match(out, /commands\/plan\/hard\.md is/);
+  // Bare /plan rewritten.
+  assert.match(out, /use \/plan:fast now/);
+});
+
+test('rewriteCommandRefs: is idempotent — second run rewrites nothing new', () => {
+  const root = mkTmp();
+  const file = path.join(root, 'a.md');
+  fs.writeFileSync(file, 'use /plan and /debug now');
+  const r1 = rewriteCommandRefs(root, { dryRun: false });
+  const after1 = fs.readFileSync(file, 'utf8');
+  const r2 = rewriteCommandRefs(root, { dryRun: false });
+  const after2 = fs.readFileSync(file, 'utf8');
+  assert.equal(r1.rewritten, 1);
+  assert.equal(r2.rewritten, 0);
+  assert.equal(after1, after2);
+  assert.match(after1, /\/plan:fast and \/gd-debug/);
 });
 
 test('writeManifest: writes JSON with version and POSIX paths', () => {
