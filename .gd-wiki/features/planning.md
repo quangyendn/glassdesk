@@ -1,6 +1,6 @@
 ---
 title: "Planning"
-updated: 2026-05-01
+updated: 2026-05-26
 tags: [category/feature, planning, agents, skill]
 summary: "The planning feature provides research-driven implementation plan creation via /plan and /plan:hard, with structured phase decomposition, spec auto-detection, and YAGNI/KISS/DRY principles."
 ---
@@ -11,12 +11,16 @@ The planning feature creates structured, phased implementation plans via `/plan`
 
 | Command | Description |
 |---|---|
-| `/plan` | Fast analysis + plan creation, no external research |
+| `/plan` | Fast analysis + plan creation, no external research (marketplace) |
+| `/plan:fast` | Same as above — name used by npx install to avoid built-in collision |
 | `/plan:hard` | Full analysis with parallel researcher agents |
 | `/plan:validate` | Critical Q&A review of an existing plan |
 | `/plan:status [path]` | Show detailed status of a specific plan (Bash, zero LLM) |
 | `/plan:list` | List all plans with status and progress (Bash, zero LLM) |
 | `/plan:archive` | Archive completed plans, write journal entries (fast tier) |
+
+> [!note] Install-method command names
+> Claude Code 2.x ships a built-in `/plan` command (enters plan-mode) that silently shadows any project-scope `/plan`. The `npx glassdesk init/update` installer automatically renames the copied file to `commands/plan/fast.md` and rewrites bare `/plan` references to `/plan:fast` in all copied `.md` files. Marketplace plugin installs expose the original name as `/glassdesk:plan` via plugin namespacing. Re-run `npx glassdesk update` once to apply the rename to existing installs.
 
 ## Plan Storage
 
@@ -61,6 +65,17 @@ The planning skill applies YAGNI, KISS, and DRY when structuring plans. Plans in
 ## /plan:archive Behavior
 
 When no path argument is given, `/plan:archive` archives ONLY plans with `status: done` or `status: completed` in their frontmatter. In-progress plans receive a WARN and are skipped. Pass an explicit path to force-archive an in-progress plan.
+
+## plan-list / plan-status Project-Root Resolution
+
+`bin/plan-list` and `bin/plan-status` are zero-LLM Node scripts invoked by `/plan:list` and `/plan:status`. Under marketplace install the scripts run from the plugin cache directory, not the project root, so `process.cwd()`-relative lookups silently read the wrong `plans/` directory or fail. The resolution order is:
+
+1. `CLAUDE_PROJECT_DIR` — set by the Claude Code harness when available
+2. Walk up from CWD looking for `.git` — `.git` wins over a closer `package.json` in monorepos
+3. Walk up from CWD looking for `package.json` — covers non-git projects
+4. Fail loudly with exit 1 and a clear error message
+
+`plan-status` also resolves relative `<plan-dir>` arguments against the resolved project root rather than CWD.
 
 ## Related Pages
 

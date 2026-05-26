@@ -1,6 +1,6 @@
 ---
 title: "Plugin System Architecture"
-updated: 2026-05-05
+updated: 2026-05-26
 tags: [category/architecture, plugin, commands, agents, skills]
 ---
 
@@ -98,9 +98,20 @@ The `glassdesk-marketplace` (`/.claude-plugin/marketplace.json`) registers three
 
 | Name | Source | Description |
 |------|--------|-------------|
-| `glassdesk` | `./plugins/glassdesk` | Full SDLC framework (27 commands, 10 agents, 11 skills) |
+| `glassdesk` | `./plugins/glassdesk` | Full SDLC framework (27 commands, 10 agents, 12 skills) |
 | `gd` | `./plugins/glassdesk` | Short alias for `glassdesk` |
 | `ccaudit` | `./plugins/ccaudit` | 2-tier 20-pattern Claude Code audit tool |
+
+## npx Install — Built-in Command Collision Renaming
+
+Claude Code 2.x ships built-in slash commands (`/debug`, `/plan`) that always win against same-named project-scope entries. The npx installer renames colliding files during copy so the bundled commands remain reachable:
+
+| Plugin source | npx `.claude/` destination | Built-in that was blocking |
+|---|---|---|
+| `commands/debug.md` → `/debug` | `commands/gd-debug.md` → `/gd-debug` | `/debug` (debug logging) |
+| `commands/plan.md` → `/plan` | `commands/plan/fast.md` → `/plan:fast` | `/plan` (plan-mode entry) |
+
+All slash-command references in copied `.md` files are rewritten to match. Marketplace plugin installs are unaffected — plugin namespacing exposes the originals as `/glassdesk:debug` and `/glassdesk:plan`. See [[plugin-path-resolution-fix]] for implementation details.
 
 ## Related Pages
 
@@ -110,3 +121,5 @@ The `glassdesk-marketplace` (`/.claude-plugin/marketplace.json`) registers three
 - [[plugin-flat-structure]] — why no `.claude/` wrapper in plugin source
 - [[ccaudit]] — standalone audit plugin registered in this marketplace
 - [[worktree-hook-bootstrap]] — how hook commands self-bootstrap `.claude/hooks/` in fresh worktrees via install-time shell wrapper
+- [[plugin-path-resolution-fix]] — npx install path rewrites and command collision renaming
+- [[creative-writing]] — the new creative-writing skill added in v0.5.0
