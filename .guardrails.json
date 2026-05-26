@@ -8,14 +8,11 @@
     "noreply@github.com"
   ],
   "pathAllowlist": [
-    "docs/specs/",
-    "docs/guardrails.md",
     "tests/guardrails/",
     "package-lock.json",
     ".gitleaks.toml",
     ".guardrails.json",
-    "scripts/guardrails/lib/patterns.js",
-    "CHANGELOG.md"
+    "scripts/guardrails/lib/patterns.js"
   ],
   "commitMessage": {
     "blockVietnamese": true,
