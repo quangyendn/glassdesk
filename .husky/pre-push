@@ -1,0 +1,26 @@
+#!/usr/bin/env sh
+# Last line of defense: full-history scan of commits about to be pushed.
+set -e
+
+node scripts/guardrails/check-gitleaks.js
+
+# Resolve the upstream tracking branch; default to origin/main when none exists.
+upstream="$(git rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>/dev/null || true)"
+if [ -z "$upstream" ]; then
+  upstream="origin/main"
+fi
+
+# Skip scan if nothing to push (no diverging commits).
+if ! git rev-parse --verify --quiet "$upstream" >/dev/null; then
+  echo "[guardrails] Upstream $upstream not found; running full-repo scan instead."
+  gitleaks detect --redact -v --config=.gitleaks.toml
+  exit 0
+fi
+
+range="${upstream}..HEAD"
+if [ -z "$(git rev-list "$range" 2>/dev/null)" ]; then
+  echo "[guardrails] No new commits versus $upstream; skipping scan."
+  exit 0
+fi
+
+gitleaks detect --redact -v --config=.gitleaks.toml --log-opts="$range"

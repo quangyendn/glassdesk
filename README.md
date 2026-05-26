@@ -137,7 +137,17 @@ GitHub Actions runs `npm test` and `npm publish --access public --provenance` (r
 
 ## Contributing
 
-See [CLAUDE.md](./CLAUDE.md) for project conventions.
+See [CLAUDE.md](./CLAUDE.md) for project conventions and [`docs/guardrails.md`](./docs/guardrails.md) for the secrets / sensitive-info guardrails that fire on every commit, push, and publish.
+
+### One-time setup
+
+```bash
+npm install                # installs husky + commitlint, wires git hooks
+brew install gitleaks      # macOS — required for secret scanning
+# Linux/Windows install instructions print on first hook run
+```
+
+Commits must follow Conventional Commits (`feat:`, `fix:`, `chore:`, …) and be written in English. The hooks block personal paths (`/Users/<name>/`, `/home/<name>/`), private keys, AWS/GitHub tokens, unallowlisted email addresses, and configured internal references.
 
 ## License
 

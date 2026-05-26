@@ -1,0 +1,29 @@
+{
+  "internalRefs": [],
+  "emailAllowlist": [
+    "@example.com",
+    "@example.org",
+    "@anthropic.com",
+    "@users.noreply.github.com",
+    "noreply@github.com"
+  ],
+  "pathAllowlist": [
+    "docs/specs/",
+    "docs/guardrails.md",
+    "templates/",
+    "tests/guardrails/",
+    "package-lock.json",
+    ".gitleaks.toml",
+    ".guardrails.json",
+    "scripts/guardrails/lib/patterns.js",
+    "CHANGELOG.md"
+  ],
+  "commitMessage": {
+    "blockVietnamese": true,
+    "requireConventional": true
+  },
+  "tarball": {
+    "denyExtensions": [".env", ".pem", ".key", ".p12", ".pfx"],
+    "warnPathPatterns": ["test/", "tests/", "plans/", ".gd-wiki/", "docs/superpowers/", "docs/specs/"]
+  }
+}

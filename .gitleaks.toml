@@ -1,0 +1,56 @@
+# Gitleaks config for glassdesk public repo.
+# Extends the default ruleset with project-specific rules + allowlists.
+
+title = "glassdesk gitleaks config"
+
+[extend]
+useDefault = true
+
+# Custom rules layered on top of defaults.
+
+[[rules]]
+id = "personal-macos-home"
+description = "macOS personal home path (leaks developer identity)"
+regex = '''/Users/[A-Za-z0-9._-]+/'''
+tags = ["personal", "path"]
+
+[[rules]]
+id = "personal-linux-home"
+description = "Linux personal home path"
+regex = '''/home/[A-Za-z0-9._-]+/'''
+tags = ["personal", "path"]
+
+[[rules]]
+id = "personal-windows-home"
+description = "Windows personal user path"
+regex = '''C:\\\\Users\\\\[A-Za-z0-9._-]+\\\\'''
+tags = ["personal", "path"]
+
+[[rules]]
+id = "private-key-block"
+description = "Private key PEM header"
+regex = '''-----BEGIN ((RSA|DSA|EC|OPENSSH|PGP) )?PRIVATE KEY( BLOCK)?-----'''
+tags = ["key", "private"]
+
+# Global allowlist: paths, files, and contexts where false positives are expected.
+
+[allowlist]
+description = "Allowlist for fixtures, templates, and documentation that legitimately reference example paths"
+paths = [
+  '''(.*/)?templates/.*''',
+  '''(.*/)?docs/specs/.*''',
+  '''(.*/)?tests/guardrails/.*''',
+  '''(.*/)?\.gitleaks\.toml''',
+  '''(.*/)?\.guardrails\.json''',
+  '''(.*/)?scripts/guardrails/lib/patterns\.js''',
+  '''(.*/)?package-lock\.json''',
+  '''(.*/)?CHANGELOG\.md''',
+  '''(.*/)?docs/guardrails\.md''',
+  '''(.*/)?docs/specs/.*''',
+]
+regexes = [
+  # Example/placeholder values commonly appearing in docs.
+  '''/Users/<.+>/''',
+  '''/Users/USERNAME/''',
+  '''AKIAIOSFODNN7EXAMPLE''',
+]
