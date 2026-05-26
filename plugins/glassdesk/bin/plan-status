@@ -17,7 +17,39 @@ if (!arg) {
   process.exit(1);
 }
 
-const planDir = path.resolve(arg);
+// Relative paths must resolve against the user's project root, not CWD. Under
+// marketplace install the script may be spawned from an arbitrary CWD, so a
+// bare `path.resolve(arg)` would silently point at the wrong project. Mirrors
+// plan-list: CLAUDE_PROJECT_DIR → .git walk-up → package.json walk-up → fail.
+// .git is checked first so monorepo subpackages still resolve to the repo root.
+function findUpward(startDir, marker) {
+  let dir = path.resolve(startDir);
+  const fsRoot = path.parse(dir).root;
+  while (true) {
+    if (fs.existsSync(path.join(dir, marker))) return dir;
+    if (dir === fsRoot) return null;
+    dir = path.dirname(dir);
+  }
+}
+
+function resolveProjectRoot() {
+  if (process.env.CLAUDE_PROJECT_DIR) {
+    return path.resolve(process.env.CLAUDE_PROJECT_DIR);
+  }
+  const gitRoot = findUpward(process.cwd(), '.git');
+  if (gitRoot) return gitRoot;
+  const pkgRoot = findUpward(process.cwd(), 'package.json');
+  if (pkgRoot) return pkgRoot;
+  console.error(
+    'ERROR: cannot determine project root.\n' +
+      '  CLAUDE_PROJECT_DIR is not set and no .git or package.json was found\n' +
+      '  walking up from CWD.\n' +
+      '  Run from within your project, or export CLAUDE_PROJECT_DIR explicitly.'
+  );
+  process.exit(1);
+}
+
+const planDir = path.isAbsolute(arg) ? arg : path.resolve(resolveProjectRoot(), arg);
 const planFile = path.join(planDir, 'plan.md');
 if (!fs.existsSync(planFile)) {
   console.error(`ERROR: ${planFile} not found`);

@@ -234,17 +234,19 @@ test('rewrite: update is idempotent — second run rewrites 0 of N files', () =>
   assert.deepEqual(afterHashes, beforeHashes, 'second update should produce identical .md content');
 });
 
-test('rewrite: bundle invariant — source plugins/glassdesk/**/*.md keeps $GD_PLUGIN_PATH in 5 known files', () => {
+test('rewrite: bundle invariant — source plugins/glassdesk/**/*.md keeps $GD_PLUGIN_PATH in 7 known files', () => {
   const bundleDir = path.join(REPO_ROOT, 'plugins', 'glassdesk');
   const mds = collectMarkdownFiles(bundleDir);
   const withToken = mds
     .filter((f) => /\$GD_PLUGIN_PATH\b/.test(fs.readFileSync(f, 'utf8')))
     .map((f) => path.relative(bundleDir, f).split(path.sep).join('/'))
     .filter((rel) => !rel.endsWith('CHANGELOG.md'));
-  // Exactly the 5 references (CHANGELOG mentions are historical, excluded above).
+  // Exactly the 7 references (CHANGELOG mentions are historical, excluded above).
   assert.deepEqual(withToken.sort(), [
     'commands/plan.md',
     'commands/plan/hard.md',
+    'commands/plan/list.md',
+    'commands/plan/status.md',
     'skills/planning/SKILL.md',
     'skills/planning/references/input-resolution.md',
     'skills/planning/references/plan-organization.md',

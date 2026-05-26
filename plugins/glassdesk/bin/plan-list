@@ -11,14 +11,47 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const PLUGIN_ROOT = path.resolve(__dirname, '..');
-// Plans live at the repo root, not inside the plugin. Plugin is at <repo>/plugins/glassdesk
-// so the repo root is two levels up from this script.
-const REPO_ROOT = path.resolve(PLUGIN_ROOT, '..', '..');
-const PLANS_DIR = path.join(REPO_ROOT, 'plans');
+// Plans live at the user's project root, not relative to this script's install
+// location. Marketplace installs put this file under ~/.claude/plugins/cache/...
+// so __dirname-relative lookup points outside any project. Resolution order:
+//   1. CLAUDE_PROJECT_DIR — set by the Claude Code harness when available
+//   2. Walk up CWD looking for .git first — in a monorepo with nested
+//      package.json files, the repo root is the correct project boundary,
+//      so .git must win over a closer package.json
+//   3. Walk up CWD looking for package.json — covers non-git package-only
+//      projects (a supported install shape per bin/cli.js `looksLikeProjectRoot`)
+//   4. Fail loudly — silently reading the wrong CWD's plans/ would surface as
+//      "no plans" or another project's plans with no error signal
+function findUpward(startDir, marker) {
+  let dir = path.resolve(startDir);
+  const fsRoot = path.parse(dir).root;
+  while (true) {
+    if (fs.existsSync(path.join(dir, marker))) return dir;
+    if (dir === fsRoot) return null;
+    dir = path.dirname(dir);
+  }
+}
+
+function resolveProjectRoot() {
+  if (process.env.CLAUDE_PROJECT_DIR) {
+    return path.resolve(process.env.CLAUDE_PROJECT_DIR);
+  }
+  const gitRoot = findUpward(process.cwd(), '.git');
+  if (gitRoot) return gitRoot;
+  const pkgRoot = findUpward(process.cwd(), 'package.json');
+  if (pkgRoot) return pkgRoot;
+  console.error(
+    'ERROR: cannot determine project root.\n' +
+      '  CLAUDE_PROJECT_DIR is not set and no .git or package.json was found\n' +
+      '  walking up from CWD.\n' +
+      '  Run from within your project, or export CLAUDE_PROJECT_DIR explicitly.'
+  );
+  process.exit(1);
+}
+
+const PROJECT_ROOT = resolveProjectRoot();
+const PLANS_DIR = path.join(PROJECT_ROOT, 'plans');
 
 const filter = (process.argv[2] || 'all').toLowerCase();
 const VALID_FILTERS = new Set([
