@@ -19,6 +19,6 @@
     "remark-wiki-link": "^2.0.1"
   },
   "engines": {
-    "node": ">=20.3.0"
+    "node": ">=22.12.0"
   }
 }
