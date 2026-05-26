@@ -4,11 +4,18 @@
 //
 // Usage:
 //   node scripts/guardrails/scan-personal-info.js [--staged | --files a.js b.js]
+//
+// Critical: in --staged mode we read the staged blob via `git show :<path>`,
+// NOT the working tree. Reading the working tree allows a contributor to stage
+// sensitive content, then revert the working copy before committing, and pass
+// this scanner while the sensitive blob is still committed.
 
-import { execSync } from 'node:child_process';
+import { execSync, spawnSync } from 'node:child_process';
 import { readFileSync, existsSync, statSync } from 'node:fs';
 import { loadConfig } from './lib/config.js';
 import { scanText, isPathAllowed, formatFindings } from './lib/scanner.js';
+
+const MAX_SIZE_BYTES = 1024 * 1024;
 
 function parseArgs(argv) {
   const args = { staged: false, files: [] };
@@ -29,38 +36,49 @@ function stagedFiles() {
   return out.split('\n').filter(Boolean);
 }
 
-function isBinary(filePath) {
-  try {
-    const buf = readFileSync(filePath);
-    for (let i = 0; i < Math.min(buf.length, 8000); i++) {
-      if (buf[i] === 0) return true;
-    }
-    return false;
-  } catch {
-    return true;
-  }
+// Returns Buffer of the staged blob at path, or null if absent / unreadable.
+function readStagedBlob(path) {
+  const r = spawnSync('git', ['show', `:${path}`], { encoding: 'buffer' });
+  if (r.status !== 0) return null;
+  return r.stdout;
 }
 
-function isScannable(filePath) {
-  if (!existsSync(filePath)) return false;
+function bufferIsBinary(buf) {
+  const limit = Math.min(buf.length, 8000);
+  for (let i = 0; i < limit; i++) if (buf[i] === 0) return true;
+  return false;
+}
+
+function workingTreeContent(path) {
+  if (!existsSync(path)) return null;
   let s;
-  try { s = statSync(filePath); } catch { return false; }
-  if (!s.isFile()) return false;
-  if (s.size > 1024 * 1024) return false;
-  if (isBinary(filePath)) return false;
-  return true;
+  try { s = statSync(path); } catch { return null; }
+  if (!s.isFile()) return null;
+  if (s.size > MAX_SIZE_BYTES) return null;
+  const buf = readFileSync(path);
+  if (bufferIsBinary(buf)) return null;
+  return buf.toString('utf8');
+}
+
+function stagedContent(path) {
+  const buf = readStagedBlob(path);
+  if (buf === null) return null;
+  if (buf.length > MAX_SIZE_BYTES) return null;
+  if (bufferIsBinary(buf)) return null;
+  return buf.toString('utf8');
 }
 
 function main() {
   const args = parseArgs(process.argv);
   const config = loadConfig();
   const files = args.staged ? stagedFiles() : args.files;
+  const readContent = args.staged ? stagedContent : workingTreeContent;
 
   const allFindings = [];
   for (const file of files) {
     if (isPathAllowed(file, config.pathAllowlist)) continue;
-    if (!isScannable(file)) continue;
-    const text = readFileSync(file, 'utf8');
+    const text = readContent(file);
+    if (text === null) continue;
     const findings = scanText(text, config, { path: file });
     allFindings.push(...findings);
   }

@@ -19,6 +19,10 @@
 - **Non-Conventional commit subjects** — `feat:`, `fix:`, `chore:`, `docs:`, `refactor:`, `perf:`, `test:`, `build:`, `ci:`, `style:`, `revert:`.
 - **Tarball contents** — `.env*`, `.pem`, `.key`, `.p12`, `.pfx`, `id_rsa*`; warns on `test/`, `tests/`, `plans/`, `.gd-wiki/`, `docs/superpowers/`, `docs/specs/`.
 
+The pre-publish tarball scan deliberately ignores `pathAllowlist`: that allowlist exists for source-tree fixtures and docs that are **not shipped**. Applying it to packaged files would create a release-time blind spot for anything under `templates/`, `plugins/glassdesk/`, or `bin/`.
+
+The pre-commit Node scanner reads the **staged blob** (`git show :<path>`) rather than the working-tree file. Otherwise a contributor could stage sensitive content, revert the working tree to clean content, and slip the leaky blob through the hook.
+
 ## Configuration
 
 `.guardrails.json` (committed) controls all custom rules:

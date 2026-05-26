@@ -37,7 +37,6 @@ tags = ["key", "private"]
 [allowlist]
 description = "Allowlist for fixtures, templates, and documentation that legitimately reference example paths"
 paths = [
-  '''(.*/)?templates/.*''',
   '''(.*/)?docs/specs/.*''',
   '''(.*/)?tests/guardrails/.*''',
   '''(.*/)?\.gitleaks\.toml''',

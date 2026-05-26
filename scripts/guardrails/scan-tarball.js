@@ -8,7 +8,7 @@ import { execSync } from 'node:child_process';
 import { readFileSync, existsSync, statSync } from 'node:fs';
 import { extname, basename } from 'node:path';
 import { loadConfig } from './lib/config.js';
-import { scanText, isPathAllowed, formatFindings } from './lib/scanner.js';
+import { scanText, formatFindings } from './lib/scanner.js';
 
 function packDryRun() {
   try {
@@ -60,9 +60,12 @@ function main() {
     }
   }
 
+  // Tarball scan intentionally ignores the repo-wide pathAllowlist. That allowlist
+  // exists for source-tree fixtures and docs that are NOT shipped to npm; applying
+  // it here would create a blind spot for files that DO get published (e.g.
+  // anything under templates/ or plugins/glassdesk/).
   const allFindings = [];
   for (const f of files) {
-    if (isPathAllowed(f, config.pathAllowlist)) continue;
     if (!existsSync(f)) continue;
     let s;
     try { s = statSync(f); } catch { continue; }

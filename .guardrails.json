@@ -10,7 +10,6 @@
   "pathAllowlist": [
     "docs/specs/",
     "docs/guardrails.md",
-    "templates/",
     "tests/guardrails/",
     "package-lock.json",
     ".gitleaks.toml",
