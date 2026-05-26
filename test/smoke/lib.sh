@@ -144,7 +144,7 @@ assert_string_contains() {
 build_wrapper() {
   local hook_file="$1"
   node -e "
-    import('/Users/yen.nq/Projects/indie/asdlc/glassdesk/bin/cli.js').then(function(m) {
+    import('$GD_CLI_JS').then(function(m) {
       process.stdout.write(m.wrapHookCommand('$hook_file'));
     });
   "

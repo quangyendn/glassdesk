@@ -55,5 +55,5 @@ Each line is one record:
 
 | CWD | Encoded |
 |-----|---------|
-| `/Users/alice/projects/myapp` | `-Users-alice-projects-myapp` |
-| `/home/bob/work/api` | `-home-bob-work-api` |
+| `/Users/<user>/projects/myapp` | `-Users-<user>-projects-myapp` |
+| `/home/<user>/work/api` | `-home-<user>-work-api` |

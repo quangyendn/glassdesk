@@ -50,7 +50,7 @@ Serena requires `mcp__plugin_serena_serena__onboarding` once per project to inde
 **Always call `activate_project` with the absolute `$CWD`, never with a project name.**
 
 ```
-✅ activate_project("/Users/me/proj/.worktrees/feature-x")
+✅ activate_project("$CWD")    # e.g. "/path/to/repo/.worktrees/feature-x"
 ❌ activate_project("myproj")    # name lookup picks the FIRST registered path → main repo
 ```
 
