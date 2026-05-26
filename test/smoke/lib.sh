@@ -168,7 +168,7 @@ setup_scratch_repo() {
   SMOKE_SCRATCH_DIRS+=("$tmp")
 
   git init -q "$tmp"
-  git -C "$tmp" config user.email "smoke@test.local"
+  git -C "$tmp" config user.email "smoke@example.com"
   git -C "$tmp" config user.name  "Smoke Test"
 
   # Minimal commit so the repo is valid and worktree add works
