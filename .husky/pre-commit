@@ -1,0 +1,7 @@
+#!/usr/bin/env sh
+# Block secrets, personal paths, internal refs in staged changes.
+set -e
+
+node scripts/guardrails/check-gitleaks.js
+gitleaks protect --staged --redact -v --config=.gitleaks.toml
+node scripts/guardrails/scan-personal-info.js --staged

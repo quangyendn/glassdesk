@@ -1,0 +1,56 @@
+# Gitleaks config for glassdesk public repo.
+# Extends the default ruleset with project-specific rules + allowlists.
+
+title = "glassdesk gitleaks config"
+
+[extend]
+useDefault = true
+
+# Custom rules layered on top of defaults.
+
+[[rules]]
+id = "personal-macos-home"
+description = "macOS personal home path (leaks developer identity)"
+regex = '''/Users/[A-Za-z0-9._-]+/'''
+tags = ["personal", "path"]
+
+[[rules]]
+id = "personal-linux-home"
+description = "Linux personal home path"
+regex = '''/home/[A-Za-z0-9._-]+/'''
+tags = ["personal", "path"]
+
+[[rules]]
+id = "personal-windows-home"
+description = "Windows personal user path"
+regex = '''C:\\\\Users\\\\[A-Za-z0-9._-]+\\\\'''
+tags = ["personal", "path"]
+
+[[rules]]
+id = "private-key-block"
+description = "Private key PEM header"
+regex = '''-----BEGIN ((RSA|DSA|EC|OPENSSH|PGP) )?PRIVATE KEY( BLOCK)?-----'''
+tags = ["key", "private"]
+
+# Global allowlist: paths, files, and contexts where false positives are expected.
+
+[allowlist]
+description = "Narrow allowlist: only scanner-self-reference files and large machine-generated artifacts"
+paths = [
+  '''(.*/)?tests/guardrails/scanner\.test\.js''',
+  '''(.*/)?tests/guardrails/allowlist-policy\.test\.js''',
+  '''(.*/)?tests/guardrails/scan-personal-info\.test\.js''',
+  '''(.*/)?tests/guardrails/staged-scan\.test\.js''',
+  '''(.*/)?tests/guardrails/lint-commit-msg\.test\.js''',
+  '''(.*/)?tests/guardrails/verify-changelog\.test\.js''',
+  '''(.*/)?\.gitleaks\.toml''',
+  '''(.*/)?\.guardrails\.json''',
+  '''(.*/)?scripts/guardrails/lib/patterns\.js''',
+  '''(.*/)?package-lock\.json''',
+]
+regexes = [
+  # Example/placeholder values commonly appearing in docs.
+  '''/Users/<.+>/''',
+  '''/Users/USERNAME/''',
+  '''AKIAIOSFODNN7EXAMPLE''',
+]

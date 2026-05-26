@@ -26,3 +26,12 @@ website/dist/
 website/.astro/
 website/.vercel/
 .vercel/
+
+# Node
+node_modules/
+
+# Lock files (keep package-lock.json for reproducible installs)
+
+# Guardrails artifacts
+RELEASE_NOTES.md
+*.tgz

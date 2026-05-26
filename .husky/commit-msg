@@ -1,0 +1,6 @@
+#!/usr/bin/env sh
+# Enforce Conventional Commits + English-only + no sensitive info in messages.
+set -e
+
+npx --no-install commitlint --edit "$1"
+node scripts/guardrails/lint-commit-msg.js "$1"
