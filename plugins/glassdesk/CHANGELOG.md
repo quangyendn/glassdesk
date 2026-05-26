@@ -20,6 +20,8 @@
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-05-26
+
 ### Changed
 
 - **`/debug` renamed to `/gd-debug` for `npx glassdesk init/update`** — Claude Code 2.x ships a built-in `/debug` slash command (enables session debug logging) that always wins against project-scope `.claude/commands/debug.md`, so the bundled command was unreachable after npx install. The npx installer now copies `commands/debug.md` → `commands/gd-debug.md` and rewrites `/debug` → `/gd-debug` in all copied `.md` references. Plugin source is unchanged: marketplace installs continue to expose `/glassdesk:debug` via plugin namespacing. Re-run `npx glassdesk update` once to apply.
@@ -28,6 +30,8 @@
 
 ### Fixed
 
+- **Plan helper project-root resolution (`/plan:list`, `/plan:status`)** — `plugins/glassdesk/bin/plan-list` and `plan-status` previously fell back to `process.cwd()` when `CLAUDE_PROJECT_DIR` was not set, silently reading the wrong project's `plans/` directory under marketplace install where the env var is not always exported. New resolver: `CLAUDE_PROJECT_DIR` → walk-up for `.git` → walk-up for `package.json` → fail loudly with exit 1 and a clear error. `.git` is checked first so monorepo subpackages resolve to the repo root. `plan-status` also now resolves relative `<plan-dir>` arguments against the project root rather than CWD.
+- **Restore `gd` marketplace alias** — `.claude-plugin/marketplace.json` lost the `gd` short-alias plugin entry in an earlier path-fix PR while `README.md` still advertised `claude plugin install gd`. Restored so existing installation instructions keep working.
 - **Worktree hook bootstrap (`MODULE_NOT_FOUND` on SessionStart)** — Hook commands in `.claude/settings.local.json` are now wrapped in a self-bootstrapping shell preamble. On first session start inside a git worktree the wrapper symlinks `<main>/.claude/hooks/` into the worktree, then `exec`s the real hook. Subsequent sessions reuse the symlink (idempotent). Resolves `MODULE_NOT_FOUND` at `cjs/loader:1404` that crashed every fresh worktree session. Re-run `npx glassdesk update` once to migrate existing installs.
 
 - **Hook command relative-path failure (`loader:1404` MODULE_NOT_FOUND)** — `templates/settings.local.json` previously hardcoded `node .claude/hooks/{session-init,dev-rules-reminder}.cjs` (relative). When Claude Code spawned the hook from a CWD ≠ project root (subdirectory launch, nested `.claude/` collisions, e.g. `<root>/app/.claude/`), Node failed with `MODULE_NOT_FOUND` at `cjs/loader:1404`. Template now uses `node "${CLAUDE_PROJECT_DIR:-$PWD}/.claude/hooks/..."` — env var (always set for hook processes) with `$PWD` fallback. `bin/cli.js` now exports `purgeStaleGlassdeskHooks()` and runs it during merge so `npx glassdesk update` strips legacy entries instead of stacking duplicates.
