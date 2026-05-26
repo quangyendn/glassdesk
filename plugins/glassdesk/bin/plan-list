@@ -11,15 +11,38 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { execFileSync } from 'node:child_process';
 
 // Plans live at the user's project root, not relative to this script's install
-// location. When installed via the Claude Code plugin marketplace, the script
-// lives under ~/.claude/plugins/cache/... so __dirname-relative lookup points
-// outside any project. Prefer CLAUDE_PROJECT_DIR when the harness exposes it,
-// else fall back to process.cwd().
-const PROJECT_ROOT = process.env.CLAUDE_PROJECT_DIR
-  ? path.resolve(process.env.CLAUDE_PROJECT_DIR)
-  : process.cwd();
+// location. Marketplace installs put this file under ~/.claude/plugins/cache/...
+// so __dirname-relative lookup points outside any project. Resolution order:
+//   1. CLAUDE_PROJECT_DIR — set by the Claude Code harness when available
+//   2. `git rev-parse --show-toplevel` from CWD — reliable boundary when (1)
+//      is not exported to bash-spawned commands
+//   3. Fail loudly — silently reading the wrong CWD's plans/ would surface as
+//      "no plans" or another project's plans with no error signal
+function resolveProjectRoot() {
+  if (process.env.CLAUDE_PROJECT_DIR) {
+    return path.resolve(process.env.CLAUDE_PROJECT_DIR);
+  }
+  try {
+    const out = execFileSync('git', ['rev-parse', '--show-toplevel'], {
+      stdio: ['ignore', 'pipe', 'ignore'],
+      encoding: 'utf8',
+    }).trim();
+    if (out) return out;
+  } catch {
+    /* not in a git repo */
+  }
+  console.error(
+    'ERROR: cannot determine project root.\n' +
+      '  CLAUDE_PROJECT_DIR is not set and CWD is not inside a git repository.\n' +
+      '  Run from within your project, or export CLAUDE_PROJECT_DIR explicitly.'
+  );
+  process.exit(1);
+}
+
+const PROJECT_ROOT = resolveProjectRoot();
 const PLANS_DIR = path.join(PROJECT_ROOT, 'plans');
 
 const filter = (process.argv[2] || 'all').toLowerCase();

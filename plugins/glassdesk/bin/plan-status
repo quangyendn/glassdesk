@@ -10,6 +10,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { execFileSync } from 'node:child_process';
 
 const arg = process.argv[2];
 if (!arg) {
@@ -17,7 +18,32 @@ if (!arg) {
   process.exit(1);
 }
 
-const planDir = path.resolve(arg);
+// Relative paths must resolve against the user's project root, not CWD. Under
+// marketplace install the script may be spawned from an arbitrary CWD, so a
+// bare `path.resolve(arg)` would silently point at the wrong project. Mirrors
+// plan-list resolution: CLAUDE_PROJECT_DIR → git toplevel → fail loudly.
+function resolveProjectRoot() {
+  if (process.env.CLAUDE_PROJECT_DIR) {
+    return path.resolve(process.env.CLAUDE_PROJECT_DIR);
+  }
+  try {
+    const out = execFileSync('git', ['rev-parse', '--show-toplevel'], {
+      stdio: ['ignore', 'pipe', 'ignore'],
+      encoding: 'utf8',
+    }).trim();
+    if (out) return out;
+  } catch {
+    /* not in a git repo */
+  }
+  console.error(
+    'ERROR: cannot determine project root.\n' +
+      '  CLAUDE_PROJECT_DIR is not set and CWD is not inside a git repository.\n' +
+      '  Run from within your project, or export CLAUDE_PROJECT_DIR explicitly.'
+  );
+  process.exit(1);
+}
+
+const planDir = path.isAbsolute(arg) ? arg : path.resolve(resolveProjectRoot(), arg);
 const planFile = path.join(planDir, 'plan.md');
 if (!fs.existsSync(planFile)) {
   console.error(`ERROR: ${planFile} not found`);
