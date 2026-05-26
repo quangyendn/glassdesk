@@ -143,11 +143,14 @@ assert_string_contains() {
 # Requires node + the glassdesk cli at GD_CLI_JS.
 build_wrapper() {
   local hook_file="$1"
+  # Pass GD_CLI_JS via env and hook_file via argv so neither is interpolated
+  # into the JS source (avoids quote-escape bugs and matches the pattern in
+  # worktree-bootstrap.sh).
   node -e "
-    import('$GD_CLI_JS').then(function(m) {
-      process.stdout.write(m.wrapHookCommand('$hook_file'));
+    import(process.env.GD_CLI_JS).then(function(m) {
+      process.stdout.write(m.wrapHookCommand(process.argv[1]));
     });
-  "
+  " "$hook_file"
 }
 
 # ---------------------------------------------------------------------------
