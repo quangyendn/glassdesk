@@ -42,7 +42,11 @@ jobs:
         if: github.event_name == 'pull_request'
         run: |
           set -euo pipefail
-          git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
+          # Fetch base ref with full history (no --depth=1). With a shallow
+          # base, `origin/<base>..HEAD` includes every ancestor of HEAD that
+          # isn't the single tip commit, so commits already on main get
+          # rescanned. A deep fetch keeps the range tight to the real PR diff.
+          git fetch --no-tags origin "${{ github.base_ref }}"
           gitleaks detect --redact -v --config=.gitleaks.toml \
             --log-opts="origin/${{ github.base_ref }}..HEAD"
 

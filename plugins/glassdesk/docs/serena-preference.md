@@ -47,11 +47,11 @@ Serena requires `mcp__plugin_serena_serena__onboarding` once per project to inde
 
 ## Activation Rule (worktree safety)
 
-**Always call `activate_project` with the absolute `$CWD`, never with a project name.**
+**Always call `activate_project` with an absolute path (resolved from `process.cwd()` / `$PWD`), never with a project name.**
 
 ```
-✅ activate_project("/Users/me/proj/.worktrees/feature-x")
-❌ activate_project("myproj")    # name lookup picks the FIRST registered path → main repo
+✅ activate_project("/path/to/repo/.worktrees/feature-x")    # resolved absolute path
+❌ activate_project("myproj")                                # name lookup picks the FIRST registered path → main repo
 ```
 
 **Why:** Serena's global registry (`~/.serena/serena_config.yml`) keys lookups by `project_name`. When the same name is registered for both the main repo and a worktree (a default that happens whenever `.serena/project.yml` is shared/copied), name-based activation routes ALL file operations — including edits — to whichever path was registered first. The result is `replace_symbol_body` calls landing in the wrong worktree.

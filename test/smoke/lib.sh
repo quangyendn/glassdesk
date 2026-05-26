@@ -143,11 +143,14 @@ assert_string_contains() {
 # Requires node + the glassdesk cli at GD_CLI_JS.
 build_wrapper() {
   local hook_file="$1"
+  # Pass GD_CLI_JS via env and hook_file via argv so neither is interpolated
+  # into the JS source (avoids quote-escape bugs and matches the pattern in
+  # worktree-bootstrap.sh).
   node -e "
-    import('/Users/yen.nq/Projects/indie/asdlc/glassdesk/bin/cli.js').then(function(m) {
-      process.stdout.write(m.wrapHookCommand('$hook_file'));
+    import(process.env.GD_CLI_JS).then(function(m) {
+      process.stdout.write(m.wrapHookCommand(process.argv[1]));
     });
-  "
+  " "$hook_file"
 }
 
 # ---------------------------------------------------------------------------
@@ -165,7 +168,7 @@ setup_scratch_repo() {
   SMOKE_SCRATCH_DIRS+=("$tmp")
 
   git init -q "$tmp"
-  git -C "$tmp" config user.email "smoke@test.local"
+  git -C "$tmp" config user.email "smoke@example.com"
   git -C "$tmp" config user.name  "Smoke Test"
 
   # Minimal commit so the repo is valid and worktree add works

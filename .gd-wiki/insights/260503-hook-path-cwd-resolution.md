@@ -46,4 +46,4 @@ Hook merge in `cli.js` deduped by `(type, command)` string equality. When a temp
 **Type:** PROBLEM
 Claude Code blocks the agent from editing the running session's own `.claude/settings.local.json` ("Self-Modification of agent permissions/behavior"). Recovery cost is real: had to present diff and ask user to apply by hand for the local workspace. Plan plugin/template changes so the *template* (a user-editable artefact, not a live config) carries the canonical fix; downstream installs sync via `npx ... update` rather than via direct settings edits. Hot-fix workspaces other than the running one — those are not denied.
 
-> Evidence: Edit on `/Users/yen.nq/Projects/indie/asdlc/glassdesk/.claude/settings.local.json` returned permission-denied; same edit on `/Users/yen.nq/Projects/indie/short-video-maker/.claude/settings.local.json` succeeded.
+> Evidence: Edit on `$HOME/Projects/glassdesk/.claude/settings.local.json` returned permission-denied; same edit on `$HOME/Projects/short-video-maker/.claude/settings.local.json` succeeded.
