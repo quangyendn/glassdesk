@@ -84,8 +84,14 @@ function redactMatch(s) {
   return `${s.slice(0, 6)}…${s.slice(-3)}`;
 }
 
+// Entries ending in `/` are directory prefixes; all others require exact
+// match. Prevents `package-lock.json` from silently allowlisting
+// `package-lock.json.backup` (a `startsWith` bypass).
 export function isPathAllowed(filePath, allowlist) {
-  return allowlist.some((entry) => filePath === entry || filePath.startsWith(entry));
+  return allowlist.some((entry) => {
+    if (entry.endsWith('/')) return filePath.startsWith(entry);
+    return filePath === entry;
+  });
 }
 
 export function formatFindings(findings) {

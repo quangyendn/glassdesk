@@ -37,7 +37,12 @@ tags = ["key", "private"]
 [allowlist]
 description = "Narrow allowlist: only scanner-self-reference files and large machine-generated artifacts"
 paths = [
-  '''(.*/)?tests/guardrails/.*''',
+  '''(.*/)?tests/guardrails/scanner\.test\.js''',
+  '''(.*/)?tests/guardrails/allowlist-policy\.test\.js''',
+  '''(.*/)?tests/guardrails/scan-personal-info\.test\.js''',
+  '''(.*/)?tests/guardrails/staged-scan\.test\.js''',
+  '''(.*/)?tests/guardrails/lint-commit-msg\.test\.js''',
+  '''(.*/)?tests/guardrails/verify-changelog\.test\.js''',
   '''(.*/)?\.gitleaks\.toml''',
   '''(.*/)?\.guardrails\.json''',
   '''(.*/)?scripts/guardrails/lib/patterns\.js''',

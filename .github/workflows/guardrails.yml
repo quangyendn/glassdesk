@@ -57,12 +57,33 @@ jobs:
             gitleaks detect --redact -v --config=.gitleaks.toml --log-opts="-1"
           fi
 
-      - name: Node scanner over changed files
+      - name: Node scanner over changed files (PR)
         if: github.event_name == 'pull_request'
         run: |
           set -euo pipefail
           mapfile -t CHANGED < <(git diff --name-only --diff-filter=ACMR \
             "origin/${{ github.base_ref }}...HEAD")
+          if [ "${#CHANGED[@]}" -eq 0 ]; then
+            echo "No changed files."
+            exit 0
+          fi
+          printf 'Changed files:\n'
+          printf '  %s\n' "${CHANGED[@]}"
+          node scripts/guardrails/scan-personal-info.js --files "${CHANGED[@]}"
+
+      - name: Node scanner over changed files (push)
+        if: github.event_name == 'push'
+        run: |
+          set -euo pipefail
+          BEFORE="${{ github.event.before }}"
+          if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+            # New branch / first push: scan files touched by the last commit only.
+            mapfile -t CHANGED < <(git diff-tree --no-commit-id --name-only \
+              --diff-filter=ACMR -r "${{ github.sha }}")
+          else
+            mapfile -t CHANGED < <(git diff --name-only --diff-filter=ACMR \
+              "$BEFORE...${{ github.sha }}")
+          fi
           if [ "${#CHANGED[@]}" -eq 0 ]; then
             echo "No changed files."
             exit 0

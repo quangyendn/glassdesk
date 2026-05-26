@@ -8,7 +8,12 @@
     "noreply@github.com"
   ],
   "pathAllowlist": [
-    "tests/guardrails/",
+    "tests/guardrails/scanner.test.js",
+    "tests/guardrails/allowlist-policy.test.js",
+    "tests/guardrails/scan-personal-info.test.js",
+    "tests/guardrails/staged-scan.test.js",
+    "tests/guardrails/lint-commit-msg.test.js",
+    "tests/guardrails/verify-changelog.test.js",
     "package-lock.json",
     ".gitleaks.toml",
     ".guardrails.json",

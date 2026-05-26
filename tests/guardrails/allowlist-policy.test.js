@@ -48,6 +48,29 @@ test('scanner catches a secret planted in a hypothetical doc/spec file', () => {
   assert.ok(rules.has('unallowlisted-email'), 'Unallowlisted email in spec must be flagged');
 });
 
+test('directory-prefix entries in pathAllowlist require a trailing slash', () => {
+  // package-lock.json must NOT silently allowlist package-lock.json.backup
+  // (the prior `startsWith` implementation did exactly that).
+  const allowlist = ['package-lock.json', '.guardrails.json', 'tests/guardrails/'];
+  assert.equal(isPathAllowed('package-lock.json', allowlist), true);
+  assert.equal(isPathAllowed('package-lock.json.backup', allowlist), false);
+  assert.equal(isPathAllowed('.guardrails.json.bak', allowlist), false);
+  // Trailing-slash entry still works as a directory prefix.
+  assert.equal(isPathAllowed('tests/guardrails/anything.js', allowlist), true);
+});
+
+test('a non-fixture file under tests/guardrails/ is still scanned', () => {
+  // Regression: previously `tests/guardrails/` directory-wide allowlist
+  // silently skipped any future file under that path. After narrowing to exact
+  // fixture files, a new file in the dir must NOT be allowlisted.
+  const config = loadConfig(REPO_ROOT);
+  assert.equal(
+    isPathAllowed('tests/guardrails/brand-new-secrets.js', config.pathAllowlist),
+    false,
+    'new tests/guardrails/ files must be scanned, not allowlisted',
+  );
+});
+
 test('committed .gitleaks.toml does not allowlist public source paths', () => {
   const toml = readFileSync(resolve(REPO_ROOT, '.gitleaks.toml'), 'utf8');
   const forbiddenPatterns = [

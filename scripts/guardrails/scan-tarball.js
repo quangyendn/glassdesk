@@ -7,6 +7,8 @@
 import { execSync } from 'node:child_process';
 import { readFileSync, existsSync, statSync } from 'node:fs';
 import { extname, basename } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { argv } from 'node:process';
 import { loadConfig } from './lib/config.js';
 import { scanText, formatFindings } from './lib/scanner.js';
 
@@ -24,6 +26,14 @@ function packDryRun() {
     console.error('[guardrails] `npm pack --dry-run --json` failed:', err.message);
     process.exit(1);
   }
+}
+
+// Block any basename whose dotted segments contain `env`:
+// `.env`, `.env.local`, `prod.env.local`, `staging.env`, etc. Also block
+// known sensitive filenames like `id_rsa[.pub]`.
+export function isSensitiveBasename(base) {
+  if (base === 'id_rsa' || base === 'id_rsa.pub') return true;
+  return base.split('.').some((seg) => seg === 'env');
 }
 
 function isBinary(filePath) {
@@ -50,7 +60,7 @@ function main() {
     if (config.tarball.denyExtensions.includes(ext)) {
       blockers.push(`Denied extension in tarball: ${f}`);
     }
-    if (base.startsWith('.env') || base === 'id_rsa' || base === 'id_rsa.pub') {
+    if (isSensitiveBasename(base)) {
       blockers.push(`Sensitive filename in tarball: ${f}`);
     }
     for (const pattern of config.tarball.warnPathPatterns) {
@@ -93,4 +103,7 @@ function main() {
   console.log(`[guardrails] Tarball scan ok (${files.length} files).`);
 }
 
-main();
+// Only run when invoked directly (not when imported for unit tests).
+if (argv[1] === fileURLToPath(import.meta.url)) {
+  main();
+}
