@@ -39,7 +39,13 @@ This hook automatically injects development rules and session context at the sta
 
 ## Configuration
 
-Hooks are configured in `.claude/settings.json` or `.claude/settings.local.json`:
+### Marketplace install (auto-registration)
+
+`session-init.cjs` is auto-registered via `hooks/hooks.json` for any consumer of the marketplace plugin. No per-project wiring needed — Claude Code reads `hooks/hooks.json` at plugin load and fires the SessionStart hook on every session. `${CLAUDE_PLUGIN_ROOT}` resolves to the installed plugin directory.
+
+### Manual / per-project (optional override or npx install)
+
+You can still wire hooks explicitly in `.claude/settings.json` or `.claude/settings.local.json` — useful when developing the plugin locally (so the project source runs, not the marketplace copy) or when registering optional hooks like `dev-rules-reminder.cjs`:
 
 ```json
 {
@@ -59,6 +65,8 @@ Hooks are configured in `.claude/settings.json` or `.claude/settings.local.json`
   }
 }
 ```
+
+Dual-registration safe: when both marketplace `hooks.json` and project-local `settings.json` register `session-init.cjs`, both fire — `GD_PLUGIN_PATH` uses first-writer-wins (`session-init.cjs:42-44`); `GD_SESSION_ID` last-writer-wins (intentional, see code comments).
 
 **Important:** `session-init.cjs` must run on `SessionStart` to set `GD_SESSION_ID` before other hooks execute.
 
