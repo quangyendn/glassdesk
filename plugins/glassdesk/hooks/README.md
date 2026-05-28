@@ -11,7 +11,7 @@ Claude Code hooks for automated reminders and workflow enhancements.
 
 Sets these environment variables:
 - `GD_SESSION_ID` - Unique session identifier (always regenerated per session)
-- `GD_PLUGIN_PATH` - Absolute path to plugin installation. **First-writer-wins** — preserves existing value to avoid dual-install collision (marketplace plugin + npx install both register a SessionStart hook).
+- `GD_PLUGIN_PATH` - Absolute path to plugin installation. Hook is **idempotent across re-runs in the same process tree** — preserves existing `GD_PLUGIN_PATH` (inherited from parent shell or a prior hook invocation whose export was already sourced). Note: when marketplace + project-local hooks fire in parallel during the same `SessionStart`, neither sees the other's export, so the value written to `CLAUDE_ENV_FILE` last wins — see "Dual-registration" below.
 - `GD_SERENA_AVAILABLE` - `"1"` if Serena MCP plugin is enabled, `"0"` otherwise. Detected via `~/.claude/settings.json` `enabledPlugins` (loose match `/^serena@/`) with `claude plugin list --json` fallback (3s timeout). When `"0"`, a one-shot install hint is printed to stdout (auto-injected as session context). Skills and commands gate "prefer Serena" routing on this flag.
 
 Creates session temp file at `/tmp/gd-session-{id}.json`.
@@ -74,7 +74,11 @@ You can still wire hooks explicitly in `.claude/settings.json` or `.claude/setti
 }
 ```
 
-Dual-registration: when both marketplace `hooks.json` and project-local `settings.json` register `session-init.cjs`, both invocations run. Conflict policy in `session-init.cjs:41-44` — `GD_PLUGIN_PATH` is preserved if already set (first-writer wins), while `GD_SESSION_ID` is rewritten every time (last-writer wins, accepted side effect of unconditional regeneration; one `/tmp/gd-session-{id}.json` becomes orphan).
+**Dual-registration is not recommended.** When both marketplace `hooks.json` and project-local `settings.json` register `session-init.cjs`, Claude Code spawns both invocations in parallel — neither process sees the other's export (writes go to `CLAUDE_ENV_FILE`, sourced after both exit). Resulting behavior is non-deterministic:
+- `GD_PLUGIN_PATH`: the last write to `CLAUDE_ENV_FILE` wins. Both processes pass the `if (!process.env.GD_PLUGIN_PATH)` guard unless the parent shell already exported it. The two writes typically resolve to similar paths (project-local install vs. marketplace plugin dir), but neither is guaranteed.
+- `GD_SESSION_ID`: unconditionally regenerated each run, last write wins. One of the two `/tmp/gd-session-{id}.json` files becomes orphan.
+
+To avoid ambiguity, register `session-init.cjs` in exactly one place — either let the marketplace `hooks/hooks.json` auto-register it (preferred), or disable that and wire it manually in `.claude/settings.json` (useful for local plugin development). The npx installer skips copying `hooks/hooks.json` into `<project>/.claude/hooks/` precisely to keep the marketplace path single-source.
 
 **Important:** `session-init.cjs` must run on `SessionStart` to set `GD_SESSION_ID` before other hooks execute.
 

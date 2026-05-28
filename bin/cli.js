@@ -532,8 +532,10 @@ export function rewritePluginPathRefs(rootDir, { dryRun = false } = {}) {
       const src = fs.readFileSync(full, 'utf8');
       // Cheap probe via includes() avoids stateful /g regex pitfalls; .replace() with /g handles all matches.
       if (!src.includes(REWRITE_TOKEN)) continue;
+      const next = src.replace(REWRITE_TOKEN_RE, REWRITE_REPLACEMENT);
+      if (next === src) continue; // probe matched a non-token substring; no real rewrite
       if (!dryRun) {
-        fs.writeFileSync(full, src.replace(REWRITE_TOKEN_RE, REWRITE_REPLACEMENT));
+        fs.writeFileSync(full, next);
       }
       rewritten++;
     }
@@ -637,9 +639,9 @@ async function runInstall(cwd, mode, flags) {
     const filesPreview = copyPluginFiles(BUNDLED_PLUGIN_DIR, path.join(cwd, '.claude'), true);
     log.plain(`  Would copy ${filesPreview.length} files.`);
     // Estimate rewrite count from bundle source. Valid as long as COPY_SKIPLIST
-    // does not exclude any .md file containing $GD_PLUGIN_PATH (currently it skips
-    // only settings.local.json, .DS_Store, CHANGELOG.md). If the skiplist gains a
-    // .md entry, audit this preview path.
+    // does not exclude any .md file containing $GD_PLUGIN_PATH (see COPY_SKIPLIST
+    // at top of file — currently skips only non-.md entries). If the skiplist
+    // gains a .md entry, audit this preview path.
     const rwPreview = rewritePluginPathRefs(BUNDLED_PLUGIN_DIR, { dryRun: true });
     log.plain(`  Would rewrite $GD_PLUGIN_PATH in ${rwPreview.rewritten}/${rwPreview.scanned} .md files.`);
     const cmdPreview = rewriteCommandRefs(BUNDLED_PLUGIN_DIR, { dryRun: true });
