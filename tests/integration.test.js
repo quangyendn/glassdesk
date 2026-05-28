@@ -133,17 +133,21 @@ test('unknown flag: exits 1 with usage', () => {
   assert.match(r.stderr, /Unknown argument/);
 });
 
-test('copyPluginFiles: skips settings.local.json and .DS_Store', async () => {
+test('copyPluginFiles: skips settings.local.json, .DS_Store, hooks.json, CHANGELOG.md', async () => {
   const { copyPluginFiles } = await import('../bin/cli.js');
   const srcDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gd-skip-src-'));
   const destDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gd-skip-dst-'));
   fs.writeFileSync(path.join(srcDir, 'commands.md'), 'ok');
   fs.writeFileSync(path.join(srcDir, 'settings.local.json'), '{}');
   fs.writeFileSync(path.join(srcDir, '.DS_Store'), 'mac');
+  fs.writeFileSync(path.join(srcDir, 'hooks.json'), '{}');
+  fs.writeFileSync(path.join(srcDir, 'CHANGELOG.md'), '# changelog');
   const copied = copyPluginFiles(srcDir, destDir, false);
-  assert.deepEqual(copied, ['commands.md']);
+  assert.deepEqual(copied.sort(), ['commands.md']);
   assert.ok(!fs.existsSync(path.join(destDir, 'settings.local.json')));
   assert.ok(!fs.existsSync(path.join(destDir, '.DS_Store')));
+  assert.ok(!fs.existsSync(path.join(destDir, 'hooks.json')));
+  assert.ok(!fs.existsSync(path.join(destDir, 'CHANGELOG.md')));
 });
 
 // ----- Path-rewrite tests (Phase 1: $GD_PLUGIN_PATH → ${CLAUDE_PROJECT_DIR}/.claude) -----

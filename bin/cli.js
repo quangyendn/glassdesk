@@ -528,6 +528,9 @@ export function rewritePluginPathRefs(rootDir, { dryRun = false } = {}) {
         continue;
       }
       if (!entry.isFile() || !entry.name.endsWith('.md')) continue;
+      // Files that install/update would never copy must not appear in the
+      // preview either — otherwise the dry-run count overstates the change.
+      if (COPY_SKIPLIST.has(entry.name)) continue;
       scanned++;
       const src = fs.readFileSync(full, 'utf8');
       // Cheap probe via includes() avoids stateful /g regex pitfalls; .replace() with /g handles all matches.
@@ -638,10 +641,10 @@ async function runInstall(cwd, mode, flags) {
     log.info('Dry-run: no files written.');
     const filesPreview = copyPluginFiles(BUNDLED_PLUGIN_DIR, path.join(cwd, '.claude'), true);
     log.plain(`  Would copy ${filesPreview.length} files.`);
-    // Estimate rewrite count from bundle source. Valid as long as COPY_SKIPLIST
-    // does not exclude any .md file containing $GD_PLUGIN_PATH (see COPY_SKIPLIST
-    // at top of file — currently skips only non-.md entries). If the skiplist
-    // gains a .md entry, audit this preview path.
+    // Preview rewrite count from bundle source. `rewritePluginPathRefs` itself
+    // respects `COPY_SKIPLIST`, so the count stays aligned with what a real
+    // install would actually rewrite (e.g. `CHANGELOG.md` is skipped both here
+    // and in `copyPluginFiles`).
     const rwPreview = rewritePluginPathRefs(BUNDLED_PLUGIN_DIR, { dryRun: true });
     log.plain(`  Would rewrite $GD_PLUGIN_PATH in ${rwPreview.rewritten}/${rwPreview.scanned} .md files.`);
     const cmdPreview = rewriteCommandRefs(BUNDLED_PLUGIN_DIR, { dryRun: true });
