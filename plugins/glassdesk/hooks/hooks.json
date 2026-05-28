@@ -1,0 +1,16 @@
+{
+  "description": "GlassDesk plugin lifecycle hooks: SessionStart sets GD_SESSION_ID, GD_PLUGIN_PATH, GD_SERENA_AVAILABLE for plan-state persistence and script-path resolution.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/session-init.cjs\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}
