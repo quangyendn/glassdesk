@@ -133,17 +133,21 @@ test('unknown flag: exits 1 with usage', () => {
   assert.match(r.stderr, /Unknown argument/);
 });
 
-test('copyPluginFiles: skips settings.local.json and .DS_Store', async () => {
+test('copyPluginFiles: skips settings.local.json, .DS_Store, hooks.json, CHANGELOG.md', async () => {
   const { copyPluginFiles } = await import('../bin/cli.js');
   const srcDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gd-skip-src-'));
   const destDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gd-skip-dst-'));
   fs.writeFileSync(path.join(srcDir, 'commands.md'), 'ok');
   fs.writeFileSync(path.join(srcDir, 'settings.local.json'), '{}');
   fs.writeFileSync(path.join(srcDir, '.DS_Store'), 'mac');
+  fs.writeFileSync(path.join(srcDir, 'hooks.json'), '{}');
+  fs.writeFileSync(path.join(srcDir, 'CHANGELOG.md'), '# changelog');
   const copied = copyPluginFiles(srcDir, destDir, false);
-  assert.deepEqual(copied, ['commands.md']);
+  assert.deepEqual(copied.sort(), ['commands.md']);
   assert.ok(!fs.existsSync(path.join(destDir, 'settings.local.json')));
   assert.ok(!fs.existsSync(path.join(destDir, '.DS_Store')));
+  assert.ok(!fs.existsSync(path.join(destDir, 'hooks.json')));
+  assert.ok(!fs.existsSync(path.join(destDir, 'CHANGELOG.md')));
 });
 
 // ----- Path-rewrite tests (Phase 1: $GD_PLUGIN_PATH → ${CLAUDE_PROJECT_DIR}/.claude) -----
@@ -234,14 +238,17 @@ test('rewrite: update is idempotent — second run rewrites 0 of N files', () =>
   assert.deepEqual(afterHashes, beforeHashes, 'second update should produce identical .md content');
 });
 
-test('rewrite: bundle invariant — source plugins/glassdesk/**/*.md keeps $GD_PLUGIN_PATH in 7 known files', () => {
+test('rewrite: bundle invariant — source plugins/glassdesk/**/*.md keeps GD_PLUGIN_PATH refs (bare or braced) in 7 known files', () => {
   const bundleDir = path.join(REPO_ROOT, 'plugins', 'glassdesk');
   const mds = collectMarkdownFiles(bundleDir);
+  // Match both `$GD_PLUGIN_PATH` (bare, preserved in 3 skill files for
+  // backwards compatibility) and `${GD_PLUGIN_PATH:?...}` (braced loud-fail
+  // guard, used by the 4 plan commands that depend on the SessionStart hook).
+  const refRe = /\$\{GD_PLUGIN_PATH(?::\?[^}]*)?\}|\$GD_PLUGIN_PATH\b/;
   const withToken = mds
-    .filter((f) => /\$GD_PLUGIN_PATH\b/.test(fs.readFileSync(f, 'utf8')))
+    .filter((f) => refRe.test(fs.readFileSync(f, 'utf8')))
     .map((f) => path.relative(bundleDir, f).split(path.sep).join('/'))
     .filter((rel) => !rel.endsWith('CHANGELOG.md'));
-  // Exactly the 7 references (CHANGELOG mentions are historical, excluded above).
   assert.deepEqual(withToken.sort(), [
     'commands/plan.md',
     'commands/plan/hard.md',

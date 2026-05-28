@@ -24,7 +24,7 @@ Check the `## Plan Context` section in the injected context:
 - If "Plan: none" → Create new plan using naming from `## Naming` section.
 
 ## Workflow
-1. If creating new: Create directory using `Plan dir:` from `## Naming` section, then run `node "$GD_PLUGIN_PATH/scripts/set-active-plan.cjs" {plan-dir}`. If reusing: Use the active plan path from Plan Context. Pass directory path to every subagent.
+1. If creating new: Create directory using `Plan dir:` from `## Naming` section, then run `node "${GD_PLUGIN_PATH:?GD_PLUGIN_PATH not set — ensure glassdesk SessionStart hook fired}/scripts/set-active-plan.cjs" {plan-dir}`. If reusing: Use the active plan path from Plan Context. Pass directory path to every subagent.
 2. Follow "Plan Creation & Organization" rules of `planning` skill.
 3. Use up to 2 `gd-researcher` agents in parallel (max 5 tool calls each, different aspects).
 4. Analyze codebase: read `codebase-summary.md`, `code-standards.md`, `system-architecture.md`, `project-overview-pdr.md`. If `codebase-summary.md` unavailable or >3 days old, run `/scout` first.
