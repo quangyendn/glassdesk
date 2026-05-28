@@ -18,6 +18,12 @@ const COPY_SKIPLIST = new Set([
   'settings.local.json',
   '.DS_Store',
   'CHANGELOG.md',
+  // Plugin-scope hook manifest — loaded only by Claude Code when consumed via
+  // a marketplace plugin (resolves ${CLAUDE_PLUGIN_ROOT}). The npx install
+  // registers hooks via templates/settings.local.json instead, so this file is
+  // dead weight in <project>/.claude/hooks/ and would break if ever loaded
+  // (${CLAUDE_PLUGIN_ROOT} is undefined outside a plugin context).
+  'hooks.json',
 ]);
 // Plugin-source paths whose copied filename MUST differ from source to avoid
 // collision with a Claude Code built-in slash command. When installed as a
@@ -443,9 +449,20 @@ export function copyPluginFiles(srcDir, destDir, dryRun) {
 // Note: ${CLAUDE_PROJECT_DIR} would be the cleaner choice (absolute, no cwd
 // dependency) but is not actually exported to Bash by Claude Code 2.1.x —
 // empirically verified empty in tool-spawned shells despite docs claiming it.
-const REWRITE_TOKEN = '$GD_PLUGIN_PATH';
-// Word boundary avoids accidental rewrite of future identifiers like $GD_PLUGIN_PATHS.
-const REWRITE_TOKEN_RE = /\$GD_PLUGIN_PATH\b/g;
+// Cheap substring probe — matches both the bare `$GD_PLUGIN_PATH` form AND the
+// braced `${GD_PLUGIN_PATH[:?guard]}` form added to fail loud in marketplace
+// installs when the SessionStart hook didn't fire. Slightly broader than the
+// previous '$GD_PLUGIN_PATH' literal but cheap and correct — the regex below
+// is the authoritative match.
+const REWRITE_TOKEN = 'GD_PLUGIN_PATH';
+// Match both forms in a single pass:
+//   - Bare:    $GD_PLUGIN_PATH       (word boundary blocks $GD_PLUGIN_PATHS)
+//   - Braced:  ${GD_PLUGIN_PATH}     (no guard)
+//   - Braced+: ${GD_PLUGIN_PATH:?msg} (loud-fail guard for missing var)
+// Both forms collapse to `.claude` so npx-installed subagents resolve via
+// project-relative path (env-var propagation is broken across subagents per
+// Claude Code bug #46696).
+const REWRITE_TOKEN_RE = /\$\{GD_PLUGIN_PATH(?::\?[^}]*)?\}|\$GD_PLUGIN_PATH\b/g;
 const REWRITE_REPLACEMENT = '.claude';
 
 // Rewrite slash-command references in copied .md files to match RENAME_MAP.

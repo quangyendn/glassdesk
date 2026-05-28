@@ -52,21 +52,29 @@ You can still wire hooks explicitly in `.claude/settings.json` or `.claude/setti
   "hooks": {
     "SessionStart": [
       {
-        "type": "command",
-        "command": "node plugins/glassdesk/hooks/session-init.cjs"
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node plugins/glassdesk/hooks/session-init.cjs"
+          }
+        ]
       }
     ],
     "UserPromptSubmit": [
       {
-        "type": "command",
-        "command": "node plugins/glassdesk/hooks/dev-rules-reminder.cjs"
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node plugins/glassdesk/hooks/dev-rules-reminder.cjs"
+          }
+        ]
       }
     ]
   }
 }
 ```
 
-Dual-registration safe: when both marketplace `hooks.json` and project-local `settings.json` register `session-init.cjs`, both fire — `GD_PLUGIN_PATH` uses first-writer-wins (`session-init.cjs:42-44`); `GD_SESSION_ID` last-writer-wins (intentional, see code comments).
+Dual-registration: when both marketplace `hooks.json` and project-local `settings.json` register `session-init.cjs`, both invocations run. Conflict policy in `session-init.cjs:41-44` — `GD_PLUGIN_PATH` is preserved if already set (first-writer wins), while `GD_SESSION_ID` is rewritten every time (last-writer wins, accepted side effect of unconditional regeneration; one `/tmp/gd-session-{id}.json` becomes orphan).
 
 **Important:** `session-init.cjs` must run on `SessionStart` to set `GD_SESSION_ID` before other hooks execute.
 

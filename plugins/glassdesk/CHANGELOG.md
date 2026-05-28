@@ -20,6 +20,20 @@
 
 ## [Unreleased]
 
+## [0.5.1] — 2026-05-28
+
+### Fixed
+
+- **Marketplace plugin auto-registers `SessionStart` hook** — added `hooks/hooks.json` declaring `session-init.cjs` via `${CLAUDE_PLUGIN_ROOT}`. Previously the marketplace plugin shipped without hook registration, so `GD_PLUGIN_PATH` was never set in fresh sessions and `/glassdesk:plan:list`, `/glassdesk:plan:status`, `/glassdesk:plan`, `/glassdesk:plan:hard` failed with `Cannot find module '/bin/plan-list'`. Convention matches official plugins (codex, hookify, security-guidance). Per-project wiring in `.claude/settings.json` continues to work; `GD_PLUGIN_PATH` first-writer-wins guard makes dual-registration safe.
+
+### Changed
+
+- **Plan-command env-var references use loud-fail guard** — `commands/plan/list.md`, `commands/plan/status.md`, `commands/plan/hard.md`, `commands/plan.md` now use `${GD_PLUGIN_PATH:?...}` instead of bare `$GD_PLUGIN_PATH`. Marketplace runtime fails with a clear message instead of cryptic `Cannot find module '/bin/...'` if the hook ever fails to fire.
+- **SessionStart timeout raised 10s → 20s** — covers cold-start git-call + Serena-fallback stacking.
+- **npx installer rewrites both bare and braced forms** — `bin/cli.js` rewriter regex now matches `$GD_PLUGIN_PATH`, `${GD_PLUGIN_PATH}`, and `${GD_PLUGIN_PATH:?...}` → `.claude`. Subagent-relative path semantics preserved for npx installs (Claude Code bug #46696 workaround).
+- **`hooks.json` excluded from npx copy** — `bin/cli.js` `COPY_SKIPLIST` skips `hooks.json` so the plugin-scope manifest does not land in `<project>/.claude/hooks/` where `${CLAUDE_PLUGIN_ROOT}` is undefined. npx installs continue to wire hooks via `templates/settings.local.json`.
+- **`hooks/README.md`** — documents auto-registration, corrects manual settings example to use the nested `{hooks:[{type,command}]}` shape, and clarifies dual-registration conflict policy.
+
 ## [0.5.0] — 2026-05-26
 
 ### Changed

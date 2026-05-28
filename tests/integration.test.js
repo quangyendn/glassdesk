@@ -234,14 +234,17 @@ test('rewrite: update is idempotent — second run rewrites 0 of N files', () =>
   assert.deepEqual(afterHashes, beforeHashes, 'second update should produce identical .md content');
 });
 
-test('rewrite: bundle invariant — source plugins/glassdesk/**/*.md keeps $GD_PLUGIN_PATH in 7 known files', () => {
+test('rewrite: bundle invariant — source plugins/glassdesk/**/*.md keeps GD_PLUGIN_PATH refs (bare or braced) in 7 known files', () => {
   const bundleDir = path.join(REPO_ROOT, 'plugins', 'glassdesk');
   const mds = collectMarkdownFiles(bundleDir);
+  // Match both `$GD_PLUGIN_PATH` (bare, preserved in 3 skill files for
+  // backwards compatibility) and `${GD_PLUGIN_PATH:?...}` (braced loud-fail
+  // guard, used by the 4 plan commands that depend on the SessionStart hook).
+  const refRe = /\$\{GD_PLUGIN_PATH(?::\?[^}]*)?\}|\$GD_PLUGIN_PATH\b/;
   const withToken = mds
-    .filter((f) => /\$GD_PLUGIN_PATH\b/.test(fs.readFileSync(f, 'utf8')))
+    .filter((f) => refRe.test(fs.readFileSync(f, 'utf8')))
     .map((f) => path.relative(bundleDir, f).split(path.sep).join('/'))
     .filter((rel) => !rel.endsWith('CHANGELOG.md'));
-  // Exactly the 7 references (CHANGELOG mentions are historical, excluded above).
   assert.deepEqual(withToken.sort(), [
     'commands/plan.md',
     'commands/plan/hard.md',
