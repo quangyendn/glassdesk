@@ -4,6 +4,7 @@ description: Conducts deep research on technical topics for implementation decis
 tools: Glob, Grep, Read, Write, WebFetch, WebSearch, TodoWrite
 tier: standard
 model: sonnet
+effort: medium
 color: purple
 ---
 

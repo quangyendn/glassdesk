@@ -4,6 +4,7 @@ description: Use this agent when you need to quickly locate relevant files acros
 tools: Glob, Grep, Read, WebFetch, TodoWrite, WebSearch, Bash, BashOutput, KillShell, ListMcpResourcesTool, ReadMcpResourceTool
 tier: external
 model: sonnet
+effort: low
 color: purple
 ---
 

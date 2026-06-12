@@ -19,7 +19,7 @@ plugins/glassdesk/
 ├── skills/                      # reusable skill packages loaded by commands
 │   └── wiki/references/         # skill reference docs (maintaining, linting, querying, etc.)
 ├── config/
-│   └── models.yml               # tier → model mapping (single source of truth)
+│   └── models.yml               # tier → model + effort mapping (single source of truth)
 ├── bin/                         # zero-LLM CLI scripts (plan-list, plan-status, sync-models)
 ├── hooks/
 │   ├── session-init.cjs         # SessionStart hook — sets GD_PLUGIN_PATH, GD_SESSION_ID, GD_SERENA_AVAILABLE; auto-symlinks plans/ + .claude/ subdirs into worktrees
@@ -27,7 +27,7 @@ plugins/glassdesk/
 │   └── lib/gd-config-utils.cjs  # shared config helpers for hooks
 └── scripts/
     ├── install-dev-hooks.sh     # optional pre-commit drift guard
-    ├── pre-commit-hook.sh       # blocks commits when agent model:tier drift
+    ├── pre-commit-hook.sh       # blocks commits when agent model:/effort: drifts from tier:
     └── resolve-spec-input.cjs   # spec→plan input resolver (Step 0 of /plan and /plan:hard)
 ```
 
@@ -47,7 +47,7 @@ Commands are thin shims (≤30 lines). They delegate heavy work by activating a 
 ```
 /plan:hard  →  activate 'planning' skill  →  dispatch gd-researcher (standard)
                                            →  dispatch gd-planner (premium)
-                                           →  dispatch gd-project-manager (standard)
+                                           →  dispatch gd-project-manager (light)
 ```
 
 ## SDLC Phase Taxonomy
@@ -67,7 +67,7 @@ Commands are thin shims (≤30 lines). They delegate heavy work by activating a 
 
 ## Agent Topology
 
-Specialized agents, all prefixed `gd-`. Agents declare a `tier:` in frontmatter; `bin/sync-models` resolves the tier to a concrete Claude model and writes `model:` to each agent file. See [[model-tier-policy]] for the tier mapping.
+Specialized agents, all prefixed `gd-`. Agents declare a `tier:` in frontmatter; `bin/sync-models` resolves the tier to a concrete Claude model and reasoning effort and writes `model:` + `effort:` to each agent file. See [[model-tier-policy]] for the tier mapping.
 
 Key agents and their dispatch sources:
 
@@ -75,10 +75,10 @@ Key agents and their dispatch sources:
 |---|---|---|
 | `gd-planner` | premium | `/plan:hard` (planning skill) |
 | `gd-architect` | premium | `/plan`, `/plan:hard` |
-| `gd-debugger` | premium | `/debug`, `/fix:hard` |
+| `gd-debugger` | deep | `/debug`, `/fix:hard` |
 | `gd-researcher` | standard | `/plan:hard` |
 | `gd-implementer` | standard | building skill Step 2 |
-| `gd-project-manager` | standard | building skill |
+| `gd-project-manager` | light | building skill |
 | `gd-tester` | standard | building/fixing skills |
 | `gd-wiki-curator` | standard | `/wiki:update` |
 | `gd-git-manager` | fast | `/git:cm`, `/git:cp`, `/git:pr` |

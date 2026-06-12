@@ -4,6 +4,7 @@ description: End-to-end testing specialist using Vercel Agent Browser (preferred
 tools: Read, Write, Edit, Bash, Grep, Glob
 tier: standard
 model: sonnet
+effort: medium
 color: cyan
 ---
 

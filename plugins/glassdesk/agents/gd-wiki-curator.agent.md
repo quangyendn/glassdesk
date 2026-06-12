@@ -12,6 +12,7 @@ description: |
 tools: Read, Edit, Write, Glob, Grep, Bash
 tier: standard
 model: sonnet
+effort: medium
 color: green
 skills:
   - obsidian:obsidian-markdown

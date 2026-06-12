@@ -12,6 +12,7 @@ description: |
 tools: Read, Write, Edit, Bash, Grep, Glob
 tier: standard
 model: sonnet
+effort: medium
 color: red
 ---
 
