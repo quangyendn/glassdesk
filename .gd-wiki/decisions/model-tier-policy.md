@@ -17,13 +17,14 @@ Effort is a second cost lever: Claude Code's session effort defaults to `high`, 
 
 Introduce a tier policy covering both model and effort. Agents declare `tier:` in frontmatter. A central `config/models.yml` maps tier → Claude model alias + effort level. `bin/sync-models` resolves tier → model + effort and rewrites the `model:`/`effort:` fields that Claude Code reads at dispatch time. A pre-commit hook prevents drift.
 
-Effort follows a **barbell policy**: deepest reasoning where judgment errors are costly (`premium` = `xhigh`), real token savings on routine structured work (`standard` = `medium`, `light`/`external` = `low`).
+Effort follows a **balanced policy**: `xhigh` only where misdiagnosis is costliest (`deep` = debugging), `high` for premium judgment work, real token savings on routine structured work (`standard` = `medium`, `light`/`external` = `low`).
 
 ## Tiers
 
 | Tier | Model | Effort | Use cases |
 |---|---|---|---|
-| `premium` | opus | xhigh | Brainstorm, plan, spec, deep review, design judgment, security review |
+| `deep` | opus | xhigh | Root-cause debugging (`gd-debugger`) — misdiagnosis cost justifies the spend-up |
+| `premium` | opus | high | Brainstorm, plan, spec, deep review, design judgment, security review |
 | `thorough` | sonnet | high | Sonnet review agents where missed findings are costly (e.g. `gd-rust-reviewer`) |
 | `standard` | sonnet | medium | Coding, refactoring, doc writing, structured analysis (e.g. `gd-implementer`, `gd-tester`) |
 | `light` | sonnet | low | Trivial analysis and status reporting needing tool use (e.g. `gd-comment-analyzer`, `gd-project-manager`) |
@@ -49,8 +50,8 @@ Edit `plugins/glassdesk/config/models.yml`:
 ```yaml
 tiers:
   premium:
-    model: opus    # change these; affects all premium agents
-    effort: xhigh  # low | medium | high | xhigh | max; omit for haiku tiers
+    model: opus   # change these; affects all premium agents
+    effort: high  # low | medium | high | xhigh | max; omit for haiku tiers
 ```
 
 Then sync:
@@ -80,7 +81,7 @@ Blocks commits when any agent's `model:` or `effort:` is out of sync with its `t
 - Changing model or effort policy across all agents is now a one-file edit + one command
 - New agents must declare `tier:` to be managed by the policy; missing `tier:` = WARN + skip (not error) to preserve manual override path
 - Setting an unknown `tier:` or an invalid `effort:` value in `models.yml` produces ERROR + exit 1
-- `premium` agents now run at `xhigh` (deliberate spend-up vs the `high` session default); `standard` agents run at `medium` (token savings on the bulk of dispatches)
+- `gd-debugger` (`deep`) now runs at `xhigh` (deliberate spend-up vs the `high` session default); `standard` agents run at `medium` (token savings on the bulk of dispatches)
 
 ## Related Pages
 

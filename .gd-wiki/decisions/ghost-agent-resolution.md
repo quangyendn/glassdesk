@@ -24,7 +24,7 @@ Create all four missing agents with appropriate tiers. Half-measures (e.g., alia
 | `gd-project-manager` | standard (Sonnet) | Task extraction is mostly mechanical; Sonnet sufficient |
 | `gd-tester` | standard (Sonnet) | Test runs are Bash; failure interpretation needs medium judgment; Haiku risks missing subtle failures |
 
-> Update 2026-06-12: `gd-project-manager` later moved to the `light` tier (Sonnet, low effort) when effort enforcement was added — see [[model-tier-policy]].
+> Update 2026-06-12: when effort enforcement was added, `gd-project-manager` moved to the `light` tier (Sonnet, low effort) and `gd-debugger` to the `deep` tier (Opus, xhigh effort) — see [[model-tier-policy]].
 
 ## Planner Double-Spend Mitigation
 

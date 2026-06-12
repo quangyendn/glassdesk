@@ -11,7 +11,7 @@ description: |
   - Production error in Sentry → identify code path + reproduction conditions
   - Performance regression → bisect commits, identify hot path
 tools: Read, Grep, Glob, Bash, BashOutput, Task
-tier: premium
+tier: deep
 model: opus
 effort: xhigh
 color: red

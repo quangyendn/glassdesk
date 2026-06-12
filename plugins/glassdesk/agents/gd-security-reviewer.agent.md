@@ -4,7 +4,7 @@ description: Security vulnerability detection and remediation specialist. Use PR
 tools: Read, Write, Edit, Bash, Grep, Glob
 tier: premium
 model: opus
-effort: xhigh
+effort: high
 color: red
 ---
 

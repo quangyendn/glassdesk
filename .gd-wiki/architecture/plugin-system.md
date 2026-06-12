@@ -75,7 +75,7 @@ Key agents and their dispatch sources:
 |---|---|---|
 | `gd-planner` | premium | `/plan:hard` (planning skill) |
 | `gd-architect` | premium | `/plan`, `/plan:hard` |
-| `gd-debugger` | premium | `/debug`, `/fix:hard` |
+| `gd-debugger` | deep | `/debug`, `/fix:hard` |
 | `gd-researcher` | standard | `/plan:hard` |
 | `gd-implementer` | standard | building skill Step 2 |
 | `gd-project-manager` | light | building skill |
