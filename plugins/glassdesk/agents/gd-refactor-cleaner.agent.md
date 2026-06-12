@@ -4,6 +4,7 @@ description: Dead code cleanup and consolidation specialist. Use PROACTIVELY for
 tools: Read, Write, Edit, Bash, Grep, Glob
 tier: standard
 model: sonnet
+effort: medium
 color: pink
 ---
 

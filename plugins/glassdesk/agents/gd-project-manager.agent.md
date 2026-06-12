@@ -10,8 +10,9 @@ description: |
   - Multi-file refactor → break into atomic-commit-sized tasks
   - Plan finalize → mark phase status DONE with timestamp in plan.md
 tools: Read, Grep, Glob, Edit, Write, TodoWrite
-tier: standard
+tier: light
 model: sonnet
+effort: low
 color: blue
 ---
 

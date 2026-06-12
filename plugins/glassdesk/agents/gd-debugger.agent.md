@@ -13,6 +13,7 @@ description: |
 tools: Read, Grep, Glob, Bash, BashOutput, Task
 tier: premium
 model: opus
+effort: xhigh
 color: red
 ---
 

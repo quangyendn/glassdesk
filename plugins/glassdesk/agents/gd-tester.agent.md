@@ -12,6 +12,7 @@ description: |
 tools: Bash, BashOutput, Read, Grep, Glob
 tier: standard
 model: sonnet
+effort: medium
 color: cyan
 ---
 

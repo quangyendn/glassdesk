@@ -1,15 +1,15 @@
 ---
 title: "Model Tier Drift"
-updated: 2026-04-29
+updated: 2026-06-12
 tags: [category/risk, model-routing, agents, drift]
-summary: "Agent model: fields can drift from their tier: declaration if bin/sync-models is not run after models.yml or agent frontmatter changes; the optional pre-commit hook prevents this."
+summary: "Agent model:/effort: fields can drift from their tier: declaration if bin/sync-models is not run after models.yml or agent frontmatter changes; the optional pre-commit hook prevents this."
 ---
 
-Agent `model:` fields can silently drift from their `tier:` declaration if `bin/sync-models` is not run after changing `models.yml` or agent frontmatter. The result is agents running at an unintended model without any error.
+Agent `model:` and `effort:` fields can silently drift from their `tier:` declaration if `bin/sync-models` is not run after changing `models.yml` or agent frontmatter. The result is agents running at an unintended model or reasoning effort without any error.
 
 ## Risk
 
-A developer adds a new agent with `tier: premium` but forgets to run `bin/sync-models`. The agent's `model:` field is either absent (Claude Code falls back to session model) or set to a stale value (wrong tier). The diff shows only `tier: premium` but not `model: opus`, and reviewers may miss it.
+A developer adds a new agent with `tier: premium` but forgets to run `bin/sync-models`. The agent's `model:`/`effort:` fields are either absent (Claude Code falls back to session model and effort) or set to stale values (wrong tier). The diff shows only `tier: premium` but not `model: opus` / `effort: xhigh`, and reviewers may miss it. Effort drift is especially quiet: the agent still works, it just silently over- or under-spends reasoning tokens.
 
 ## Mitigation Options
 
@@ -19,7 +19,7 @@ A developer adds a new agent with `tier: premium` but forgets to run `bin/sync-m
 bash plugins/glassdesk/scripts/install-dev-hooks.sh
 ```
 
-Installs a pre-commit hook that runs `bin/sync-models --check`. If any agent's `model:` is out of sync with its `tier:`, the commit is blocked with an actionable message.
+Installs a pre-commit hook that runs `bin/sync-models --check`. If any agent's `model:` or `effort:` is out of sync with its `tier:`, the commit is blocked with an actionable message. This includes a stray `effort:` on an agent whose tier defines none (haiku tiers don't support effort) — sync removes it.
 
 ### Option 2: Manual Sync
 

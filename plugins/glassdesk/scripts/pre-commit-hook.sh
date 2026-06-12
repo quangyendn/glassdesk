@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Glassdesk pre-commit guard — blocks commits when agent tier:/model: drift detected.
+# Glassdesk pre-commit guard — blocks commits when agent tier:/model:/effort: drift detected.
 # Installed via plugins/glassdesk/scripts/install-dev-hooks.sh.
 
 set -e
@@ -19,7 +19,7 @@ fi
 
 if ! "$SYNC" --check; then
   echo ""
-  echo "ERROR: Agent model drift detected."
+  echo "ERROR: Agent model/effort drift detected."
   echo "   Run: plugins/glassdesk/bin/sync-models"
   echo "   Then: git add plugins/glassdesk/agents/ && git commit"
   exit 1

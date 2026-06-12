@@ -4,6 +4,7 @@ description: Deeply analyzes existing codebase features by tracing execution pat
 tools: Read, Grep, Glob, Bash
 tier: standard
 model: sonnet
+effort: medium
 color: purple
 ---
 

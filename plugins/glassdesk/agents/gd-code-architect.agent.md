@@ -4,6 +4,7 @@ description: Designs feature architectures by analyzing existing codebase patter
 tools: Read, Grep, Glob, Bash
 tier: standard
 model: sonnet
+effort: medium
 color: blue
 ---
 

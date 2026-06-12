@@ -4,6 +4,7 @@ description: Software architecture specialist for system design, scalability, an
 tools: Read, Grep, Glob
 tier: premium
 model: opus
+effort: xhigh
 color: blue
 ---
 

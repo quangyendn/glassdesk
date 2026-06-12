@@ -1,27 +1,48 @@
-# Tier → model mapping. Single source of truth for agent model assignment.
+# Tier → model + effort mapping. Single source of truth for agent model
+# and reasoning-effort assignment.
 # Edit this file then run `bin/sync-models` to apply changes to agent frontmatter.
 #
 # Schema:
 #   tiers.<name>.model        : Claude model alias (opus | sonnet | haiku)
+#   tiers.<name>.effort       : reasoning effort (low | medium | high | xhigh | max);
+#                               omit for models without effort support (haiku)
 #   tiers.<name>.description  : human-readable purpose
 #   tiers.<name>.cli          : (external only) external CLI name
 #   tiers.<name>.cli_model    : (external only) model passed to external CLI
+#
+# Effort policy (barbell): spend deepest reasoning where judgment errors are
+# costly (premium=xhigh), save tokens on routine structured work
+# (standard=medium, light/external=low). Session default is `high`, so
+# `medium`/`low` are real savings and `xhigh` is a deliberate spend-up.
 
 tiers:
   premium:
     model: opus
+    effort: xhigh
     description: Brainstorm, plan, spec, deep review, design judgment
+
+  thorough:
+    model: sonnet
+    effort: high
+    description: Review agents where missed findings are costly (security, silent failures)
 
   standard:
     model: sonnet
+    effort: medium
     description: Coding, refactoring, doc writing, structured analysis
+
+  light:
+    model: sonnet
+    effort: low
+    description: Trivial analysis, status reporting, comment checks needing tool use
 
   fast:
     model: haiku
-    description: Trivial edits, simple scout, comment checks
+    description: Trivial edits, simple scout, comment checks (haiku has no effort support)
 
   external:
     model: sonnet
+    effort: low
     cli: gemini
     cli_model: gemini-2.5-flash
     description: External agentic tools (Gemini for high-volume scout). Sonnet is fallback when CLI unavailable.

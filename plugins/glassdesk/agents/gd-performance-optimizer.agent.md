@@ -4,6 +4,7 @@ description: Performance analysis and optimization specialist. Use PROACTIVELY f
 tools: Read, Write, Edit, Bash, Grep, Glob
 tier: standard
 model: sonnet
+effort: medium
 color: orange
 ---
 

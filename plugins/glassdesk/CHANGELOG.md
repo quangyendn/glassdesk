@@ -20,6 +20,11 @@
 
 ## [Unreleased]
 
+### Added
+
+- **Effort enforcement in tier policy** — `config/models.yml` tiers now declare `effort:` alongside `model:` (barbell policy: `premium` = `xhigh`, `standard` = `medium`, `light`/`external` = `low`; haiku-backed `fast` omits effort since Haiku doesn't support it). `bin/sync-models` syncs both `model:` and `effort:` frontmatter fields, validates effort values, removes stray `effort:` from agents whose tier defines none, and the pre-commit drift guard covers both fields.
+- **New tiers `thorough` (sonnet/high) and `light` (sonnet/low)** — `gd-rust-reviewer` moves `standard` → `thorough`; `gd-comment-analyzer` and `gd-project-manager` move `standard` → `light`.
+
 ## [0.5.1] — 2026-05-28
 
 ### Fixed

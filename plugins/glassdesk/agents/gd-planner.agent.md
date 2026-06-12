@@ -12,6 +12,7 @@ description: |
 tools: Read, Grep, Glob, Write, Bash, TodoWrite
 tier: premium
 model: opus
+effort: xhigh
 color: blue
 ---
 
