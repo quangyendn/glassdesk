@@ -16,13 +16,12 @@ When given a search task, you will orchestrate multiple external agentic coding 
 
 ## Critical Operating Constraints
 
-**IMPORTANT**: You orchestrate external agentic coding tools via Bash:
+**IMPORTANT**: You orchestrate the Antigravity CLI (`agy`) via Bash:
 - Use Bash tool directly to run external commands (no Task tool needed)
 - Call multiple Bash commands in parallel (single message) for speed:
-  - `gemini -y -p "[prompt]" --model gemini-2.5-flash`
-  - `opencode run "[prompt]" --model opencode/grok-code`
+  - `agy -p "[prompt]" --model "Gemini 3.5 Flash (Medium)" --add-dir "$(pwd)" --dangerously-skip-permissions`
 - You analyze and synthesize the results from these external tools
-- Fallback to Glob/Grep/Read if external tools unavailable
+- Fallback to Glob/Grep/Read if `agy` is unavailable
 - Ensure token efficiency while maintaining high quality.
 
 ## Operational Protocol
@@ -48,12 +47,16 @@ For each parallel agent, create a focused prompt that:
 - Sets a 3-minute timeout expectation
 
 Example prompt structure:
-"Search the [directories] for files related to [functionality]. Look for [specific patterns like API routes, schema definitions, utility functions]. Return only the file paths that are directly relevant. Be concise and fast - you have 3 minutes."
+"Search the [directories] for files related to [functionality]. Look for [specific patterns like API routes, schema definitions, utility functions]. Return repo-relative file paths only, one per line, as plain text. No markdown links, no prose. Be concise and fast - you have 3 minutes."
+
+**Always keep the "plain text / no markdown links" clause.** Without it `agy`
+returns `[name.ts](file:///absolute/path)` markdown links instead of paths, and
+does so inconsistently across parallel calls given identical phrasing.
 
 ### 4. Launch Parallel Search Operations
 - Call multiple Bash commands in a single message for parallel execution
-- For SCALE ≤ 3: Use only Gemini CLI
-- For SCALE > 3: Use both Gemini and OpenCode CLI for diversity
+- For SCALE ≤ 3: Use `agy`
+- For SCALE ≥ 4: Use `Explore` subagents — `agy` is the only external CLI now
 - Set 3-minute timeout for each command
 - Do NOT restart commands that timeout - skip them and continue
 
@@ -64,19 +67,22 @@ Example prompt structure:
 - Identify any gaps in coverage if commands timed out
 - Present a clean, organized list to the user
 
-## Command Templates
+## Command Template
 
-**Gemini CLI**:
+**Antigravity CLI** (`agy`):
 ```bash
-gemini -y -p "[your focused search prompt]" --model gemini-2.5-flash
+agy -p "[your focused search prompt]" --model "Gemini 3.5 Flash (Medium)" --add-dir "$(pwd)" --dangerously-skip-permissions
 ```
 
-**OpenCode CLI** (use when SCALE > 3):
-```bash
-opencode run "[your focused search prompt]" --model opencode/grok-code
-```
+Every flag matters — see `skills/scouting/references/external-tools.md` for why.
+Two failure modes are silent and worth memorising:
 
-**NOTE:** If `gemini` or `opencode` is not available, fallback to Glob/Grep/Read tools directly.
+- **Omit `--add-dir`** → `agy` runs in its own scratch dir, not your repo, and
+  reports the codebase as empty.
+- **Pass a model slug** (e.g. `gemini-2.5-flash`) → `agy` silently falls back to
+  its default model and exits 0. Use the exact display label from `agy models`.
+
+**NOTE:** If `agy` is not available, fallback to Glob/Grep/Read tools directly.
 
 ## Example Execution Flow
 
@@ -90,9 +96,9 @@ opencode run "[your focused search prompt]" --model opencode/grok-code
 - Agent 3: Search components/ and app/ for email UI components
 
 **Your Actions** (call all Bash commands in parallel in single message):
-1. Bash: `gemini -y -p "Search lib/ for email-related files. Return file paths only." --model gemini-2.5-flash`
-2. Bash: `gemini -y -p "Search app/api/ for email API routes. Return file paths only." --model gemini-2.5-flash`
-3. Bash: `gemini -y -p "Search components/ for email UI components. Return file paths only." --model gemini-2.5-flash`
+1. Bash: `agy -p "Search lib/ for email-related files. Return repo-relative file paths only, one per line, as plain text. No markdown links, no prose." --model "Gemini 3.5 Flash (Medium)" --add-dir "$(pwd)" --dangerously-skip-permissions`
+2. Bash: `agy -p "Search app/api/ for email API routes. Return repo-relative file paths only, one per line, as plain text. No markdown links, no prose." --model "Gemini 3.5 Flash (Medium)" --add-dir "$(pwd)" --dangerously-skip-permissions`
+3. Bash: `agy -p "Search components/ for email UI components. Return repo-relative file paths only, one per line, as plain text. No markdown links, no prose." --model "Gemini 3.5 Flash (Medium)" --add-dir "$(pwd)" --dangerously-skip-permissions`
 
 **Your Synthesis**:
 "Found 8 email-related files:
@@ -119,7 +125,7 @@ opencode run "[your focused search prompt]" --model opencode/grok-code
 ## Handling Large Files (>25K tokens)
 
 When Read fails with "exceeds maximum allowed tokens":
-1. **Gemini CLI** (2M context): `echo "[question] in [path]" | gemini -y -m gemini-2.5-flash`
+1. **Antigravity CLI** (large context): `agy -p "[question] about [path]" --model "Gemini 3.5 Flash (Medium)" --add-dir "$(pwd)" --dangerously-skip-permissions`
 2. **Chunked Read**: Use `offset` and `limit` params to read in portions
 3. **Grep**: Search specific content with `Grep pattern="[term]" path="[path]"`
 4. **Targeted Search**: Use Glob and Grep for specific patterns

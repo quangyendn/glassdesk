@@ -49,6 +49,8 @@ tiers:
   external:
     model: sonnet
     effort: low
-    cli: gemini
-    cli_model: gemini-2.5-flash
-    description: External agentic tools (Gemini for high-volume scout). Sonnet is fallback when CLI unavailable.
+    cli: agy
+    cli_model: Gemini 3.5 Flash (Medium)
+    description: External agentic tools (Antigravity CLI for high-volume scout). Sonnet is fallback when CLI unavailable.
+    # cli_model MUST be an exact display label from `agy models` — agy silently
+    # falls back to its default model on an unknown name instead of erroring.

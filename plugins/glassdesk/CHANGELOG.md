@@ -25,6 +25,38 @@
 - **Effort enforcement in tier policy** — `config/models.yml` tiers now declare `effort:` alongside `model:` (balanced policy: `deep` = `xhigh`, `premium` = `high`, `standard` = `medium`, `light`/`external` = `low`; haiku-backed `fast` omits effort since Haiku doesn't support it). `bin/sync-models` syncs both `model:` and `effort:` frontmatter fields, validates effort values, removes stray `effort:` from agents whose tier defines none, and the pre-commit drift guard covers both fields.
 - **New tiers `deep` (opus/xhigh), `thorough` (sonnet/high), and `light` (sonnet/low)** — `gd-debugger` moves `premium` → `deep`; `gd-rust-reviewer` moves `standard` → `thorough`; `gd-comment-analyzer` and `gd-project-manager` move `standard` → `light`.
 
+### Changed
+
+- **External scouting migrated from Gemini CLI to Antigravity CLI (`agy`)** — Google retired Gemini CLI's free OAuth tier on 2026-06-18; `gemini -y -p` now fails with `IneligibleTierError: UNSUPPORTED_CLIENT`, so `/scout:ext` and `gd-scout-external` were broken in the field. Verified replacement call, measured against `agy` 1.1.3:
+
+  ```bash
+  agy -p "[prompt]" --model "Gemini 3.5 Flash (Medium)" --add-dir "$(pwd)" --dangerously-skip-permissions
+  ```
+
+  Two flags are non-obvious and silently corrupt results if dropped. `--add-dir` is mandatory: `agy` does **not** inherit the shell's cwd, and without it scans `~/.gemini/antigravity-cli/scratch` and reports the repo as empty. `--model` takes an **exact display label** from `agy models` (e.g. `Gemini 3.5 Flash (Medium)`), not a slug — an unknown name does not error, it silently falls back to the default model and exits 0. `--dangerously-skip-permissions` is the direct equivalent of the old `gemini -y`: headless mode cannot render a permission prompt, so every file-read is auto-denied without it.
+
+  Scout prompts now end with `Return repo-relative file paths only, one per line, as plain text. No markdown links, no prose.` Without that clause `agy` returns `[name.ts](file:///absolute/path)` markdown links instead of paths, and does so **inconsistently across parallel calls given identical phrasing** — in a 3-agent dispatch, two returned links and one returned plain paths. The clause makes output uniform and parseable.
+
+  Verified end-to-end: a 3-agent parallel `/scout:ext` dispatch over a full copy of this repo (470 files) returned correct, deduplicable paths from each agent, and modified nothing despite `--dangerously-skip-permissions`.
+
+  Touched: `config/models.yml` (tier `external`), `agents/gd-scout-external.agent.md`, `agents/gd-scout.agent.md` (large-file fallback), `skills/scouting/SKILL.md`, `skills/scouting/references/external-tools.md`, `commands/scout/ext.md`.
+
+- **Install hint corrected** — `npm i -g @anthropic/gemini-cli` never existed (the real package was `@google/gemini-cli`). Now points at the Antigravity installer. Touched: `README.md`, `docs/quick-start.md`, and the repo's `CLAUDE.md` / `AGENTS.md`.
+
+### Removed
+
+- **OpenCode dropped from external scouting** — the documented `--model opencode/grok-code` no longer resolves (the model is gone and the provider/model format no longer matches), so the SCALE 4-5 tier was dead code. SCALE ≥4 now routes to `Explore` subagents. `agy` is the only external CLI.
+
+### Fixed
+
+- **`ai-multimodal`: removed a dead Gemini CLI tip** — `SKILL.md` told the agent to prefer `gemini -y -m gemini-2.5-flash` for image analysis, which now always fails before falling back, costing a wasted round-trip per image. The skill's scripts never used the CLI: they call the Gemini **API** via the `google-genai` SDK, which is a separate product and unaffected by the CLI retirement. No script changed.
+
+### Notes
+
+- **Antigravity CLI is not a media tool.** It authenticates via system keyring / Google Sign-In and accepts **no API key** ([#78](https://github.com/google-antigravity/antigravity-cli/issues/78) is open), and its headless media input is unverified — audio is explicitly unsupported ([#244](https://github.com/google-antigravity/antigravity-cli/issues/244)). `ai-multimodal` stays on the `google-genai` SDK. Do not route media through `agy`.
+- **`agy` needs a prior interactive sign-in**, sharing its session with the Antigravity IDE. On a machine that has never signed in, external scouting falls back to `Explore` subagents.
+- **Upcoming deadline for `ai-multimodal`** — Google rejects unrestricted standard Gemini API keys from 2026-06-19 and **all** standard keys from 2026-09. Documented in `skills/ai-multimodal/.env.example` and `SKILL.md`. Unrelated to the CLI change, but it lands on the same skill.
+
 ## [0.5.1] — 2026-05-28
 
 ### Fixed
