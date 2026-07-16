@@ -140,7 +140,7 @@ User specs (output of `/spec`): `docs/specs/`
 |---------|---------|
 | AI Multimodal | `pip install google-genai` + `GEMINI_API_KEY` |
 | Media Processing | `brew install ffmpeg imagemagick && npm i -g rmbg-cli` |
-| External Scouts | `npm i -g @anthropic/gemini-cli` |
+| External Scouts | `curl -fsSL https://antigravity.google/cli/install.sh \| bash` (Antigravity CLI) |
 
 See `plugins/glassdesk/docs/quick-start.md` for complete setup instructions.
 

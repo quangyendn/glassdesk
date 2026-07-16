@@ -23,7 +23,7 @@ For source-code files (`.ts`, `.tsx`, `.py`, `.rb`, `.go`, `.rs`, `.js`, `.jsx`,
 | Mode | When | Tools |
 |------|------|-------|
 | Internal | Default | Glob, Grep, Bash, Explore subagents |
-| External | Large codebases, token efficiency | gemini CLI, opencode CLI |
+| External | Large codebases, token efficiency | Antigravity CLI (`agy`) |
 
 ## Step 0: Wiki Recall (pre-flight, before scout)
 
@@ -38,11 +38,13 @@ Missing both = scout output is incomplete; revise before delivering.
 ## Implementation
 
 Load: `references/internal-scout.md` for codebase exploration heuristics and tool selection.
-Load: `references/external-tools.md` for external agentic tool (gemini/opencode) invocation patterns.
+Load: `references/external-tools.md` for Antigravity CLI (`agy`) invocation patterns.
 
 ## Common Mistakes
 
 - Using external tools when internal grep would suffice (overkill)
 - Running agents serially instead of in parallel
 - Not dividing search areas intelligently across agents
-- Calling search tools yourself when the task is to kick off external agents (use Bash → gemini/opencode instead)
+- Calling search tools yourself when the task is to kick off external agents (use Bash → `agy` instead)
+- Dropping `--add-dir` from an `agy` call — it then scans an empty scratch dir and reports the repo as empty
+- Passing a model slug to `agy` instead of the exact display label — it silently runs a different model

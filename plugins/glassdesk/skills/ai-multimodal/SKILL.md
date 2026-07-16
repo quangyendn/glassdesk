@@ -16,11 +16,20 @@ export GEMINI_API_KEY="your-key"  # Get from https://aistudio.google.com/apikey
 pip install google-genai python-dotenv pillow
 ```
 
+> **This skill uses the Gemini API, not the Gemini CLI.** The CLI's free tier was
+> retired on 2026-06-18 and replaced by Antigravity CLI (`agy`); the API is a
+> separate product and is unaffected. Do not route media work through `agy` — it
+> takes no API key and its headless media support is unverified.
+>
+> **Deadline:** Google rejects unrestricted standard API keys from 2026-06-19 and
+> **all** standard keys from 2026-09. If media tasks start failing on auth, mint
+> an auth key at https://aistudio.google.com/apikey rather than debugging this
+> skill.
+
 ## Quick Start
 
 **Verify setup**: `python scripts/check_setup.py`
 **Analyze media**: `python scripts/gemini_batch_process.py --files <file> --task <analyze|transcribe|extract>`
-  - TIP: When you're asked to analyze an image, check if `gemini` command is available, then use `"<prompt to analyze image>" | gemini -y -m gemini-2.5-flash` command. If `gemini` command is not available, use `python scripts/gemini_batch_process.py --files <file> --task analyze` command.
 **Generate content**: `python scripts/gemini_batch_process.py --task <generate|generate-video> --prompt "description"`
 
 > **Stdin support**: You can pipe files directly via stdin (auto-detects PNG/JPG/PDF/WAV/MP3).

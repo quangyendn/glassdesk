@@ -164,7 +164,7 @@ brew install ffmpeg imagemagick
 npm install -g rmbg-cli
 
 # External Scouts
-npm install -g @anthropic/gemini-cli
+curl -fsSL https://antigravity.google/cli/install.sh | bash
 ```
 
 ### Serena MCP (recommended for code-heavy work)
