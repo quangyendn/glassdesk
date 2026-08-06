@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Slash Commands
 
-Available commands in `.claude/commands/` — 27 total:
+Available commands in `.claude/commands/` — 28 total:
 
 | Phase | Commands |
 |-------|----------|
@@ -14,7 +14,7 @@ Available commands in `.claude/commands/` — 27 total:
 | **VERIFY** | `/fix`, `/fix:hard`, `/debug`, `/test:ui` |
 | **REVIEW** | `/review:pr` |
 | **SHIP** | `/git:cm`, `/git:cp`, `/git:pr` |
-| **WIKI** | `/wiki:init`, `/wiki:update`, `/wiki:lint` |
+| **WIKI** | `/wiki`, `/wiki:init`, `/wiki:update`, `/wiki:lint` |
 | **COMPOUND** | `/spec`, `/learn`, `/improve` |
 
 ### DISCOVER
@@ -51,6 +51,7 @@ Available commands in `.claude/commands/` — 27 total:
 - `/git:pr` - Create a pull request
 
 ### WIKI
+- `/wiki` - Wiki maintainer entry point; dispatches to the subcommands below
 - `/wiki:init` - Bootstrap `.gd-wiki/` Obsidian-flavored vault, register QMD collection, run first embed
 - `/wiki:update` - Distill new commits since last sync into wiki pages (main branch only)
 - `/wiki:lint` - Deterministic checks (broken links, orphans, stale frontmatter); `--deep` runs LLM contradiction sweep
@@ -62,7 +63,7 @@ Available commands in `.claude/commands/` — 27 total:
 
 ## Skills
 
-Skills available in `plugins/glassdesk/skills/` (10 total):
+Skills available in `plugins/glassdesk/skills/` (12 total):
 - `planning` - Plan creation, organization, and validation
 - `building` - Phase-by-phase plan execution with verification gates
 - `code-review` - Code review reception, requesting reviews, verification gates
@@ -71,6 +72,8 @@ Skills available in `plugins/glassdesk/skills/` (10 total):
 - `scouting` - Codebase exploration with internal and external tools
 - `brainstorming` - Option evaluation, design decisions, spec formalization
 - `compounding` - Session insight extraction, knowledge base, improvement proposals
+- `wiki` - `.gd-wiki/` maintenance, commit distillation, wiki query and lint
+- `creative-writing` - Prose drafting and editing that reads as human-written
 - `ai-multimodal` - Image generation/analysis, video processing, audio transcription
 - `media-processing` - FFmpeg video encoding, ImageMagick editing, background removal
 
