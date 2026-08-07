@@ -281,3 +281,56 @@ test('gateContext counts objective/constraints/out_of_scope/acceptance_criteria 
     assert.match(e.message, /max_context_bytes/);
   }
 });
+
+// --- Round 2 review: field-type guards, not just element-type guards ------
+
+test('gateContext rejects a non-array constraints field — fail closed', (t) => {
+  const dir = scratch({});
+  cleanup(t, dir);
+  try {
+    gateContext({ constraints: 'not an array' }, {}, dir);
+    assert.fail('expected GateError');
+  } catch (e) {
+    assert.ok(e instanceof GateError, `expected GateError, got ${e.constructor.name}`);
+    assert.equal(e.code, EXIT.PRIVACY);
+    assert.match(e.message, /constraints/);
+  }
+});
+
+test('gateContext rejects a non-array out_of_scope field — fail closed', (t) => {
+  const dir = scratch({});
+  cleanup(t, dir);
+  try {
+    gateContext({ out_of_scope: 42 }, {}, dir);
+    assert.fail('expected GateError');
+  } catch (e) {
+    assert.ok(e instanceof GateError, `expected GateError, got ${e.constructor.name}`);
+    assert.equal(e.code, EXIT.PRIVACY);
+    assert.match(e.message, /out_of_scope/);
+  }
+});
+
+test('gateContext rejects a non-array acceptance_criteria field — fail closed', (t) => {
+  const dir = scratch({});
+  cleanup(t, dir);
+  try {
+    gateContext({ acceptance_criteria: { not: 'an array' } }, {}, dir);
+    assert.fail('expected GateError');
+  } catch (e) {
+    assert.ok(e instanceof GateError, `expected GateError, got ${e.constructor.name}`);
+    assert.equal(e.code, EXIT.PRIVACY);
+    assert.match(e.message, /acceptance_criteria/);
+  }
+});
+
+test('gateContext rejects a non-object context.inline entry — fail closed', (t) => {
+  const dir = scratch({});
+  cleanup(t, dir);
+  try {
+    gateContext({ context: { inline: [123] } }, {}, dir);
+    assert.fail('expected GateError');
+  } catch (e) {
+    assert.ok(e instanceof GateError, `expected GateError, got ${e.constructor.name}`);
+    assert.equal(e.code, EXIT.PRIVACY);
+  }
+});

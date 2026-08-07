@@ -131,7 +131,13 @@ export function gateContext(task, defaults = {}, scopeRoot = process.cwd()) {
   }
 
   for (const item of task?.context?.inline ?? []) {
-    const raw = item?.content;
+    if (typeof item !== 'object' || item === null || Array.isArray(item)) {
+      throw new GateError(
+        EXIT.PRIVACY,
+        `context.inline entry ${JSON.stringify(item)} must be an object`,
+      );
+    }
+    const raw = item.content;
     if (raw !== undefined && raw !== null && typeof raw !== 'string') {
       throw new GateError(
         EXIT.PRIVACY,
@@ -188,6 +194,9 @@ export function gateContext(task, defaults = {}, scopeRoot = process.cwd()) {
     ['out_of_scope', task?.out_of_scope],
     ['acceptance_criteria', task?.acceptance_criteria],
   ]) {
+    if (arr !== undefined && !Array.isArray(arr)) {
+      throw new GateError(EXIT.PRIVACY, `${field} must be an array of strings`);
+    }
     (arr ?? []).forEach((entry, i) => {
       if (typeof entry !== 'string') {
         throw new GateError(EXIT.PRIVACY, `${field}[${i}] must be a string`);
