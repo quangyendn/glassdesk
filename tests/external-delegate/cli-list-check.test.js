@@ -110,3 +110,31 @@ test('GD_EXTERNAL_PROVIDERS pointing at a broken file exits 20', () => {
   assert.equal(r.status, 20);
   fs.unlinkSync(tmp);
 });
+
+test('check --mode with no value exits 12 and says it requires a value', (t) => {
+  const binDir = stubBinDir(['opencode']);
+  t.after(() => fs.rmSync(binDir, { recursive: true, force: true }));
+  const r = run(['check', '--provider', 'opencode', '--mode'], { PATH: binDir });
+  assert.equal(r.status, 12);
+  assert.match(r.stderr, /--mode requires a value/);
+});
+
+test('check --task-type with no value exits 12 and says it requires a value', (t) => {
+  const binDir = stubBinDir(['opencode']);
+  t.after(() => fs.rmSync(binDir, { recursive: true, force: true }));
+  const r = run(['check', '--provider', 'opencode', '--task-type'], { PATH: binDir });
+  assert.equal(r.status, 12);
+  assert.match(r.stderr, /--task-type requires a value/);
+});
+
+test('check with no --provider at all still exits 12 and says it is required', () => {
+  const r = run(['check']);
+  assert.equal(r.status, 12);
+  assert.match(r.stderr, /--provider is required/);
+});
+
+test('--help with no subcommand prints usage and exits 0', () => {
+  const r = run(['--help']);
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /usage/i);
+});

@@ -52,6 +52,19 @@ export function parseArgs(argv) {
   return { command, flags };
 }
 
+// A flag followed by nothing, or by another --flag, parses as boolean true.
+// Treating that as "absent" silently drops what the caller asked for, so
+// every value-bearing flag must reject it.
+export function flagValue(flags, name, { required = false, fallback = undefined } = {}) {
+  const v = flags[name];
+  if (v === true) die(EXIT.UNSUPPORTED, `--${name} requires a value`);
+  if (v === undefined || v === '') {
+    if (required) die(EXIT.UNSUPPORTED, `--${name} is required`);
+    return fallback;
+  }
+  return v;
+}
+
 function cmdList(registry, flags) {
   const probes = probeAll(registry);
   const providers = probes.map((p) => {
@@ -94,19 +107,19 @@ function resolveProvider(registry, name) {
 }
 
 function cmdCheck(registry, flags) {
-  const name = flags.provider;
-  if (!name || name === true) die(EXIT.UNSUPPORTED, '--provider is required');
+  const name = flagValue(flags, 'provider', { required: true });
   const entry = resolveProvider(registry, name);
 
   const probe = probeProvider(name, entry);
   if (!probe.available) die(probe.code, `${name}: ${probe.reason}`);
 
-  const mode = flags.mode && flags.mode !== true ? flags.mode : registry.defaults?.mode ?? 'advisory';
+  const mode = flagValue(flags, 'mode', { fallback: registry.defaults?.mode ?? 'advisory' });
   const modeGate = gateMode(entry, mode);
   if (modeGate) die(modeGate.code, `${name}: ${modeGate.message}`);
 
-  if (flags['task-type'] && flags['task-type'] !== true) {
-    const capGate = gateCapability(entry, flags['task-type']);
+  const taskType = flagValue(flags, 'task-type');
+  if (taskType !== undefined) {
+    const capGate = gateCapability(entry, taskType);
     if (capGate) die(capGate.code, `${name}: ${capGate.message}`);
   }
 
@@ -117,7 +130,7 @@ function cmdCheck(registry, flags) {
 async function main() {
   const { command, flags } = parseArgs(process.argv.slice(2));
 
-  if (!command || command === 'help' || flags.help) {
+  if (!command || command === 'help' || command === '--help' || command === '-h' || flags.help) {
     process.stdout.write(`${USAGE}\n`);
     process.exit(EXIT.OK);
   }
