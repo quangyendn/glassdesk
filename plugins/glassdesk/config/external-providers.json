@@ -1,0 +1,237 @@
+{
+  "version": 1,
+  "defaults": {
+    "timeout_seconds": 300,
+    "mode": "advisory",
+    "max_context_bytes": 400000
+  },
+  "providers": {
+    "opencode": {
+      "type": "cli-agent",
+      "enabled": "auto",
+      "priority": 10,
+      "bin": "opencode",
+      "default_model": "opencode/deepseek-v4-flash-free",
+      "modes": ["advisory", "repository-read"],
+      "capabilities": [
+        "analysis",
+        "code-review",
+        "architecture-review",
+        "debugging",
+        "repository-investigation",
+        "security-review",
+        "adversarial-review",
+        "documentation"
+      ],
+      "privacy": {
+        "execution": "external-service",
+        "restricted_data_allowed": false
+      },
+      "cost": "free",
+      "latency": "fast",
+      "auth_error_pattern": "(no credentials|not authenticated|please log in)",
+      "notes": "Default advisory provider: runs with zero credentials on free models, and its model family is independent of Claude. Three traps, all measured on 1.15.6 — (1) a denied write can hang past 2m30s, so --agent plan plus a hard timeout are both required; (2) without --pure it loads the user's global MCP servers and will route around a write denial through them; (3) it spawns its own subagents unless permission.task is denied.",
+      "invoke": {
+        "advisory": {
+          "argv": [
+            "run", "--pure", "--agent", "plan", "--format", "json",
+            "-m", "{model}", "{prompt}"
+          ],
+          "env": {
+            "OPENCODE_DISABLE_PROJECT_CONFIG": "1",
+            "OPENCODE_CONFIG_CONTENT": "{policy}"
+          },
+          "policy": {
+            "permission": {
+              "edit": "deny",
+              "write": "deny",
+              "bash": "deny",
+              "webfetch": "deny",
+              "task": "deny"
+            },
+            "mcp": {}
+          }
+        },
+        "repository-read": {
+          "argv": [
+            "run", "--pure", "--agent", "plan", "--format", "json",
+            "--dir", "{dir}", "-m", "{model}", "{prompt}"
+          ],
+          "env": {
+            "OPENCODE_DISABLE_PROJECT_CONFIG": "1",
+            "OPENCODE_CONFIG_CONTENT": "{policy}"
+          },
+          "policy": {
+            "permission": {
+              "edit": "deny",
+              "write": "deny",
+              "bash": "deny",
+              "webfetch": "deny",
+              "task": "deny"
+            },
+            "mcp": {}
+          }
+        }
+      }
+    },
+
+    "codex": {
+      "type": "cli-agent",
+      "enabled": "auto",
+      "priority": 20,
+      "bin": "codex",
+      "default_model": null,
+      "modes": ["advisory", "repository-read", "patch-proposal"],
+      "capabilities": [
+        "code-review",
+        "debugging",
+        "repository-investigation",
+        "implementation-proposal",
+        "test-generation",
+        "security-review"
+      ],
+      "privacy": {
+        "execution": "external-service",
+        "restricted_data_allowed": false
+      },
+      "cost": "medium",
+      "latency": "medium",
+      "auth_error_pattern": "(not logged in|codex login|authentication)",
+      "notes": "Strongest agentic option and the only provider offering patch-proposal. Requires a ChatGPT sign-in. Runs under --sandbox read-only for advisory and repository-read; patch-proposal asks for a unified diff in the prompt and still forbids applying it.",
+      "invoke": {
+        "advisory": {
+          "argv": ["exec", "--sandbox", "read-only", "{prompt}"],
+          "env": {}
+        },
+        "repository-read": {
+          "argv": ["exec", "--sandbox", "read-only", "--cd", "{dir}", "{prompt}"],
+          "env": {}
+        },
+        "patch-proposal": {
+          "argv": ["exec", "--sandbox", "read-only", "--cd", "{dir}", "{prompt}"],
+          "env": {}
+        }
+      }
+    },
+
+    "agy": {
+      "type": "cli-agent",
+      "enabled": "auto",
+      "priority": 30,
+      "bin": "agy",
+      "default_model": "Gemini 3.5 Flash (Medium)",
+      "modes": ["advisory", "repository-read"],
+      "capabilities": [
+        "analysis",
+        "code-review",
+        "architecture-review",
+        "research",
+        "multimodal-analysis",
+        "long-context-analysis",
+        "documentation"
+      ],
+      "privacy": {
+        "execution": "external-service",
+        "restricted_data_allowed": false
+      },
+      "cost": "medium",
+      "latency": "medium",
+      "auth_error_pattern": "(IneligibleTier|UNSUPPORTED_CLIENT|sign in)",
+      "notes": "Large context and multimodal input; authenticates through the system keyring, never an API key. Two silent failure modes — omitting --add-dir makes it scan its own scratch dir and report the repo as empty, and an unknown --model does not error, it falls back to the default model and exits 0. The model string must be an exact display label from `agy models`.",
+      "invoke": {
+        "advisory": {
+          "argv": [
+            "-p", "{prompt}", "--model", "{model}",
+            "--dangerously-skip-permissions"
+          ],
+          "env": {}
+        },
+        "repository-read": {
+          "argv": [
+            "-p", "{prompt}", "--model", "{model}",
+            "--add-dir", "{dir}", "--dangerously-skip-permissions"
+          ],
+          "env": {}
+        }
+      }
+    },
+
+    "kimi": {
+      "type": "openai-compatible",
+      "enabled": "auto",
+      "priority": 40,
+      "modes": ["advisory"],
+      "capabilities": [
+        "analysis",
+        "code-review",
+        "architecture-review",
+        "long-context-analysis",
+        "documentation"
+      ],
+      "privacy": {
+        "execution": "remote-api",
+        "restricted_data_allowed": false
+      },
+      "cost": "medium",
+      "latency": "medium",
+      "env": {
+        "base_url": "KIMI_BASE_URL",
+        "api_key": "KIMI_API_KEY",
+        "model": "KIMI_MODEL"
+      },
+      "endpoint_defaults": {
+        "base_url": "https://api.moonshot.ai/v1",
+        "model": "kimi-k2-turbo-preview"
+      },
+      "notes": "Long-context synthesis and multilingual review. Unavailable until KIMI_API_KEY is exported."
+    },
+
+    "deepseek": {
+      "type": "openai-compatible",
+      "enabled": "auto",
+      "priority": 50,
+      "modes": ["advisory"],
+      "capabilities": ["analysis", "code-review", "debugging", "documentation"],
+      "privacy": {
+        "execution": "remote-api",
+        "restricted_data_allowed": false
+      },
+      "cost": "low",
+      "latency": "medium",
+      "env": {
+        "base_url": "DEEPSEEK_BASE_URL",
+        "api_key": "DEEPSEEK_API_KEY",
+        "model": "DEEPSEEK_MODEL"
+      },
+      "endpoint_defaults": {
+        "base_url": "https://api.deepseek.com/v1",
+        "model": "deepseek-chat"
+      },
+      "notes": "Cheap independent review. Unavailable until DEEPSEEK_API_KEY is exported."
+    },
+
+    "local-openai": {
+      "type": "openai-compatible",
+      "enabled": "auto",
+      "priority": 60,
+      "modes": ["advisory"],
+      "capabilities": ["analysis", "code-review", "documentation", "private-analysis"],
+      "privacy": {
+        "execution": "local-only",
+        "restricted_data_allowed": true
+      },
+      "cost": "free",
+      "latency": "variable",
+      "env": {
+        "base_url": "LOCAL_OPENAI_BASE_URL",
+        "api_key": "LOCAL_OPENAI_API_KEY",
+        "model": "LOCAL_OPENAI_MODEL"
+      },
+      "endpoint_defaults": {
+        "base_url": "http://127.0.0.1:11434/v1",
+        "model": "qwen2.5-coder"
+      },
+      "notes": "The only provider permitted to receive privacy.classification=restricted, because execution is local-only. Points at Ollama's OpenAI-compatible endpoint by default; LOCAL_OPENAI_API_KEY is optional and defaults to a placeholder. Set LOCAL_OPENAI_BASE_URL to mark it available."
+    }
+  }
+}
