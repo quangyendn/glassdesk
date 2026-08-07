@@ -6,6 +6,7 @@ import path from 'node:path';
 import {
   pluginRoot,
   registryPath,
+  specialistsDir,
   loadRegistry,
   loadSpecialist,
   listSpecialists,
@@ -75,4 +76,83 @@ test('listSpecialists returns the six shipped profiles', () => {
     'root-cause-debugger',
     'security-auditor',
   ]);
+});
+
+test('loadSpecialist tolerates CRLF line endings', () => {
+  const name = `crlf-test-${process.pid}`;
+  const file = path.join(specialistsDir(), `${name}.md`);
+  const content =
+    '---\r\n' +
+    `name: ${name}\r\n` +
+    'use_for: [debugging]\r\n' +
+    '---\r\n' +
+    '\r\n' +
+    'Body text with CRLF endings.\r\n';
+  fs.writeFileSync(file, content);
+  try {
+    const s = loadSpecialist(name);
+    assert.ok(s, 'a profile with CRLF line endings should still load');
+    assert.equal(s.name, name);
+    assert.deepEqual(s.useFor, ['debugging']);
+    assert.match(s.instructions, /Body text with CRLF endings\./);
+  } finally {
+    fs.unlinkSync(file);
+  }
+});
+
+test('loadSpecialist loads a profile with an inline use_for array', () => {
+  const name = `inline-usefor-${process.pid}`;
+  const file = path.join(specialistsDir(), `${name}.md`);
+  fs.writeFileSync(file, `---\nname: ${name}\nuse_for: [debugging, analysis]\n---\n\nBody.\n`);
+  try {
+    const s = loadSpecialist(name);
+    assert.ok(s, 'inline use_for array should load');
+    assert.deepEqual(s.useFor, ['debugging', 'analysis']);
+  } finally {
+    fs.unlinkSync(file);
+  }
+});
+
+test('loadSpecialist rejects a multi-line use_for list as malformed', () => {
+  const name = `multiline-usefor-${process.pid}`;
+  const file = path.join(specialistsDir(), `${name}.md`);
+  fs.writeFileSync(
+    file,
+    `---\nname: ${name}\nuse_for:\n  - code-review\n  - debugging\n---\n\nBody.\n`,
+  );
+  try {
+    assert.equal(
+      loadSpecialist(name),
+      null,
+      'a use_for key present but not in inline-array form must fail closed',
+    );
+  } finally {
+    fs.unlinkSync(file);
+  }
+});
+
+test('loadSpecialist loads with an empty useFor when the key is absent', () => {
+  const name = `no-usefor-${process.pid}`;
+  const file = path.join(specialistsDir(), `${name}.md`);
+  fs.writeFileSync(file, `---\nname: ${name}\n---\n\nBody.\n`);
+  try {
+    const s = loadSpecialist(name);
+    assert.ok(s, 'a profile with no use_for key at all should still load');
+    assert.deepEqual(s.useFor, []);
+  } finally {
+    fs.unlinkSync(file);
+  }
+});
+
+test('loadSpecialist rethrows non-ENOENT read errors instead of swallowing them', { skip: process.getuid && process.getuid() === 0 }, () => {
+  const name = `unreadable-${process.pid}`;
+  const file = path.join(specialistsDir(), `${name}.md`);
+  fs.writeFileSync(file, `---\nname: ${name}\nuse_for: [debugging]\n---\n\nBody.\n`);
+  fs.chmodSync(file, 0o000);
+  try {
+    assert.throws(() => loadSpecialist(name), /cannot read specialist profile/);
+  } finally {
+    fs.chmodSync(file, 0o644);
+    fs.unlinkSync(file);
+  }
 });

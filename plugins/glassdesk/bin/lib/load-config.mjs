@@ -42,9 +42,12 @@ export function loadRegistry(pathOverride) {
 }
 
 // Parse `use_for: [a, b, c]` — the only list form the profiles use.
+// Returns `null` (not `[]`) when the key is present but not in that inline
+// form, so callers can distinguish "malformed" from "genuinely absent" and
+// fail closed instead of silently waving the profile through unrouted.
 function parseUseFor(line) {
   const m = line.match(/^use_for:\s*\[(.*)\]\s*$/);
-  if (!m) return [];
+  if (!m) return null;
   return m[1]
     .split(',')
     .map((s) => s.trim().replace(/^['"]|['"]$/g, ''))
@@ -59,9 +62,17 @@ export function loadSpecialist(name) {
   let text;
   try {
     text = fs.readFileSync(file, 'utf8');
-  } catch {
-    return null;
+  } catch (e) {
+    // ENOENT means "no such profile" — every other error (e.g. EACCES from a
+    // packaging or permissions bug) is a real installation problem and must
+    // not be reported as "unknown profile".
+    if (e.code === 'ENOENT') return null;
+    throw new Error(`cannot read specialist profile ${file}: ${e.message}`);
   }
+  // Normalize CRLF before any regex sees the text, so a Windows checkout or a
+  // normalizing editor doesn't turn a present profile into a false "unknown
+  // profile" result.
+  text = text.replace(/\r\n/g, '\n');
   const m = text.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
   if (!m) return null;
   const [, fm, body] = m;
@@ -69,7 +80,13 @@ export function loadSpecialist(name) {
   let useFor = [];
   for (const line of fm.split('\n')) {
     if (line.startsWith('name:')) parsedName = line.slice(5).trim();
-    else if (line.startsWith('use_for:')) useFor = parseUseFor(line);
+    else if (line.startsWith('use_for:')) {
+      const parsed = parseUseFor(line);
+      // Key present but not the inline-array form (e.g. a multi-line YAML
+      // list) — fail closed rather than silently treating it as `[]`.
+      if (parsed === null) return null;
+      useFor = parsed;
+    }
   }
   return { name: parsedName, useFor, instructions: body.trim() };
 }
