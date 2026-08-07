@@ -12,6 +12,7 @@ import {
   buildEnvelope,
 } from '../../plugins/glassdesk/bin/lib/run-provider.mjs';
 import { loadRegistry } from '../../plugins/glassdesk/bin/lib/load-config.mjs';
+import { EXIT } from '../../plugins/glassdesk/bin/lib/exit-codes.mjs';
 
 const REG = loadRegistry();
 
@@ -86,26 +87,62 @@ function stubCli(script) {
   return { dir, bin: p };
 }
 
-test('runCli captures stdout and exit code', () => {
-  const { bin } = stubCli('#!/bin/sh\necho "hello from provider"\nexit 0\n');
+test('runCli captures stdout and exit code', (t) => {
+  const { dir, bin } = stubCli('#!/bin/sh\necho "hello from provider"\nexit 0\n');
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const r = runCli({ bin }, 'stub', { argv: [], env: {} }, 10000);
   assert.equal(r.exitCode, 0);
   assert.match(r.stdout, /hello from provider/);
   assert.equal(r.timedOut, false);
 });
 
-test('runCli reports timedOut when the provider hangs', () => {
+test('runCli reports timedOut when the provider hangs', (t) => {
   // This is the measured opencode denied-write failure mode: the process does
   // not return, so only a hard timeout ends the run.
-  const { bin } = stubCli('#!/bin/sh\nsleep 30\n');
+  const { dir, bin } = stubCli('#!/bin/sh\nsleep 30\n');
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const r = runCli({ bin }, 'stub', { argv: [], env: {} }, 700);
   assert.equal(r.timedOut, true);
 });
 
-test('runCli passes the injected env through to the child', () => {
-  const { bin } = stubCli('#!/bin/sh\necho "$GD_TEST_MARKER"\n');
+test('runCli passes the injected env through to the child', (t) => {
+  const { dir, bin } = stubCli('#!/bin/sh\necho "$GD_TEST_MARKER"\n');
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const r = runCli({ bin }, 'stub', { argv: [], env: { GD_TEST_MARKER: 'zebra' } }, 10000);
   assert.match(r.stdout, /zebra/);
+});
+
+test('runCli reports a maxBuffer overflow as a real failure, not a timeout', (t) => {
+  // Reproduces the Critical finding: a child that writes past maxBuffer is
+  // killed with SIGTERM/status:null too — the same shape as a timeout — but
+  // spawnSync sets r.error with code ENOBUFS in that case, and that must
+  // take priority over the signal heuristic so the failure is never
+  // misreported as exit 14, and the real error message is not discarded.
+  // runCli's maxBuffer is fixed at 64MB, so the stub has to write past that.
+  const { dir, bin } = stubCli(
+    '#!/bin/sh\nnode -e "process.stdout.write(\'x\'.repeat(70 * 1024 * 1024))"\n',
+  );
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const r = runCli({ bin }, 'stub', { argv: [], env: {} }, 10000);
+  assert.equal(r.timedOut, false);
+  assert.notEqual(r.exitCode, EXIT.TIMEOUT);
+  assert.match(r.stderr, /ENOBUFS/);
+});
+
+test('runCli maps a missing binary to the UNAVAILABLE exit code', () => {
+  const r = runCli({ bin: '/no/such/binary-gd-test' }, 'stub', { argv: [], env: {} }, 10000);
+  assert.equal(r.exitCode, EXIT.UNAVAILABLE);
+  assert.equal(r.timedOut, false);
+});
+
+test('runCli tolerates a malformed auth_error_pattern instead of crashing', (t) => {
+  const { dir, bin } = stubCli('#!/bin/sh\necho "not authenticated" 1>&2\nexit 1\n');
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const provider = { bin, auth_error_pattern: '(unbalanced(paren' };
+  const r = runCli(provider, 'stub', { argv: [], env: {} }, 10000);
+  // The malformed pattern must not crash the dispatcher; it degrades to the
+  // provider's own exit code instead of being mapped to EXIT.AUTH.
+  assert.equal(r.exitCode, 1);
 });
 
 test('runHttp posts to /chat/completions and returns the message content', async () => {
@@ -167,6 +204,26 @@ test('runHttp maps a 401 to the AUTH exit code', async () => {
   delete process.env.TEST_KEY;
 });
 
+test('runHttp reports a timeout when the server never responds', async (t) => {
+  const server = http.createServer(() => {
+    // Never call res.end() — the request hangs until the client aborts it.
+  });
+  await new Promise((r) => server.listen(0, '127.0.0.1', r));
+  t.after(() => new Promise((r) => server.close(r)));
+
+  process.env.TEST_BASE = `http://127.0.0.1:${server.address().port}/v1`;
+  process.env.TEST_KEY = 'sk-irrelevant';
+  const r = await runHttp(
+    { type: 'openai-compatible', env: { base_url: 'TEST_BASE', api_key: 'TEST_KEY', model: 'TEST_MODEL' }, endpoint_defaults: { model: 'm' } },
+    'p',
+    200,
+  );
+  assert.equal(r.exitCode, EXIT.TIMEOUT);
+  assert.equal(r.timedOut, true);
+  delete process.env.TEST_BASE;
+  delete process.env.TEST_KEY;
+});
+
 test('buildEnvelope produces the documented shape', () => {
   const e = buildEnvelope({
     provider: 'opencode',
@@ -190,4 +247,23 @@ test('buildEnvelope produces the documented shape', () => {
 test('buildEnvelope marks a timeout as status=timeout', () => {
   const e = buildEnvelope({ provider: 'x', mode: 'advisory', exitCode: 14, timedOut: true, files: [], totalBytes: 0 });
   assert.equal(e.status, 'timeout');
+});
+
+test('buildEnvelope redacts secrets from every field, even if the caller forgot to', () => {
+  const e = buildEnvelope({
+    provider: 'kimi',
+    mode: 'advisory',
+    exitCode: 0,
+    command: 'opencode run --token sk-live-123 --retry-token sk-live-123',
+    stdout: 'echo sk-live-123',
+    stderr: 'warning: sk-live-123 exposed',
+    files: [],
+    totalBytes: 0,
+    secrets: ['sk-live-123'],
+  });
+  const blob = JSON.stringify(e);
+  assert.equal(blob.includes('sk-live-123'), false);
+  assert.match(e.command, /\*\*\*/);
+  assert.match(e.raw_output, /\*\*\*/);
+  assert.match(e.stderr_tail, /\*\*\*/);
 });

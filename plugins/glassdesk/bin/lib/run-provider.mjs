@@ -31,11 +31,33 @@ export function buildArgv(provider, mode, subs) {
   return { argv, env };
 }
 
+// Guarantee: exact occurrences of each secret's literal form, its
+// URL-encoded form, and its base64 form (each only when at least 4
+// characters) are replaced with `***`. Any other transformation of the
+// secret — re-wrapping, partial encoding, a different base64 alphabet,
+// splitting across a boundary — is NOT detected. This is deliberately
+// narrow: URL-encoding and base64 are the two transforms that actually
+// occur in HTTP plumbing (query strings / headers, and Basic-auth-style
+// encoding), not a general defense against an adversarial re-encoding.
 export function redact(text, secrets = []) {
   let out = String(text ?? '');
   for (const s of secrets) {
     if (!s || typeof s !== 'string' || s.length < 4) continue;
-    out = out.split(s).join('***');
+    const variants = new Set([s]);
+    try {
+      variants.add(encodeURIComponent(s));
+    } catch {
+      /* not URL-encodable; skip that variant */
+    }
+    try {
+      variants.add(Buffer.from(s, 'utf8').toString('base64'));
+    } catch {
+      /* not base64-encodable; skip that variant */
+    }
+    for (const v of variants) {
+      if (!v || v.length < 4) continue;
+      out = out.split(v).join('***');
+    }
   }
   return out;
 }
@@ -50,10 +72,26 @@ export function runCli(provider, name, { argv, env }, timeoutMs) {
     shell: false,
   });
 
-  const timedOut = r.error?.code === 'ETIMEDOUT' || (r.signal === 'SIGTERM' && r.status === null);
-  if (r.error && !timedOut) {
-    return { exitCode: EXIT.FAILURE, stdout: '', stderr: String(r.error.message), timedOut: false };
+  if (r.error) {
+    // spawnSync surfaces a hard timeout and a missing binary the same way
+    // Node reports any other spawn failure: via `r.error`. Distinguish them
+    // explicitly rather than inferring from the signal, which is ambiguous
+    // (a maxBuffer overflow or a self-terminating child also produce
+    // `signal: 'SIGTERM', status: null` with no `r.error` set).
+    if (r.error.code === 'ETIMEDOUT') {
+      return { exitCode: EXIT.TIMEOUT, stdout: r.stdout ?? '', stderr: r.stderr ?? '', timedOut: true };
+    }
+    if (r.error.code === 'ENOENT') {
+      return { exitCode: EXIT.UNAVAILABLE, stdout: '', stderr: `${provider.bin}: not found`, timedOut: false };
+    }
+    return { exitCode: EXIT.FAILURE, stdout: r.stdout ?? '', stderr: String(r.error.message), timedOut: false };
   }
+
+  // No `r.error` means spawnSync itself didn't fail to launch/manage the
+  // child, but the child can still have been killed by a signal (e.g. this
+  // timeout heuristic, or a self-sent SIGTERM) — check that case here, not
+  // above, so it never shadows a real ENOBUFS/ENOENT.
+  const timedOut = r.signal === 'SIGTERM' && r.status === null;
 
   const stderr = r.stderr ?? '';
   let exitCode = r.status ?? EXIT.FAILURE;
@@ -61,8 +99,16 @@ export function runCli(provider, name, { argv, env }, timeoutMs) {
     exitCode = EXIT.TIMEOUT;
   } else if (exitCode !== 0 && provider.auth_error_pattern) {
     // A CLI's session state cannot be probed for free, so authentication
-    // failure is recognised here, from what it printed.
-    if (new RegExp(provider.auth_error_pattern, 'i').test(stderr)) exitCode = EXIT.AUTH;
+    // failure is recognised here, from what it printed. A malformed pattern
+    // in the registry (e.g. an unbalanced paren) must degrade to "use the
+    // provider's own exit code", not crash the dispatcher.
+    let re = null;
+    try {
+      re = new RegExp(provider.auth_error_pattern, 'i');
+    } catch {
+      re = null;
+    }
+    if (re && re.test(stderr)) exitCode = EXIT.AUTH;
   }
 
   return { exitCode, stdout: r.stdout ?? '', stderr, timedOut };
@@ -121,11 +167,16 @@ export async function runHttp(provider, prompt, timeoutMs) {
 export function buildEnvelope({
   provider, specialist = null, mode, exitCode, durationMs = 0,
   command = '', files = [], totalBytes = 0, stdout = '', stderr = '', timedOut = false,
+  secrets = [],
 }) {
   let status = 'completed';
   if (timedOut) status = 'timeout';
   else if (exitCode !== 0) status = 'failed';
 
+  // Redaction happens here, not just at the call site — a caller that
+  // forgets to redact before building the envelope must not be able to leak
+  // a secret into it. Redacting text that's already been redacted is a
+  // no-op, so a caller that also redacts beforehand is unaffected.
   return {
     version: 'external-ai-run-v1',
     provider,
@@ -134,9 +185,9 @@ export function buildEnvelope({
     status,
     exit_code: exitCode,
     duration_ms: durationMs,
-    command,
+    command: redact(command, secrets),
     context_sent: { files: files.map((f) => f.path), bytes: totalBytes },
-    raw_output: stdout,
-    stderr_tail: String(stderr).slice(-STDERR_TAIL_CHARS),
+    raw_output: redact(stdout, secrets),
+    stderr_tail: redact(String(stderr).slice(-STDERR_TAIL_CHARS), secrets),
   };
 }
