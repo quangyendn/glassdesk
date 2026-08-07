@@ -54,11 +54,11 @@ function parseUseFor(line) {
     .filter(Boolean);
 }
 
-export function loadSpecialist(name) {
+export function loadSpecialist(name, dirOverride) {
   // Reject anything that is not a bare profile name — the value reaches this
   // function from a CLI flag, so path traversal must not be possible.
   if (!/^[a-z0-9][a-z0-9-]*$/.test(String(name))) return null;
-  const file = path.join(specialistsDir(), `${name}.md`);
+  const file = path.join(dirOverride || specialistsDir(), `${name}.md`);
   let text;
   try {
     text = fs.readFileSync(file, 'utf8');
@@ -91,10 +91,10 @@ export function loadSpecialist(name) {
   return { name: parsedName, useFor, instructions: body.trim() };
 }
 
-export function listSpecialists() {
+export function listSpecialists(dirOverride) {
   try {
     return fs
-      .readdirSync(specialistsDir())
+      .readdirSync(dirOverride || specialistsDir())
       .filter((f) => f.endsWith('.md'))
       .map((f) => f.slice(0, -3));
   } catch {
