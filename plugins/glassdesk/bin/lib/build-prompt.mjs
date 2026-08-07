@@ -20,6 +20,24 @@ const MODE_CONTRACT = {
     'do not write files, do not commit, do not push.',
 };
 
+// Sanitize a string for safe use as a markdown heading.
+// Collapses newlines/carriage returns to spaces, strips leading # chars, and trims.
+function sanitizeHeading(text) {
+  return String(text || '')
+    .replace(/[\r\n]+/g, ' ')
+    .replace(/^#+\s*/, '')
+    .trim();
+}
+
+// A fenced block must be delimited by more backticks than the longest run
+// inside it, or the content can close the fence early and inject markdown
+// structure into the prompt.
+function fenceFor(content) {
+  let longest = 0;
+  for (const m of String(content || '').matchAll(/`+/g)) longest = Math.max(longest, m[0].length);
+  return '`'.repeat(Math.max(3, longest + 1));
+}
+
 function section(out, heading, lines) {
   if (!lines || lines.length === 0) return;
   out.push(`## ${heading}`, ...lines, '');
@@ -28,29 +46,41 @@ function section(out, heading, lines) {
 export function buildPrompt({ task, specialist, files = [], mode = 'advisory' }) {
   const out = [];
 
-  if (specialist?.instructions) {
-    out.push(specialist.instructions.trim(), '');
+  // Resolve mode once so it's consistent for both contract text and file handling.
+  const resolvedMode = MODE_CONTRACT[mode] ? mode : 'advisory';
+
+  const instructions = specialist?.instructions?.trim();
+  if (instructions) {
+    out.push(instructions, '');
   }
 
-  out.push(MODE_CONTRACT[mode] ?? MODE_CONTRACT.advisory, '');
+  out.push(MODE_CONTRACT[resolvedMode], '');
 
-  section(out, 'Objective', [task?.objective ?? '(none stated)']);
+  // Objective: omit if empty or whitespace-only.
+  const objective = (task?.objective ?? '').trim() || '(none stated)';
+  section(out, 'Objective', [objective]);
 
-  if (task?.context?.summary) section(out, 'Context', [task.context.summary]);
+  // Context summary: omit if empty or whitespace-only.
+  const summary = (task?.context?.summary ?? '').trim();
+  if (summary) section(out, 'Context', [summary]);
+
   section(out, 'Constraints', (task?.constraints ?? []).map((c) => `- ${c}`));
   section(out, 'Out of scope', (task?.out_of_scope ?? []).map((c) => `- ${c}`));
   section(out, 'Acceptance criteria', (task?.acceptance_criteria ?? []).map((c) => `- ${c}`));
 
-  if (mode === 'advisory') {
+  if (resolvedMode === 'advisory') {
     for (const f of files) {
-      out.push(`## File: ${f.path}`, '```', f.content, '```', '');
+      const fence = fenceFor(f.content);
+      out.push(`## File: ${sanitizeHeading(f.path)}`, fence, f.content, fence, '');
     }
   } else if (files.length) {
     section(out, 'Files in scope', files.map((f) => `- ${f.path}`));
   }
 
   for (const item of task?.context?.inline ?? []) {
-    out.push(`## ${item.label ?? 'context'}`, '```', item.content ?? '', '```', '');
+    const fence = fenceFor(item.content);
+    const label = sanitizeHeading(item.label ?? 'context');
+    out.push(`## ${label}`, fence, item.content ?? '', fence, '');
   }
 
   return out.join('\n').trimEnd();

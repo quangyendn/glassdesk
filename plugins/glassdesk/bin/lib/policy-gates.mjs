@@ -137,6 +137,23 @@ export function gateContext(task, defaults = {}, scopeRoot = process.cwd()) {
         `context.inline entry ${JSON.stringify(item)} must be an object`,
       );
     }
+    const label = item.label;
+    if (label !== undefined && label !== null && typeof label !== 'string') {
+      throw new GateError(
+        EXIT.PRIVACY,
+        `context.inline entry label must be a string`,
+      );
+    }
+    if (label) {
+      const labelHits = scanForSecrets(label);
+      if (labelHits.length) {
+        throw new GateError(
+          EXIT.PRIVACY,
+          `secret detected in context.inline[].label: ${labelHits.map((h) => h.id).join(', ')}`,
+        );
+      }
+      totalBytes += Buffer.byteLength(label, 'utf8');
+    }
     const raw = item.content;
     if (raw !== undefined && raw !== null && typeof raw !== 'string') {
       throw new GateError(
