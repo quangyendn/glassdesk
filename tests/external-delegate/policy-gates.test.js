@@ -334,3 +334,55 @@ test('gateContext rejects a non-object context.inline entry — fail closed', (t
     assert.equal(e.code, EXIT.PRIVACY);
   }
 });
+
+// --- Post-review fixes: index reporting and secret masking in error messages --
+
+test('gateContext rejects a secret in context.inline[].label and names the index', (t) => {
+  const dir = scratch({});
+  cleanup(t, dir);
+  try {
+    gateContext(
+      {
+        context: {
+          inline: [
+            { label: 'first entry', content: 'nothing here' },
+            { label: 'secret is AKIAIOSFODNN7EXAMPLE', content: 'safe' },
+          ],
+        },
+      },
+      {},
+      dir,
+    );
+    assert.fail('expected GateError');
+  } catch (e) {
+    assert.equal(e.code, EXIT.PRIVACY);
+    assert.match(e.message, /context\.inline\[1\]\.label/);
+    assert.match(e.message, /aws-access-key/);
+    assert.equal(e.message.includes('AKIA'), false, 'error message must not expose secret');
+  }
+});
+
+test('gateContext rejects a secret in context.inline[].content and names the index', (t) => {
+  const dir = scratch({});
+  cleanup(t, dir);
+  try {
+    gateContext(
+      {
+        context: {
+          inline: [
+            { label: 'first entry', content: 'safe content' },
+            { label: 'second entry', content: 'secret is AKIAIOSFODNN7EXAMPLE here' },
+          ],
+        },
+      },
+      {},
+      dir,
+    );
+    assert.fail('expected GateError');
+  } catch (e) {
+    assert.equal(e.code, EXIT.PRIVACY);
+    assert.match(e.message, /context\.inline\[1\]\.content/);
+    assert.match(e.message, /aws-access-key/);
+    assert.equal(e.message.includes('AKIA'), false, 'error message must not expose secret');
+  }
+});

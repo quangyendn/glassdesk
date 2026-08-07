@@ -130,7 +130,7 @@ export function gateContext(task, defaults = {}, scopeRoot = process.cwd()) {
     files.push({ path: rel, content, bytes });
   }
 
-  for (const item of task?.context?.inline ?? []) {
+  (task?.context?.inline ?? []).forEach((item, i) => {
     if (typeof item !== 'object' || item === null || Array.isArray(item)) {
       throw new GateError(
         EXIT.PRIVACY,
@@ -149,7 +149,7 @@ export function gateContext(task, defaults = {}, scopeRoot = process.cwd()) {
       if (labelHits.length) {
         throw new GateError(
           EXIT.PRIVACY,
-          `secret detected in context.inline[].label: ${labelHits.map((h) => h.id).join(', ')}`,
+          `secret detected in context.inline[${i}].label: ${labelHits.map((h) => h.id).join(', ')}`,
         );
       }
       totalBytes += Buffer.byteLength(label, 'utf8');
@@ -166,11 +166,11 @@ export function gateContext(task, defaults = {}, scopeRoot = process.cwd()) {
     if (hits.length) {
       throw new GateError(
         EXIT.PRIVACY,
-        `secret detected in inline context "${item?.label ?? 'unnamed'}": ${hits.map((h) => h.id).join(', ')}`,
+        `secret detected in context.inline[${i}].content: ${hits.map((h) => h.id).join(', ')}`,
       );
     }
     totalBytes += Buffer.byteLength(content, 'utf8');
-  }
+  });
 
   const summary = task?.context?.summary ?? '';
   if (summary !== '' && typeof summary !== 'string') {
