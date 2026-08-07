@@ -14,6 +14,7 @@
     "tests/guardrails/staged-scan.test.js",
     "tests/guardrails/lint-commit-msg.test.js",
     "tests/guardrails/verify-changelog.test.js",
+    "tests/external-delegate/secret-patterns-drift.test.js",
     "package-lock.json",
     ".gitleaks.toml",
     ".guardrails.json",
