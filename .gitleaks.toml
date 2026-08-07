@@ -47,7 +47,6 @@ paths = [
   '''(.*/)?\.gitleaks\.toml''',
   '''(.*/)?\.guardrails\.json''',
   '''(.*/)?scripts/guardrails/lib/patterns\.js''',
-  '''(.*/)?plugins/glassdesk/bin/lib/secret-patterns\.mjs''',
   '''(.*/)?package-lock\.json''',
 ]
 regexes = [
