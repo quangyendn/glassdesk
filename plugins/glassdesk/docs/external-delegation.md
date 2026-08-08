@@ -101,6 +101,18 @@ surfaces them to the selecting agent. Verified 2026-08-05.
   as a distinct read-only execution mode. This has only been confirmed as an
   accepted flag (the CLI does not reject it), not measured end-to-end against
   a signed-in session — treat it as best-effort hardening, not a guarantee.
+- An unauthenticated run prints an OAuth URL and blocks **interactively** for
+  up to 60s waiting for an authorization code before giving up with
+  `Authentication required...` / `Error: authentication timed out` /
+  `Error: authentication failed or timed out`, exit 1. `auth_error_pattern`
+  matches on those exact phrases so this maps to exit 11, not the generic
+  failure code — but in a headless run it is still a minute of dead
+  wall-clock before that classification happens, on top of whatever
+  `--timeout` the run was given.
+- `probeProvider` reports `agy` as available whenever the binary is on
+  PATH — CLI session state cannot be probed for free. Combined with the
+  above, `available: true` for `agy` means installed, not authenticated or
+  usable.
 
 **`codex`**
 

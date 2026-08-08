@@ -96,12 +96,39 @@ test('agy notes disclose that read-only enforcement is not independently verifie
 // reclassifies any stderr that happens to mention "sign in" as exit 11
 // (auth wall) — including a transient error whose message merely quotes a
 // sign-in URL — which stops the agent's failure ladder on the wrong branch.
-test('agy auth_error_pattern requires an anchored sign-in phrase, not a bare substring', () => {
+test('agy auth_error_pattern requires an anchored phrase, not a bare "sign in" substring', () => {
   const re = new RegExp(REG.providers.agy.auth_error_pattern, 'i');
-  assert.equal(re.test('Authentication required. Please visit the URL to sign in: https://...'), false);
+  // "sign in" appears here with none of the anchored phrases nearby — must
+  // not match on the bare substring alone.
+  assert.equal(re.test('Click here to sign in with your Google account to continue.'), false);
   assert.ok(re.test('please sign in to continue'));
   assert.ok(re.test('Error: not signed in'));
   assert.ok(re.test('IneligibleTierError: UNSUPPORTED_CLIENT'));
+});
+
+// The single most likely agy auth failure in practice: an unauthenticated
+// run prints an OAuth URL, blocks interactively for up to 60s, then gives up
+// and exits 1. None of "IneligibleTier", "UNSUPPORTED_CLIENT", "please sign
+// in", or "not signed in" appear in that real output — only "authentication
+// required/failed/timed out" do. Without those branches this collapses to a
+// generic failure (and, after the exit-code-collapse fix, to exit 1), so the
+// agent's failure ladder would treat a hard auth wall as a transient error
+// worth retrying, when it cannot succeed without a human completing OAuth.
+test('runCli maps a real unauthenticated agy run to EXIT.AUTH via auth_error_pattern', (t) => {
+  const realAgyOutput = [
+    'Authentication required. Please visit the URL to log in:',
+    '  https://accounts.google.com/o/oauth2/auth?client_id=example&response_type=code',
+    '',
+    'Waiting for authentication (timeout 60s)...',
+    'Error: authentication timed out.',
+    'Error: authentication failed or timed out',
+  ].join('\n');
+  const script = `#!/bin/sh\ncat <<'EOF' 1>&2\n${realAgyOutput}\nEOF\nexit 1\n`;
+  const { dir, bin } = stubCli(script);
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const r = runCli({ bin, auth_error_pattern: REG.providers.agy.auth_error_pattern }, 'agy', { argv: [], env: {} }, 10000);
+  assert.equal(r.exitCode, EXIT.AUTH);
+  assert.equal(r.raw, false, 'an auth-pattern match must not be treated as a raw provider exit code');
 });
 
 test('redact replaces every occurrence of each secret', () => {
