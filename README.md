@@ -1,16 +1,16 @@
 # Glassdesk
 
-A Claude Code plugin with 23 SDLC-phased commands, specialized agents, and compound-engineering primitives.
+A Claude Code plugin with 28 SDLC-phased commands, 28 specialized agents, and compound-engineering primitives.
 
 See [`website/index.html`](./website/index.html) for the introductory landing page.
 
 ## Features
 
-- **23 Slash Commands** — 8-phase SDLC taxonomy: DISCOVER → PLAN → BUILD → VERIFY → REVIEW → SHIP → COMPOUND
+- **28 Slash Commands** — 8-phase SDLC taxonomy: DISCOVER → PLAN → BUILD → VERIFY → REVIEW → SHIP → COMPOUND
 - **Compound Engineering** — `/spec` (brainstorm→doc), `/learn` (session→knowledge), `/improve` (gated proposals)
 - **Multi-Agent Framework** — Claude-Flow integration for parallel task orchestration
 - **AI Multimodal** — Gemini API support for audio/image/video processing
-- **11 Skill Packages** — building, scouting, fixing, brainstorming, compounding, planning, code-review, and more
+- **12 Skill Packages** — building, scouting, fixing, brainstorming, compounding, planning, code-review, and more
 
 ## Quick Start
 
@@ -84,12 +84,13 @@ claude plugin marketplace remove glassdesk-marketplace
 
 | Phase | Commands | Description |
 |-------|----------|-------------|
-| **DISCOVER** | `/ask`, `/brainstorm`, `/scout`, `/scout:ext` | Explore, ideate, question |
+| **DISCOVER** | `/ask`, `/ask:wiki`, `/brainstorm`, `/scout`, `/scout:ext` | Explore, ideate, question |
 | **PLAN** | `/plan`, `/plan:hard`, `/plan:validate`, `/plan:status`, `/plan:list`, `/plan:archive` | Research-driven planning |
 | **BUILD** | `/code`, `/code:auto` | Structured execution with verification gates |
 | **VERIFY** | `/fix`, `/fix:hard`, `/debug`, `/test:ui` | Debugging, test recovery |
 | **REVIEW** | `/review:pr` | Multi-agent PR review |
 | **SHIP** | `/git:cm`, `/git:cp`, `/git:pr` | Commit, push, PR workflows |
+| **WIKI** | `/wiki`, `/wiki:init`, `/wiki:update`, `/wiki:lint` | `.gd-wiki/` project knowledge vault |
 | **COMPOUND** | `/spec`, `/learn`, `/improve` | Self-improving knowledge loop |
 
 ## Directory Structure
@@ -102,7 +103,7 @@ glassdesk/
 │   └── glassdesk/                    # Main plugin
 │       ├── .claude-plugin/
 │       │   └── plugin.json           # Plugin manifest
-│       ├── commands/                 # 23 slash commands (8 SDLC phases)
+│       ├── commands/                 # 28 slash commands (8 SDLC phases)
 │       ├── agents/                   # Specialized agents
 │       ├── skills/                   # Skill packages
 │       ├── workflows/                # Development workflows

@@ -35,7 +35,9 @@ plugins/glassdesk/        the plugin (this is where feature work lands)
   agents/                 gd-*.agent.md — subagent definitions
   commands/               slash commands; commands/x.md → /x, commands/x/y.md → /x:y
   skills/<name>/SKILL.md  skills, with optional references/*.md
-  hooks/                  SessionStart / UserPromptSubmit hooks (.cjs) + hooks.json
+  hooks/                  session-init / dev-rules-reminder / session-end (.cjs);
+                          hooks.json is the manifest for marketplace + Codex
+                          installs — npx installs use templates/settings.local.json
   config/models.yml       tier → model + effort policy
   bin/                    plugin-scoped scripts (sync-models, plan-list, plan-status)
   docs/, CHANGELOG.md
@@ -56,12 +58,14 @@ another agent can see them: `plans/`, `docs/specs/`.
 npm test                    # node --test tests/**/*.test.js
 npm run validate            # claude plugin validate .
 npm run guardrails:scan     # personal-info / secret scan
+npm run guardrails:changelog  # blocks publishing a version the changelog omits
 npm run pack:check          # npm pack --dry-run
 node plugins/glassdesk/bin/sync-models --check   # agent frontmatter drift guard
 ```
 
-There is no build step, no linter, and no type checker. `npm test` and
-`sync-models --check` are the whole gate.
+There is no build step, no linter, and no type checker for the repo itself —
+`npm test` and `sync-models --check` are the whole gate. `website/` is the one
+exception: it is an Astro project with its own dependencies and its own build.
 
 ## Conventions that are enforced
 
@@ -96,22 +100,41 @@ version the changelog does not mention.
 
 ## Codex-specific notes
 
-`.codex/hooks.json` registers two hooks from `plugins/glassdesk/hooks/`. Verified
-against `codex-cli` 0.144.1:
+Measured against `codex-cli` 0.144.1.
 
-- **`SessionStart` → `session-init.cjs` runs and writes session state** to
-  `$TMPDIR/gd-session-<id>.json`.
-- **It cannot export environment variables.** The script sets `GD_SESSION_ID` and
-  `GD_PLUGIN_PATH` by writing to `$CLAUDE_ENV_FILE`, which Codex does not
-  provide. Downstream scripts that read those variables fall back to defaults.
-- **`UserPromptSubmit` → `dev-rules-reminder.cjs` runs, but its output does not
-  reach the model.** It writes plain text to stdout, which Claude Code injects as
-  context; Codex expects a JSON `hookSpecificOutput.additionalContext` envelope
-  instead. Emitting that envelope — which Claude Code also accepts — is a known
-  follow-up.
+**Codex loads hooks from the plugin, not from the project.** A `.codex/hooks.json`
+at the repository root is not a discovery path — a probe registering `SessionStart`
+and `UserPromptSubmit` handlers there produced no side effects at all. What Codex
+actually reads is `plugins/glassdesk/hooks/hooks.json`, via the plugin installed
+from the `glassdesk-marketplace` entry in `~/.codex/config.toml`. Codex expands
+`${CLAUDE_PLUGIN_ROOT}`, so that one manifest serves Claude Code and Codex alike.
+Register new hooks there; do not reintroduce `.codex/hooks.json`.
 
-Treat the project rules in this file as authoritative; do not rely on the hook to
-deliver them.
+**Each hook event is trust-gated.** `~/.codex/config.toml` carries one
+`[hooks.state."<plugin>@<marketplace>:hooks/hooks.json:<event>:0:0"]` block per
+event with a `trusted_hash`. Adding an event, or editing the command of an existing
+one, invalidates the hash — Codex then skips that hook silently until it is
+approved once in an interactive session. `codex exec` cannot grant that approval,
+so a newly added hook will appear to do nothing under `codex exec` alone.
+
+**`SessionStart` → `session-init.cjs` runs** and writes session state to
+`$TMPDIR/gd-session-<id>.json`.
+
+**It cannot export environment variables.** The script sets `GD_SESSION_ID` and
+`GD_PLUGIN_PATH` by writing to `$CLAUDE_ENV_FILE`, which Codex does not provide.
+Downstream scripts that read those variables fall back to defaults — in particular
+`dev-rules-reminder.cjs` resolves the active plan by git branch rather than by
+session.
+
+**`UserPromptSubmit` → `dev-rules-reminder.cjs`** emits a JSON
+`hookSpecificOutput.additionalContext` envelope. Claude Code accepts both that and
+bare stdout; Codex injects only the envelope. Pending its first trust approval,
+treat the project rules in this file as authoritative rather than relying on the
+hook to deliver them.
+
+**`SessionEnd` is deliberately not registered for Codex.** `session-end.cjs` runs
+`git worktree remove` on glassdesk-managed worktrees; that side effect has only
+been validated under Claude Code.
 
 ## Working style
 

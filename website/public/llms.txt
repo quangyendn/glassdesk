@@ -2,7 +2,7 @@
 
 > Agentic SDLC plugin for Claude Code — slash commands, skills, and agents covering DISCOVER → PLAN → BUILD → VERIFY → REVIEW → SHIP, with `.gd-wiki/` as living project memory.
 
-GlassDesk is a Claude Code plugin distributed under MIT. It installs 27 slash commands and 11 skills. Source: https://github.com/quangyendn/glassdesk
+GlassDesk is a Claude Code plugin distributed under MIT. It installs 28 slash commands and 12 skills. Source: https://github.com/quangyendn/glassdesk
 
 ## Documentation
 

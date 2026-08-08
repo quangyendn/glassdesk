@@ -223,7 +223,15 @@ async function main() {
       validationMax
     });
 
-    console.log(output.join('\n'));
+    // Emit the JSON envelope rather than bare stdout. Claude Code accepts both,
+    // but Codex only injects context from `hookSpecificOutput.additionalContext` —
+    // plain stdout there is logged and discarded.
+    console.log(JSON.stringify({
+      hookSpecificOutput: {
+        hookEventName: 'UserPromptSubmit',
+        additionalContext: output.join('\n')
+      }
+    }));
     process.exit(0);
   } catch (error) {
     console.error(`Dev rules hook error: ${error.message}`);

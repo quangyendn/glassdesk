@@ -22,11 +22,14 @@
 
 ### Added
 
+- **`UserPromptSubmit` registered in `hooks/hooks.json`** — marketplace installs (Claude Code and Codex alike) now get `dev-rules-reminder.cjs`, which previously only ran for `npx glassdesk init` installs via `templates/settings.local.json`. Under Codex the hook needs a one-time trust approval in an interactive session before it fires.
+- **`AGENTS.md`** — repository guide for non-Claude coding agents, documenting the dual-install layout, the conventions git hooks actually enforce, and measured Codex hook behavior (`codex-cli` 0.144.1).
 - **Effort enforcement in tier policy** — `config/models.yml` tiers now declare `effort:` alongside `model:` (balanced policy: `deep` = `xhigh`, `premium` = `high`, `standard` = `medium`, `light`/`external` = `low`; haiku-backed `fast` omits effort since Haiku doesn't support it). `bin/sync-models` syncs both `model:` and `effort:` frontmatter fields, validates effort values, removes stray `effort:` from agents whose tier defines none, and the pre-commit drift guard covers both fields.
 - **New tiers `deep` (opus/xhigh), `thorough` (sonnet/high), and `light` (sonnet/low)** — `gd-debugger` moves `premium` → `deep`; `gd-rust-reviewer` moves `standard` → `thorough`; `gd-comment-analyzer` and `gd-project-manager` move `standard` → `light`.
 
 ### Changed
 
+- **`dev-rules-reminder.cjs` emits a JSON `hookSpecificOutput.additionalContext` envelope** instead of bare stdout. Claude Code accepts both forms; Codex injects only the envelope and discards plain stdout.
 - **External scouting migrated from Gemini CLI to Antigravity CLI (`agy`)** — Google retired Gemini CLI's free OAuth tier on 2026-06-18; `gemini -y -p` now fails with `IneligibleTierError: UNSUPPORTED_CLIENT`, so `/scout:ext` and `gd-scout-external` were broken in the field. Verified replacement call, measured against `agy` 1.1.3:
 
   ```bash
