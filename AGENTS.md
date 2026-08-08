@@ -143,8 +143,9 @@ them from `hooks/hooks.json` and `npx glassdesk init` registers the same scripts
 from `.claude/settings.local.json`; Claude Code keeps plugin and project handlers
 separate and runs both. `session-init.cjs` handles this with first-writer-wins on
 `GD_PLUGIN_PATH`, and `dev-rules-reminder.cjs` with a per-prompt lock file in
-`$TMPDIR` so only one copy emits context. Preserve those guards when editing
-either script.
+`$TMPDIR` so only one copy emits context — which works only while both copies
+carry the guard, so an upgrade-skewed install still double-injects. Preserve
+those guards when editing either script.
 
 **`UserPromptSubmit` → `dev-rules-reminder.cjs`** emits a JSON
 `hookSpecificOutput.additionalContext` envelope. Claude Code accepts both that and

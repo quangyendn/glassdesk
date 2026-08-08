@@ -43,7 +43,7 @@ This hook automatically injects development rules and session context at the sta
 
 `session-init.cjs` (SessionStart) and `dev-rules-reminder.cjs` (UserPromptSubmit) are auto-registered via `hooks/hooks.json` for any consumer of the marketplace plugin. No per-project wiring needed — Claude Code reads `hooks/hooks.json` at plugin load, and Codex reads the same manifest for plugins installed from a marketplace. `${CLAUDE_PLUGIN_ROOT}` resolves to the installed plugin directory in both.
 
-Do **not** also register these hooks by hand when the marketplace plugin is enabled. Claude Code keeps plugin handlers and project-settings handlers separate and runs both, so a duplicate registration fires the hook twice per event. `dev-rules-reminder.cjs` guards against the resulting double context injection with a per-prompt lock file, but the duplicate process still runs.
+Do **not** also register these hooks by hand when the marketplace plugin is enabled. Claude Code keeps plugin handlers and project-settings handlers separate and runs both, so a duplicate registration fires the hook twice per event. `dev-rules-reminder.cjs` guards against the resulting double context injection with a per-prompt lock file — but the duplicate process still runs, and the guard only holds when every installed copy carries it. A stale `npx` install beside an updated marketplace plugin will still inject twice, so keep both installs in sync or drop one.
 
 ### Manual / per-project (optional override or npx install)
 
