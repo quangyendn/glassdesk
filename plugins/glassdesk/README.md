@@ -69,7 +69,8 @@ Three commands that make glassdesk self-improving:
 | Agent | Purpose |
 |-------|---------|
 | `scout` | Fast local codebase exploration and file discovery |
-| `scout-external` | External-tool reconnaissance (Gemini, OpenCode) |
+| `scout-external` | External-tool reconnaissance (Antigravity CLI) |
+| `external-delegate` | Routes bounded work to a non-Claude provider under privacy and mode policy |
 | `researcher` | Web/topic research with structured reporting |
 | `code-reviewer` | Adherence checks against project guidelines and CLAUDE.md |
 | `code-simplifier` | Simplify and refine code for clarity and maintainability |
