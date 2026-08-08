@@ -36,8 +36,19 @@ directory, the failing excerpt over the complete log, an architecture summary
 plus key files over all documentation.
 
 Never include `.env` files, keys, tokens, credentials, production customer
-data, personal data, or unrelated proprietary code. The dispatcher aborts the
-run on any of these — exit code 13 means the envelope was built wrong.
+data, personal data, or unrelated proprietary code.
+
+The dispatcher enforces only part of that mechanically: a path deny list
+(`.env*`, `**/secrets/**`, `**/credentials*`, `*.pem`, `id_rsa*`, `*.key`,
+`*.p12`, `*.pfx`) and a content sweep for credential shapes — PEM
+private-key headers, AWS access keys, GitHub tokens, `sk-` keys, Slack
+tokens, and high-entropy credential assignments. A hit aborts the run with
+exit code 13.
+
+**Customer data, personal data and out-of-scope proprietary code are not
+detectable by pattern and are not gated. Whether they leave the machine is
+your judgment alone.** Exit 13 means you built the envelope wrong; the
+absence of exit 13 does not mean the envelope is safe.
 
 ## Step 4: Invoke through the dispatcher
 

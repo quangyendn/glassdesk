@@ -84,8 +84,19 @@ the file, the file over the directory, the failing excerpt over the whole log.
 
 Never place in a task envelope: `.env` files, keys, tokens, passwords,
 credentials, production customer data, personal data, or unrelated proprietary
-code. The dispatcher enforces this and will abort the run — but a rejected run
-means you built the envelope wrong, so check before you write it.
+code.
+
+The dispatcher enforces only part of that mechanically: a path deny list
+(`.env*`, `**/secrets/**`, `**/credentials*`, `*.pem`, `id_rsa*`, `*.key`,
+`*.p12`, `*.pfx`) and a content sweep for credential shapes — PEM
+private-key headers, AWS access keys, GitHub tokens, `sk-` keys, Slack
+tokens, and high-entropy credential assignments. A hit aborts the run with
+exit code 13.
+
+Customer data, personal data and out-of-scope proprietary code are not
+detectable by pattern and are not gated. Whether they leave the machine is
+your judgment alone. Exit 13 means you built the envelope wrong; the absence
+of exit 13 does not mean the envelope is safe.
 
 Before writing the envelope, state internally which files are included, which
 are deliberately excluded, and why the privacy classification permits this
