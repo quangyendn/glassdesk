@@ -1,4 +1,4 @@
-import { test } from 'node:test';
+import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -10,10 +10,21 @@ import {
   probeAll,
 } from '../../plugins/glassdesk/bin/lib/provider-availability.mjs';
 
+// stubPath() is called from inside plain test bodies that take no `t`, so it
+// cannot register its own t.after() cleanup. Instead every mkdtemp'd dir it
+// creates is tracked here and removed once, after all tests in this file
+// finish — previously none of them were ever removed and each run of this file
+// leaked five directories.
+const stubDirs = [];
+after(() => {
+  for (const dir of stubDirs) fs.rmSync(dir, { recursive: true, force: true });
+});
+
 // Build a scratch dir holding one executable stub, and scope PATH to it so the
 // probe cannot see the developer's real CLIs.
 function stubPath(binNames) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gd-ext-bin-'));
+  stubDirs.push(dir);
   for (const n of binNames) {
     const p = path.join(dir, n);
     fs.writeFileSync(p, '#!/bin/sh\nexit 0\n');
