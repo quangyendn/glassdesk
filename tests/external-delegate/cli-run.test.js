@@ -236,3 +236,33 @@ test('--task-file is required', () => {
   const r = run(['run', '--provider', 'stub'], { PATH: s.binDir, GD_EXTERNAL_PROVIDERS: s.registryPath });
   assert.notEqual(r.status, 0);
 });
+
+for (const bad of ['abc', '-1', '0']) {
+  test(`--timeout ${bad} is rejected instead of crashing or disabling the timeout`, () => {
+    const s = scenario({ providerScript: '#!/bin/sh\nsleep 3\necho SHOULD_NOT_COMPLETE\nexit 0\n' });
+    const task = writeTask(s.dir, { objective: 'x' });
+    const r = run(['run', '--provider', 'stub', '--task-file', task, '--timeout', bad], {
+      PATH: s.binDir, GD_EXTERNAL_PROVIDERS: s.registryPath,
+    });
+    assert.equal(r.status, 12, r.stderr);
+    assert.match(r.stderr, new RegExp(`--timeout.*${bad.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`));
+    // Must fail before spawning the provider at all, not merely time out.
+    assert.equal(r.stdout.includes('SHOULD_NOT_COMPLETE'), false);
+  });
+}
+
+test('an unwritable --output path still emits the envelope to stdout and reports the failure on stderr', () => {
+  const s = scenario();
+  const task = writeTask(s.dir, { objective: 'x' });
+  const badOutput = path.join(s.dir, 'no-such-dir', 'result.json');
+  const r = run(['run', '--provider', 'stub', '--task-file', task, '--output', badOutput], {
+    PATH: s.binDir, GD_EXTERNAL_PROVIDERS: s.registryPath,
+  });
+  // The provider ran and succeeded; a write failure afterward must not change
+  // the exit code the run itself earned.
+  assert.equal(r.status, 0);
+  const env = JSON.parse(r.stdout);
+  assert.match(env.raw_output, /PROVIDER_OUTPUT/);
+  assert.match(r.stderr, /cannot write --output/);
+  assert.equal(fs.existsSync(badOutput), false);
+});

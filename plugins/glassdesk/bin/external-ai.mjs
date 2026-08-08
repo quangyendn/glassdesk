@@ -145,6 +145,19 @@ function readTaskFile(file) {
   }
 }
 
+// spawnSync's own `timeout` validation throws a raw RangeError for NaN/negative
+// values, and silently disables the timeout altogether for zero — neither
+// outcome is acceptable here (the whole feature exists partly because a
+// provider was measured hanging past 2m30s). Reject anything that is not a
+// finite, positive number of seconds before it ever reaches spawnSync.
+function parseTimeoutSeconds(raw) {
+  const seconds = Number(raw);
+  if (!Number.isFinite(seconds) || seconds <= 0) {
+    die(EXIT.UNSUPPORTED, `--timeout must be a positive number of seconds, got "${raw}"`);
+  }
+  return seconds;
+}
+
 // Deterministic only. Ranking providers on expected quality is a judgment the
 // script must not make — the agent calls `list` and passes an explicit name.
 function pickAuto(registry, task, mode) {
@@ -163,6 +176,12 @@ async function cmdRun(registry, flags) {
   const taskFile = flagValue(flags, 'task-file', { required: true });
   const task = readTaskFile(taskFile);
   const mode = flagValue(flags, 'mode', { fallback: registry.defaults?.mode ?? 'advisory' });
+  // Validated up front, at parse time, rather than at the point it's finally
+  // handed to spawnSync — a bad value should fail fast and cleanly, before any
+  // gate has run or any file has been read.
+  const timeoutSeconds = parseTimeoutSeconds(
+    flagValue(flags, 'timeout', { fallback: registry.defaults?.timeout_seconds ?? 300 }),
+  );
 
   let name = flagValue(flags, 'provider', { required: true });
   if (name === 'auto') name = pickAuto(registry, task, mode);
@@ -195,8 +214,7 @@ async function cmdRun(registry, flags) {
   }
 
   const prompt = buildPrompt({ task, specialist, files: context.files, mode });
-  const timeoutSeconds = flagValue(flags, 'timeout', { fallback: registry.defaults?.timeout_seconds ?? 300 });
-  const timeoutMs = Number(timeoutSeconds) * 1000;
+  const timeoutMs = timeoutSeconds * 1000;
 
   const started = Date.now();
   let result;
@@ -240,7 +258,17 @@ async function cmdRun(registry, flags) {
   const serialised = `${JSON.stringify(envelope, null, 2)}\n`;
   const outputFile = flagValue(flags, 'output');
   if (outputFile) {
-    fs.writeFileSync(outputFile, serialised);
+    // The provider has already been spawned and has already returned by this
+    // point — its cost and any side effects are sunk. An unwritable path
+    // (missing directory, permissions) must not discard the envelope that was
+    // just computed: report the write failure and fall back to stdout so the
+    // result of an already-paid-for run is never lost.
+    try {
+      fs.writeFileSync(outputFile, serialised);
+    } catch (e) {
+      process.stderr.write(`external-ai: cannot write --output ${outputFile}: ${e.message}\n`);
+      process.stdout.write(serialised);
+    }
   } else {
     process.stdout.write(serialised);
   }
