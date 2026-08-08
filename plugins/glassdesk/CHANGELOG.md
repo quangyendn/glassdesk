@@ -58,7 +58,7 @@
 
 ### Removed
 
-- **OpenCode dropped from external scouting** — the documented `--model opencode/grok-code` no longer resolves (the model is gone and the provider/model format no longer matches), so the SCALE 4-5 tier was dead code. SCALE ≥4 now routes to `Explore` subagents. `agy` is the only external CLI.
+- **OpenCode dropped from external scouting** — the documented `--model opencode/grok-code` no longer resolves, so the SCALE 4-5 tier was dead code. SCALE ≥4 now routes to `Explore` subagents. `agy` is the only external CLI for scouting. (`opencode/grok-code` specifically is gone; the CLI itself still works and was re-adopted as a `gd-external-delegate` provider — see "Corrected the stale OpenCode claim" under `### Changed`, `[Unreleased]`, above.)
 
 ### Fixed
 

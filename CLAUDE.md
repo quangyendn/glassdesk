@@ -51,7 +51,7 @@ Available commands in `.claude/commands/` — 28 total:
 - `/git:pr` - Create a pull request
 
 ### WIKI
-- `/wiki` - Wiki maintainer entry point; dispatches to the subcommands below
+- `/wiki` - Project wiki maintainer entry point; lists the subcommands below
 - `/wiki:init` - Bootstrap `.gd-wiki/` Obsidian-flavored vault, register QMD collection, run first embed
 - `/wiki:update` - Distill new commits since last sync into wiki pages (main branch only)
 - `/wiki:lint` - Deterministic checks (broken links, orphans, stale frontmatter); `--deep` runs LLM contradiction sweep

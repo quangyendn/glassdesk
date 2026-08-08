@@ -97,9 +97,9 @@ surfaces them to the selecting agent. Verified 2026-08-05.
 ## Command reference
 
 ```bash
-node "$GD_PLUGIN_PATH/bin/external-ai.mjs" list [--json]
-node "$GD_PLUGIN_PATH/bin/external-ai.mjs" check --provider <name> [--mode <mode>] [--task-type <type>]
-node "$GD_PLUGIN_PATH/bin/external-ai.mjs" run \
+node "${GD_PLUGIN_PATH:?GD_PLUGIN_PATH unset}/bin/external-ai.mjs" list [--json]
+node "${GD_PLUGIN_PATH:?GD_PLUGIN_PATH unset}/bin/external-ai.mjs" check --provider <name> [--mode <mode>] [--task-type <type>]
+node "${GD_PLUGIN_PATH:?GD_PLUGIN_PATH unset}/bin/external-ai.mjs" run \
   --provider <name|auto> [--specialist <name>] [--mode <mode>] \
   --task-file <path> [--timeout <seconds>] [--output <path>]
 ```
@@ -194,8 +194,10 @@ Enforced in the dispatcher, before any byte leaves the machine.
    that gets redacted out of the `command`, `raw_output`, and `stderr_tail`
    fields of the run envelope before it is ever written or printed.
 
-Any of these — except the byte cap, which is `EXIT.PRIVACY` for a different
-reason — abort the run with exit code 13.
+Every one of these, including the byte cap, aborts the run with exit code 13
+(`EXIT.PRIVACY`) — the byte cap is not a privacy violation in the same sense
+as the others, but it shares the same code because `gateContext` throws the
+same `GateError` class for all of them.
 
 **None of this catches customer data, personal data, or unrelated proprietary
 code.** Those are not detectable by pattern and are not gated by the

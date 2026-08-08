@@ -64,7 +64,7 @@ Three commands that make glassdesk self-improving:
 - **`/learn`** — after a session, extract insights into `.gd-wiki/insights/` (auto-mkdir; no `/wiki:init` required; committed alongside the wiki since v0.3.0)
 - **`/improve [--plugin|--project]`** — reads knowledge entries, proposes diffs to `plans/improvements/` — **never auto-applied**
 
-## Agents (17)
+## Agents (18)
 
 | Agent | Purpose |
 |-------|---------|
