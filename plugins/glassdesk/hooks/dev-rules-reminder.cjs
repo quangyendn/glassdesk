@@ -100,6 +100,31 @@ function buildPlanContext(sessionId, config) {
 // Decide statically instead: the copies differ by where they live. The project
 // copy is authoritative when it exists and is registered, so the plugin copy
 // stands down. No timing, no shared state, no race.
+// Symlink-safe: `.claude/hooks` is a symlink into the main checkout under the
+// managed-worktree setup, so comparing lexical paths would make the project copy
+// fail to recognise itself.
+function realPath(p) {
+  try {
+    return fs.realpathSync(p);
+  } catch (e) {
+    return path.resolve(p);
+  }
+}
+
+// Claude Code exports CLAUDE_PROJECT_DIR; cwd may be a subdirectory of it, in
+// which case `<cwd>/.claude` does not exist and neither copy would find the
+// other. Walk up as a fallback for harnesses that do not set the variable.
+function resolveProjectDir() {
+  if (process.env.CLAUDE_PROJECT_DIR) return realPath(process.env.CLAUDE_PROJECT_DIR);
+  let dir = realPath(process.cwd());
+  for (;;) {
+    if (fs.existsSync(path.join(dir, '.claude'))) return dir;
+    const parent = path.dirname(dir);
+    if (parent === dir) return realPath(process.cwd());
+    dir = parent;
+  }
+}
+
 function projectCopyWillRun(payload) {
   // Standing down is only safe if the harness actually runs project-settings
   // hooks. Claude Code does, and supplies transcript_path; Codex runs the plugin
@@ -107,11 +132,12 @@ function projectCopyWillRun(payload) {
   // is inert and yielding to it would silence the only copy.
   if (!payload.transcript_path) return false;
 
-  const projectHooks = path.join(process.cwd(), '.claude', 'hooks');
+  const projectDir = resolveProjectDir();
+  const projectHooks = path.join(projectDir, '.claude', 'hooks');
   const projectHook = path.join(projectHooks, 'dev-rules-reminder.cjs');
 
   // We are the project copy — we are the one that runs.
-  if (path.resolve(__dirname) === path.resolve(projectHooks)) return false;
+  if (realPath(__dirname) === realPath(projectHooks)) return false;
   if (!fs.existsSync(projectHook)) return false;
 
   // Present on disk is not enough: `npx glassdesk init` also has to have wired
@@ -119,7 +145,7 @@ function projectCopyWillRun(payload) {
   for (const file of ['settings.local.json', 'settings.json']) {
     try {
       const settings = JSON.parse(
-        fs.readFileSync(path.join(process.cwd(), '.claude', file), 'utf-8')
+        fs.readFileSync(path.join(projectDir, '.claude', file), 'utf-8')
       );
       const groups = settings && settings.hooks && settings.hooks.UserPromptSubmit;
       if (!Array.isArray(groups)) continue;
