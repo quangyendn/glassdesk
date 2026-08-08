@@ -42,8 +42,11 @@ The dispatcher enforces only part of that mechanically: a path deny list
 (`.env*`, `**/secrets/**`, `**/credentials*`, `*.pem`, `id_rsa*`, `*.key`,
 `*.p12`, `*.pfx`) and a content sweep for credential shapes — PEM
 private-key headers, AWS access keys, GitHub tokens, `sk-` keys, Slack
-tokens, and high-entropy credential assignments. A hit aborts the run with
-exit code 13.
+tokens, and high-entropy credential assignments. It also caps total context
+size (`defaults.max_context_bytes`, 400000 by default) and rejects any
+`scope.files` entry that resolves outside the scope root, including via a
+symlink that only escapes after `realpath` resolution. A hit on any of these
+aborts the run with exit code 13.
 
 **Customer data, personal data and out-of-scope proprietary code are not
 detectable by pattern and are not gated. Whether they leave the machine is
