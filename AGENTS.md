@@ -145,10 +145,12 @@ separate and runs both. The two are not coordinated: they run in parallel and
 neither sees the other's `$CLAUDE_ENV_FILE` writes, so `session-init.cjs` ends up
 with last-write-wins on `GD_PLUGIN_PATH` and `GD_SESSION_ID` — its
 `if (!process.env.GD_PLUGIN_PATH)` guard only catches an already-exported value,
-not a concurrent sibling. `dev-rules-reminder.cjs` does dedupe, via a per-prompt
-lock file in `$TMPDIR`, but only while both copies carry that guard; an
-upgrade-skewed install still double-injects. The reliable fix is to register in
-one place only — see `plugins/glassdesk/hooks/README.md`.
+not a concurrent sibling. `dev-rules-reminder.cjs` does dedupe: the
+plugin copy stands down when a registered project copy exists, decided from
+`__dirname` and `.claude/settings*.json` rather than from timing. That holds only
+while the copy that runs carries the current code, so an upgrade-skewed install
+can still double-inject. The reliable fix is to register in one place only — see
+`plugins/glassdesk/hooks/README.md`.
 
 **`UserPromptSubmit` → `dev-rules-reminder.cjs`** emits a JSON
 `hookSpecificOutput.additionalContext` envelope. Claude Code accepts both that and

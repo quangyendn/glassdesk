@@ -12,7 +12,6 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const crypto = require('crypto');
 const { execSync } = require('child_process');
 const {
   loadConfig,
@@ -88,97 +87,52 @@ function buildPlanContext(sessionId, config) {
 }
 
 // A project can have glassdesk installed twice at once: the marketplace plugin
-// registers this hook via hooks/hooks.json, and `npx glassdesk init` registers it
-// via .claude/settings.local.json. Claude Code treats those as separate handlers
-// and concatenates both additionalContext values, so the reminder would appear
-// twice for the same prompt. The transcript check below cannot catch that — at
-// this point neither copy has been written to the transcript yet.
+// registers this hook from hooks/hooks.json, and `npx glassdesk init` registers
+// a copy of it from .claude/settings.local.json. Claude Code keeps plugin and
+// project handlers separate and runs both, concatenating both context blocks.
 //
-// Guard with an exclusive lock file: whichever copy wins an atomic `wx` create
-// emits the context, the other exits silently.
+// The two processes share no event identifier — no turn id, no sequence number —
+// so they cannot arbitrate at runtime. Any lock keyed on the prompt text is
+// stuck choosing between letting a boundary case through and suppressing a
+// legitimate repeat of the same prompt, and suppressing the only copy is far
+// worse than injecting twice.
 //
-// The lock name carries a monotonic time bucket, so a name is never reused once
-// its bucket passes. That removes any notion of an expired lock to reclaim —
-// reclaiming in place is what makes this kind of guard racy, because two
-// contenders can each believe they took over the same name from different
-// generations. Nothing here unlinks a lock another process might still claim.
-//
-// Caveat: the guard only holds when both installed copies carry it. During an
-// upgrade skew — a stale `npx` copy beside an updated marketplace plugin — the
-// old copy never claims the lock and still injects.
-const LOCK_BUCKET_MS = 10_000;
-const LOCK_STRADDLE_MS = 1_000;
-const LOCK_SWEEP_MS = 5 * 60_000;
-const LOCK_PREFIX = 'gd-ups-';
+// Decide statically instead: the copies differ by where they live. The project
+// copy is authoritative when it exists and is registered, so the plugin copy
+// stands down. No timing, no shared state, no race.
+function projectCopyWillRun(payload) {
+  // Standing down is only safe if the harness actually runs project-settings
+  // hooks. Claude Code does, and supplies transcript_path; Codex runs the plugin
+  // manifest alone and ignores .claude/settings*.json, so a registration there
+  // is inert and yielding to it would silence the only copy.
+  if (!payload.transcript_path) return false;
 
-// `wx` create is atomic: exactly one caller can win it.
-function createLockExclusive(lockPath) {
-  try {
-    fs.closeSync(fs.openSync(lockPath, 'wx'));
-    return true;
-  } catch (e) {
-    // EEXIST means someone else holds it. Any other error (read-only tmpdir,
-    // permissions) means we cannot arbitrate at all — emit rather than suppress.
-    return e.code !== 'EEXIST';
+  const projectHooks = path.join(process.cwd(), '.claude', 'hooks');
+  const projectHook = path.join(projectHooks, 'dev-rules-reminder.cjs');
+
+  // We are the project copy — we are the one that runs.
+  if (path.resolve(__dirname) === path.resolve(projectHooks)) return false;
+  if (!fs.existsSync(projectHook)) return false;
+
+  // Present on disk is not enough: `npx glassdesk init` also has to have wired
+  // it into settings, and a user may have removed that registration.
+  for (const file of ['settings.local.json', 'settings.json']) {
+    try {
+      const settings = JSON.parse(
+        fs.readFileSync(path.join(process.cwd(), '.claude', file), 'utf-8')
+      );
+      const groups = settings && settings.hooks && settings.hooks.UserPromptSubmit;
+      if (!Array.isArray(groups)) continue;
+      for (const group of groups) {
+        for (const hook of (group && group.hooks) || []) {
+          if (typeof hook.command === 'string' && hook.command.includes('dev-rules-reminder.cjs')) {
+            return true;
+          }
+        }
+      }
+    } catch (e) { /* missing or malformed — treat as not registered */ }
   }
-}
-
-function existsYoungerThan(lockPath, maxAgeMs) {
-  try {
-    return Date.now() - fs.statSync(lockPath).mtimeMs < maxAgeMs;
-  } catch (e) {
-    return false;
-  }
-}
-
-// Buckets advance every LOCK_BUCKET_MS and never repeat, so any lock old enough
-// to sweep can no longer be the target of a live claim.
-function sweepAbandonedLocks(dir) {
-  try {
-    const cutoff = Date.now() - LOCK_SWEEP_MS;
-    for (const name of fs.readdirSync(dir)) {
-      if (!name.startsWith(LOCK_PREFIX) || !name.endsWith('.lock')) continue;
-      const p = path.join(dir, name);
-      try {
-        if (fs.statSync(p).mtimeMs < cutoff) fs.unlinkSync(p);
-      } catch (e) { /* already gone */ }
-    }
-  } catch (e) { /* unreadable tmpdir — sweeping is best-effort */ }
-}
-
-function claimPromptLock(payload) {
-  // Only Claude Code can register this hook twice (plugin manifest + project
-  // settings), and only it supplies transcript_path. Harnesses without it —
-  // Codex, which loads the plugin manifest alone — have no duplicate to guard
-  // against and must not risk losing their only copy.
-  if (!payload.transcript_path) return true;
-
-  try {
-    const dir = os.tmpdir();
-    sweepAbandonedLocks(dir);
-
-    // JSON-encode the parts rather than joining on a separator: no delimiter can
-    // collide with prompt text, and the source stays plain ASCII.
-    const key = crypto
-      .createHash('sha256')
-      .update(JSON.stringify([payload.session_id || '', process.cwd(), payload.prompt || '']))
-      .digest('hex')
-      .slice(0, 16);
-
-    const bucket = Math.floor(Date.now() / LOCK_BUCKET_MS);
-    const lockPath = (n) => path.join(dir, `${LOCK_PREFIX}${key}-${n}.lock`);
-
-    if (!createLockExclusive(lockPath(bucket))) return false;
-
-    // Won this bucket — but duplicate handlers launched microseconds apart can
-    // straddle a bucket boundary and each win a different name. If the previous
-    // bucket was claimed a moment ago, that copy is already emitting.
-    if (existsYoungerThan(lockPath(bucket - 1), LOCK_STRADDLE_MS)) return false;
-
-    return true;
-  } catch (e) {
-    return true; // never let the guard itself suppress the reminder
-  }
+  return false;
 }
 
 function wasRecentlyInjected(transcriptPath) {
@@ -295,7 +249,7 @@ async function main() {
 
     const payload = JSON.parse(stdin);
     if (wasRecentlyInjected(payload.transcript_path)) process.exit(0);
-    if (!claimPromptLock(payload)) process.exit(0);
+    if (projectCopyWillRun(payload)) process.exit(0);
 
     const sessionId = process.env.GD_SESSION_ID || null;
     const config = loadConfig({ includeProject: false, includeAssertions: false });
