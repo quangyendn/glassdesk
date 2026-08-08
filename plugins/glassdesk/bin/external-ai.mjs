@@ -16,10 +16,14 @@
 //                       [--mode <mode>] --task-file <path>
 //                       [--timeout <seconds>] [--output <path>]
 
-import { loadRegistry } from './lib/load-config.mjs';
+import fs from 'node:fs';
+import path from 'node:path';
+import { loadRegistry, loadSpecialist } from './lib/load-config.mjs';
 import { EXIT } from './lib/exit-codes.mjs';
 import { probeProvider, probeAll } from './lib/provider-availability.mjs';
-import { gateMode, gateCapability } from './lib/policy-gates.mjs';
+import { gateMode, gateCapability, gatePrivacy, gateContext, GateError } from './lib/policy-gates.mjs';
+import { buildPrompt } from './lib/build-prompt.mjs';
+import { buildArgv, runCli, runHttp, buildEnvelope } from './lib/run-provider.mjs';
 
 const USAGE = `usage:
   external-ai.mjs list [--json]
@@ -127,6 +131,124 @@ function cmdCheck(registry, flags) {
   return EXIT.OK;
 }
 
+function readTaskFile(file) {
+  let text;
+  try {
+    text = fs.readFileSync(file, 'utf8');
+  } catch (e) {
+    die(EXIT.FAILURE, `cannot read --task-file ${file}: ${e.message}`);
+  }
+  try {
+    return JSON.parse(text);
+  } catch (e) {
+    die(EXIT.FAILURE, `--task-file ${file} is not valid JSON: ${e.message}`);
+  }
+}
+
+// Deterministic only. Ranking providers on expected quality is a judgment the
+// script must not make — the agent calls `list` and passes an explicit name.
+function pickAuto(registry, task, mode) {
+  for (const probe of probeAll(registry)) {
+    if (!probe.available) continue;
+    const entry = registry.providers[probe.name];
+    if (gateMode(entry, mode)) continue;
+    if (gateCapability(entry, task.task_type)) continue;
+    if (gatePrivacy(entry, task)) continue;
+    return probe.name;
+  }
+  die(EXIT.UNAVAILABLE, `no available provider satisfies mode "${mode}" for this task`);
+}
+
+async function cmdRun(registry, flags) {
+  const taskFile = flagValue(flags, 'task-file', { required: true });
+  const task = readTaskFile(taskFile);
+  const mode = flagValue(flags, 'mode', { fallback: registry.defaults?.mode ?? 'advisory' });
+
+  let name = flagValue(flags, 'provider', { required: true });
+  if (name === 'auto') name = pickAuto(registry, task, mode);
+
+  const entry = resolveProvider(registry, name);
+
+  const probe = probeProvider(name, entry);
+  if (!probe.available) die(probe.code, `${name}: ${probe.reason}`);
+
+  for (const gate of [gateMode(entry, mode), gateCapability(entry, task.task_type), gatePrivacy(entry, task)]) {
+    if (gate) die(gate.code, `${name}: ${gate.message}`);
+  }
+
+  let specialist = null;
+  const specialistName = flagValue(flags, 'specialist');
+  if (specialistName && specialistName !== 'none') {
+    specialist = loadSpecialist(specialistName);
+    if (!specialist) die(EXIT.UNSUPPORTED, `unknown specialist profile "${specialistName}"`);
+  }
+
+  // Reading, deny-listing, secret-sweeping and size-capping all happen here,
+  // before anything is handed to a provider.
+  const scopeRoot = task.scope?.root ? path.resolve(task.scope.root) : process.cwd();
+  let context;
+  try {
+    context = gateContext(task, registry.defaults ?? {}, scopeRoot);
+  } catch (e) {
+    if (e instanceof GateError) die(e.code, `${name}: ${e.message}`);
+    die(EXIT.FAILURE, e.message);
+  }
+
+  const prompt = buildPrompt({ task, specialist, files: context.files, mode });
+  const timeoutSeconds = flagValue(flags, 'timeout', { fallback: registry.defaults?.timeout_seconds ?? 300 });
+  const timeoutMs = Number(timeoutSeconds) * 1000;
+
+  const started = Date.now();
+  let result;
+  let commandLine;
+  const secrets = [];
+
+  if (entry.type === 'cli-agent') {
+    let built;
+    try {
+      built = buildArgv(entry, mode, { model: entry.default_model, prompt, dir: scopeRoot });
+    } catch (e) {
+      die(EXIT.UNSUPPORTED, `${name}: ${e.message}`);
+    }
+    commandLine = [entry.bin, ...built.argv].join(' ');
+    result = runCli(entry, name, built, timeoutMs);
+  } else if (entry.type === 'openai-compatible') {
+    result = await runHttp(entry, prompt, timeoutMs);
+    if (result.apiKey) secrets.push(result.apiKey);
+    commandLine = `POST ${process.env[entry.env.base_url] || entry.endpoint_defaults?.base_url}/chat/completions`;
+  } else {
+    die(EXIT.FAILURE, `${name}: unknown provider type "${entry.type}"`);
+  }
+
+  // buildEnvelope redacts command/stdout/stderr internally from `secrets` —
+  // raw values are passed here, not pre-redacted.
+  const envelope = buildEnvelope({
+    provider: name,
+    specialist: specialist?.name ?? null,
+    mode,
+    exitCode: result.exitCode,
+    durationMs: Date.now() - started,
+    command: commandLine,
+    files: context.files,
+    totalBytes: context.totalBytes,
+    stdout: result.stdout,
+    stderr: result.stderr,
+    timedOut: result.timedOut,
+    secrets,
+  });
+
+  const serialised = `${JSON.stringify(envelope, null, 2)}\n`;
+  const outputFile = flagValue(flags, 'output');
+  if (outputFile) {
+    fs.writeFileSync(outputFile, serialised);
+  } else {
+    process.stdout.write(serialised);
+  }
+
+  // The envelope is emitted either way, so the agent always sees what happened.
+  return result.exitCode === 0 ? EXIT.OK : result.exitCode;
+}
+
 async function main() {
   const { command, flags } = parseArgs(process.argv.slice(2));
 
@@ -150,8 +272,7 @@ async function main() {
       process.exit(cmdCheck(registry, flags));
       break;
     case 'run':
-      // Wired in phase 03.
-      die(EXIT.FAILURE, 'run is not implemented yet');
+      process.exit(await cmdRun(registry, flags));
       break;
     default:
       process.stderr.write(`${USAGE}\n`);
