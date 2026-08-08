@@ -1,4 +1,4 @@
-import { test } from 'node:test';
+import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -9,9 +9,22 @@ import { fileURLToPath } from 'node:url';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const CLI = path.resolve(HERE, '../../plugins/glassdesk/bin/external-ai.mjs');
 
+// scenario() is called from ~20 call sites in this file, several inside
+// loops, so it does not thread a per-test `t` through to register its own
+// t.after() cleanup. Instead every mkdtemp'd dir it creates is tracked here
+// and removed once, after all tests in this file finish — previously none
+// of them were ever removed, and a full run of this file alone leaked
+// dozens of directories per run (676 had accumulated on the machine that
+// caught this).
+const scenarioDirs = [];
+after(() => {
+  for (const dir of scenarioDirs) fs.rmSync(dir, { recursive: true, force: true });
+});
+
 // A registry whose single cli-agent provider is a stub script we control.
 function scenario({ providerScript = '#!/bin/sh\necho PROVIDER_OUTPUT\nexit 0\n', extraProviders = {} } = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gd-ext-clirun-'));
+  scenarioDirs.push(dir);
   const binDir = path.join(dir, 'bin');
   fs.mkdirSync(binDir);
   const stub = path.join(binDir, 'stubcli');
@@ -291,6 +304,35 @@ test('a valueless --output is rejected before the provider is spawned', () => {
 // Finding 4: --output must not be usable to silently overwrite a file that
 // already exists — the dispatcher has no Edit/Write tool of its own, and an
 // unscoped overwrite through --output would hand that capability back.
+// Fold-in from the re-review: the pre-flight existsSync check is advisory
+// only. fs.existsSync follows symlinks and reports false for a *dangling*
+// one (its target doesn't exist), so a dangling symlink at --output's path
+// sails through that check — unlike the "existing file" case above, the
+// provider DOES run here. The write itself must still refuse: `wx` fails
+// with EEXIST on any symlink component regardless of where it points, per
+// POSIX, so the run's own already-computed envelope goes to stdout instead,
+// and — the actual point of the test — nothing is ever written to whatever
+// the symlink points at.
+test('--output pointing at a dangling symlink is refused at write time, and the link target is never created', () => {
+  const s = scenario();
+  const task = writeTask(s.dir, { objective: 'x' });
+  const linkPath = path.join(s.dir, 'dangling-link.json');
+  const linkTarget = path.join(s.dir, 'wherever-the-symlink-points.json');
+  fs.symlinkSync(linkTarget, linkPath);
+  try {
+    const r = run(['run', '--provider', 'stub', '--task-file', task, '--output', linkPath], {
+      PATH: s.binDir, GD_EXTERNAL_PROVIDERS: s.registryPath,
+    });
+    assert.equal(r.status, 12, r.stderr);
+    assert.match(r.stderr, /already exists/);
+    const env = JSON.parse(r.stdout);
+    assert.match(env.raw_output, /PROVIDER_OUTPUT/, 'the already-paid-for run must still be visible on stdout');
+    assert.equal(fs.existsSync(linkTarget), false, 'the symlink target must never be written to');
+  } finally {
+    fs.rmSync(linkPath, { force: true });
+  }
+});
+
 test('--output refuses to overwrite an existing file, and never spawns the provider', () => {
   const marker = path.join(os.tmpdir(), `gd-ext-marker-${process.pid}-${Date.now()}`);
   const s = scenario({ providerScript: `#!/bin/sh\ntouch ${marker}\necho PROVIDER_OUTPUT\nexit 0\n` });

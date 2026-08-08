@@ -24,7 +24,7 @@ test('buildArgv substitutes model, prompt and dir at argv level', () => {
   });
   assert.deepEqual(argv, [
     '-p', 'find things',
-    '--model', 'Gemini 3.5 Flash (Medium)', '--mode', 'plan',
+    '--model', 'Gemini 3.5 Flash (Medium)', '--mode', 'plan', '--sandbox',
     '--add-dir', '/repo',
     '--dangerously-skip-permissions',
   ]);
@@ -69,6 +69,27 @@ test('buildArgv throws for a mode the provider does not declare', () => {
   assert.throws(() => buildArgv(REG.providers.agy, 'patch-proposal', {}), /patch-proposal/);
 });
 
+// Critical regression from the advisory-cwd-isolation fix: `codex exec`
+// refuses to run outside a git repository, and the fresh `mkdtemp` directory
+// advisory mode now spawns in is never one — verified directly with
+// `cd $(mktemp -d) && codex exec --sandbox read-only "..."`, which fails with
+// "Not inside a trusted directory and --skip-git-repo-check was not
+// specified." repository-read and patch-proposal spawn in the real
+// scope.root, which is a git repository (or at least not guaranteed
+// otherwise), so they must NOT get this flag — it would silently widen what
+// codex considers "trusted" there.
+test('codex advisory includes --skip-git-repo-check, since it now runs outside a git repo', () => {
+  const { argv } = buildArgv(REG.providers.codex, 'advisory', { model: null, prompt: 'p', dir: '/repo' });
+  assert.ok(argv.includes('--skip-git-repo-check'), 'codex advisory must tolerate a non-git cwd');
+});
+
+test('codex repository-read and patch-proposal do not get --skip-git-repo-check', () => {
+  for (const mode of ['repository-read', 'patch-proposal']) {
+    const { argv } = buildArgv(REG.providers.codex, mode, { model: null, prompt: 'p', dir: '/repo' });
+    assert.equal(argv.includes('--skip-git-repo-check'), false, `codex ${mode} spawns in a real repo and must not skip the check`);
+  }
+});
+
 // Finding 7: agy has no independently-verified read-only flag the way
 // opencode's permission.write:deny or codex's --sandbox read-only do. `agy
 // --help` documents `--mode plan` as a distinct read-only execution mode, so
@@ -76,12 +97,16 @@ test('buildArgv throws for a mode the provider does not declare', () => {
 // registry's own notes must say plainly that this is not enforced the way
 // the other two providers' policies are, so the selecting agent is not
 // misled by "no writes" without qualification.
-test('agy invokes with --mode plan in both advisory and repository-read', () => {
+test('agy invokes with --mode plan and --sandbox in both advisory and repository-read', () => {
   for (const mode of ['advisory', 'repository-read']) {
     const { argv } = buildArgv(REG.providers.agy, mode, { model: 'M', prompt: 'p', dir: '/repo' });
     const i = argv.indexOf('--mode');
     assert.notEqual(i, -1, `--mode missing for agy ${mode}`);
     assert.equal(argv[i + 1], 'plan');
+    // --sandbox restricts a different route than --mode plan (the terminal/
+    // bash tool via an OS-level sandbox, per the binary's own strings) — it
+    // is additive hardening, not a substitute, so both must be present.
+    assert.ok(argv.includes('--sandbox'), `--sandbox missing for agy ${mode}`);
   }
 });
 

@@ -126,7 +126,18 @@ any form, or to reach the network by any route other than the dispatcher. If a
 task appears to require any of those, return that finding to the main agent
 instead of doing it.
 
-Exit codes: `0` ok · `10` unavailable · `11` auth · `12` unsupported ·
+`--task-file` may be a plain `mktemp` path — the dispatcher only reads it.
+`--output` must NOT be: `mktemp` creates the file it names, and the
+dispatcher refuses to write to a path that already exists (exit `12`,
+"already exists; refusing to overwrite it") — that includes a dangling
+symlink, so this is not a check you can route around by pointing `--output`
+at one. Give it a path that does not yet exist: `"$(mktemp -u)"`, or a name
+under `"$(mktemp -d)"` (e.g. `"$(mktemp -d)/result.json"`). Omitting
+`--output` and reading the envelope from stdout works too.
+
+Exit codes: `0` ok · `1` the provider ran and failed with its own status
+(the true value is in `envelope.exit_code`) · `10` unavailable · `11` auth ·
+`12` unsupported (also covers a bad or already-existing `--output` path) ·
 `13` privacy or secret · `14` timeout · `20` dispatcher failure. Report the
 code and its message; do not paper over it.
 

@@ -32,7 +32,14 @@ const USAGE = `usage:
   external-ai.mjs run --provider <name|auto> [--specialist <name>] [--mode <mode>]
                       --task-file <path> [--timeout <seconds>] [--output <path>]
 
-exit codes: 0 ok · 10 unavailable · 11 auth · 12 unsupported · 13 privacy · 14 timeout · 20 failure`;
+--output must not already exist — a dangling symlink counts as existing —
+or the run is refused with exit 12 before (or, on a race, after) the
+provider is spawned. Pass a path that does not yet exist, e.g.
+"$(mktemp -u)" or a name under "$(mktemp -d)", not "$(mktemp)" itself.
+
+exit codes: 0 ok · 1 provider ran and failed (see envelope.exit_code for its
+true status) · 10 unavailable · 11 auth · 12 unsupported · 13 privacy ·
+14 timeout · 20 failure`;
 
 function die(code, message) {
   process.stderr.write(`external-ai: ${message}\n`);
@@ -304,16 +311,34 @@ async function cmdRun(registry, flags) {
   });
 
   const serialised = `${JSON.stringify(envelope, null, 2)}\n`;
+  let outputRefused = false;
   if (outputFile) {
     // The provider has already been spawned and has already returned by this
     // point — its cost and any side effects are sunk. An unwritable path
     // (missing directory, permissions) must not discard the envelope that was
     // just computed: report the write failure and fall back to stdout so the
     // result of an already-paid-for run is never lost.
+    //
+    // The pre-flight existsSync check above is advisory, not a guarantee:
+    // fs.existsSync follows symlinks and reports false for a *dangling* one
+    // (its target doesn't exist), so a dangling symlink at --output's path
+    // sails through that check and, with a plain 'w' write, the write follows
+    // the link — an unscoped write to wherever the symlink points, which
+    // is exactly the primitive finding 4 set out to remove. It also cannot
+    // close a race where something is created at this path during the run.
+    // `wx` (O_CREAT | O_EXCL) closes both: POSIX specifies O_EXCL fails with
+    // EEXIST when the final path component is a symlink, dangling or not,
+    // regardless of where it points, and the create-and-check become one
+    // atomic syscall so nothing can be created in between.
     try {
-      fs.writeFileSync(resolvedOutputFile, serialised);
+      fs.writeFileSync(resolvedOutputFile, serialised, { flag: 'wx' });
     } catch (e) {
-      process.stderr.write(`external-ai: cannot write --output ${outputFile}: ${e.message}\n`);
+      if (e.code === 'EEXIST') {
+        outputRefused = true;
+        process.stderr.write(`external-ai: --output ${outputFile} already exists; refusing to overwrite it\n`);
+      } else {
+        process.stderr.write(`external-ai: cannot write --output ${outputFile}: ${e.message}\n`);
+      }
       process.stdout.write(serialised);
     }
   } else {
@@ -321,6 +346,7 @@ async function cmdRun(registry, flags) {
   }
 
   // The envelope is emitted either way, so the agent always sees what happened.
+  if (outputRefused) return EXIT.UNSUPPORTED;
   // A provider's own nonzero exit code lives in an arbitrary namespace it
   // does not coordinate with this contract's reserved values (10/11/12/13/
   // 14/20) — a provider that happens to exit 13 must not be reported as

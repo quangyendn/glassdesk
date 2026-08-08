@@ -48,11 +48,17 @@ access, changes to provider configuration, or calling another provider.
 ¹ Write prevention in `repository-read` is enforced per-provider, not by the
 dispatcher, and the strength of that enforcement differs: `opencode` denies
 `write`/`edit`/`bash` in its permission policy and `codex` runs under
-`--sandbox read-only` — both real, verified restrictions. `agy` has no
-equivalent flag; it runs with `--dangerously-skip-permissions`, which
-disables its own guardrails outright. "No writes" for `agy` is therefore a
-prompt-level request the model is expected to honour, not something the CLI
-enforces. See `agy`'s entry in the provider table below.
+`--sandbox read-only` — both real, restrictions confirmed by directly
+running the CLI. `agy` also runs with `--mode plan` (disables its file-edit
+tool) and `--sandbox` (OS-level restriction on its terminal tool), but
+unlike opencode/codex these have only been confirmed as accepted flags
+whose own `--help`/embedded documentation describes the right behaviour —
+not measured end-to-end against a signed-in session, because none was
+available. `agy` also runs with `--dangerously-skip-permissions`, which
+disables its own permission-prompt guardrails outright (required for
+headless reads at all). Net effect: "no writes" for `agy` is best-effort
+hardening the model is expected to honour, not a verified CLI enforcement
+the way opencode's and codex's are. See `agy`'s entry below.
 
 ## Providers
 
@@ -97,10 +103,24 @@ surfaces them to the selecting agent. Verified 2026-08-05.
   prompt, so every file read is auto-denied without it. That same flag
   disables `agy`'s own write/edit guardrails, so unlike `opencode` and
   `codex`, `agy` has no independently verified read-only enforcement.
-- `--mode plan` is set on every invocation because `agy --help` documents it
-  as a distinct read-only execution mode. This has only been confirmed as an
-  accepted flag (the CLI does not reject it), not measured end-to-end against
-  a signed-in session — treat it as best-effort hardening, not a guarantee.
+- `--mode plan` is set on every invocation. `agy --help` documents it as a
+  distinct read-only mode, and the binary's own embedded help text (visible
+  via `strings`) describes it as "research and plan without making
+  changes" — stronger evidence than the flag's existence alone that it
+  genuinely disables agy's file-edit tool, not just a prompt hint.
+- `--sandbox` is also set on every invocation. `agy --help` describes it as
+  "terminal restrictions", and the binary's strings show it is backed by an
+  OS-level sandbox profile (macOS Seatbelt fragments are visible in the
+  binary). This covers a *different* route than `--mode plan`: it constrains
+  what a shell/bash tool call can do, in case the model tries to route
+  around plan mode through a terminal command instead of its dedicated edit
+  tool. The two are additive, not alternatives, and both flags coexist
+  without conflict alongside `--dangerously-skip-permissions` (confirmed:
+  all four flags together still reach agy's normal auth flow rather than a
+  flag-parsing error). Neither has been measured end-to-end against a
+  signed-in session — treat both as best-effort hardening, not a guarantee,
+  and note that `--sandbox`'s OS-level backing may not extend to non-macOS
+  platforms.
 - An unauthenticated run prints an OAuth URL and blocks **interactively** for
   up to 60s waiting for an authorization code before giving up with
   `Authentication required...` / `Error: authentication timed out` /
@@ -140,12 +160,21 @@ agent normally calls `list` first and passes an explicit name.
 | Code | Meaning |
 |---|---|
 | 0 | success |
+| 1 | the provider ran and failed with its own exit status — the most common failure path. The true status is preserved in `envelope.exit_code`; `1` itself carries no further meaning beyond "nonzero and not one of the reserved codes below" |
 | 10 | provider unavailable — disabled, binary absent, or a required non-secret env var unset |
 | 11 | authentication unavailable |
-| 12 | unsupported task type, mode, provider name, or specialist |
+| 12 | unsupported task type, mode, provider name, or specialist — also covers a bad `--output`: missing a value, or a path that already exists (including a dangling symlink) |
 | 13 | privacy restriction or secret detected |
 | 14 | timeout |
 | 20 | dispatcher failure |
+
+A provider's own exit code is never passed through raw as this command's
+exit code, because it is an arbitrary namespace the provider does not
+coordinate with this table — a provider that happens to exit `13` must not
+be reported identically to this dispatcher's own privacy refusal. Any
+nonzero status the provider returns on its own therefore collapses to `1`;
+only the codes the dispatcher assigns itself (`10`/`11`/`12`/`13`/`14`/`20`)
+are ever returned as such.
 
 ## Task envelope
 
