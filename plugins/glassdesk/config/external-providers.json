@@ -136,19 +136,19 @@
       },
       "cost": "medium",
       "latency": "medium",
-      "auth_error_pattern": "(IneligibleTier|UNSUPPORTED_CLIENT|sign in)",
-      "notes": "Large context and multimodal input; authenticates through the system keyring, never an API key. Two silent failure modes — omitting --add-dir makes it scan its own scratch dir and report the repo as empty, and an unknown --model does not error, it falls back to the default model and exits 0. The model string must be an exact display label from `agy models`.",
+      "auth_error_pattern": "(IneligibleTier|UNSUPPORTED_CLIENT|please sign in|not signed in)",
+      "notes": "Large context and multimodal input; authenticates through the system keyring, never an API key. Two silent failure modes — omitting --add-dir makes it scan its own scratch dir and report the repo as empty, and an unknown --model does not error, it falls back to the default model and exits 0. The model string must be an exact display label from `agy models`. UNLIKE opencode and codex, agy has no independently verified read-only enforcement: `--dangerously-skip-permissions` disables its own guardrails outright, so \"no writes\" in repository-read mode is a prompt-level request, not a policy the CLI enforces. `--mode plan` is set on every invocation because `agy --help` documents it as a distinct read-only execution mode (the same shape as opencode's `--agent plan`), but that has only been confirmed as an accepted flag, not measured end-to-end against a signed-in session — treat it as best-effort, not a guarantee.",
       "invoke": {
         "advisory": {
           "argv": [
-            "-p", "{prompt}", "--model", "{model}",
+            "-p", "{prompt}", "--model", "{model}", "--mode", "plan",
             "--dangerously-skip-permissions"
           ],
           "env": {}
         },
         "repository-read": {
           "argv": [
-            "-p", "{prompt}", "--model", "{model}",
+            "-p", "{prompt}", "--model", "{model}", "--mode", "plan",
             "--add-dir", "{dir}", "--dangerously-skip-permissions"
           ],
           "env": {}

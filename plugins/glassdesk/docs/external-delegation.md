@@ -38,12 +38,21 @@ The main agent dispatches the subagent by name. There is no slash command.
 | Mode | The provider may | Use for |
 |---|---|---|
 | `advisory` | read only what was sent to it | review, architecture, second opinion, adversarial check |
-| `repository-read` | inspect the repository, no writes | codebase investigation, debugging |
+| `repository-read` | inspect the repository, no writes¹ | codebase investigation, debugging |
 | `patch-proposal` | return a unified diff, never apply it | implementation proposals, targeted fixes, tests |
 
 Default is `advisory`. No mode permits commit, push, merge, deploy, credential
 access, changes to provider configuration, or calling another provider.
 `isolated-write` is not implemented.
+
+¹ Write prevention in `repository-read` is enforced per-provider, not by the
+dispatcher, and the strength of that enforcement differs: `opencode` denies
+`write`/`edit`/`bash` in its permission policy and `codex` runs under
+`--sandbox read-only` — both real, verified restrictions. `agy` has no
+equivalent flag; it runs with `--dangerously-skip-permissions`, which
+disables its own guardrails outright. "No writes" for `agy` is therefore a
+prompt-level request the model is expected to honour, not something the CLI
+enforces. See `agy`'s entry in the provider table below.
 
 ## Providers
 
@@ -85,7 +94,13 @@ surfaces them to the selecting agent. Verified 2026-08-05.
 - `--model` takes an exact display label from `agy models`. An unknown value
   does not error — it silently falls back to the default model and exits 0.
 - `--dangerously-skip-permissions` is required. Headless mode cannot show a
-  prompt, so every file read is auto-denied without it.
+  prompt, so every file read is auto-denied without it. That same flag
+  disables `agy`'s own write/edit guardrails, so unlike `opencode` and
+  `codex`, `agy` has no independently verified read-only enforcement.
+- `--mode plan` is set on every invocation because `agy --help` documents it
+  as a distinct read-only execution mode. This has only been confirmed as an
+  accepted flag (the CLI does not reject it), not measured end-to-end against
+  a signed-in session — treat it as best-effort hardening, not a guarantee.
 
 **`codex`**
 
@@ -153,7 +168,7 @@ agent normally calls `list` first and passes an explicit name.
   "status": "completed",
   "exit_code": 0,
   "duration_ms": 4210,
-  "command": "opencode run --pure --agent plan ...",
+  "command": "opencode run --pure --agent plan --format json -m opencode/deepseek-v4-flash-free <prompt:2450B>",
   "context_sent": { "files": ["db/migrate/update_payment_rates.rb"], "bytes": 8123 },
   "raw_output": "...",
   "stderr_tail": "..."
@@ -162,6 +177,12 @@ agent normally calls `list` first and passes an explicit name.
 
 `raw_output` is unvalidated provider text. The agent normalises it into
 findings and verifies each claim before reporting anything as fact.
+
+`command` shows the argv the provider was actually invoked with, but the
+`{prompt}` element is replaced with a `<prompt:NNNNB>` byte-length
+placeholder rather than the prompt text itself — the prompt is already sent
+in full to the provider, and duplicating it into `command` would roughly
+double the envelope at the byte cap for no benefit.
 
 ## Privacy enforcement
 
@@ -193,11 +214,23 @@ Enforced in the dispatcher, before any byte leaves the machine.
    `Authorization` header, and passed to `buildEnvelope` as a `secrets` value
    that gets redacted out of the `command`, `raw_output`, and `stderr_tail`
    fields of the run envelope before it is ever written or printed.
+7. **Advisory cwd isolation.** A CLI provider is a spawned process, and a
+   spawned process inherits its parent's working directory unless told
+   otherwise. In `advisory` mode the dispatcher spawns the provider inside a
+   fresh, empty `fs.mkdtempSync` directory — not the repository — and removes
+   it once the run ends, so the provider's own file-read tools have nothing
+   under them to find even if the deny list, secret sweep, or byte cap were
+   somehow bypassed. `repository-read` and `patch-proposal` spawn in
+   `scope.root`, as those modes are meant to see it.
 
-Every one of these, including the byte cap, aborts the run with exit code 13
+Every one of 1–6, including the byte cap, aborts the run with exit code 13
 (`EXIT.PRIVACY`) — the byte cap is not a privacy violation in the same sense
 as the others, but it shares the same code because `gateContext` throws the
-same `GateError` class for all of them.
+same `GateError` class for all of them. Advisory cwd isolation (7) is
+different in kind: it is not a gate that inspects the envelope and can
+refuse it, but a structural property of how the provider is spawned, so
+there is nothing for it to abort — it simply removes the file for a
+would-be bypass to find.
 
 **None of this catches customer data, personal data, or unrelated proprietary
 code.** Those are not detectable by pattern and are not gated by the
