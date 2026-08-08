@@ -94,17 +94,20 @@ function buildPlanContext(sessionId, config) {
 // twice for the same prompt. The transcript check below cannot catch that — at
 // this point neither copy has been written to the transcript yet.
 //
-// Guard with an exclusive lock file keyed on the prompt: whichever copy wins the
-// `wx` create emits the context, the other exits silently.
+// Guard with an exclusive lock file: whichever copy wins an atomic `wx` create
+// emits the context, the other exits silently.
 //
-// Caveat: this only holds when both installed copies are on this version or
-// newer. During an upgrade skew — say a stale `npx` copy beside an updated
-// marketplace plugin — the old copy never claims the lock and still injects.
+// The lock name carries a monotonic time bucket, so a name is never reused once
+// its bucket passes. That removes any notion of an expired lock to reclaim —
+// reclaiming in place is what makes this kind of guard racy, because two
+// contenders can each believe they took over the same name from different
+// generations. Nothing here unlinks a lock another process might still claim.
 //
-// Duplicate handlers fire within milliseconds of each other, so the lock only
-// needs to cover that window. LOCK_TTL_MS is deliberately short to limit how
-// long a crashed run can suppress a later prompt; abandoned locks are swept.
-const LOCK_TTL_MS = 10_000;
+// Caveat: the guard only holds when both installed copies carry it. During an
+// upgrade skew — a stale `npx` copy beside an updated marketplace plugin — the
+// old copy never claims the lock and still injects.
+const LOCK_BUCKET_MS = 10_000;
+const LOCK_STRADDLE_MS = 1_000;
 const LOCK_SWEEP_MS = 5 * 60_000;
 const LOCK_PREFIX = 'gd-ups-';
 
@@ -120,6 +123,16 @@ function createLockExclusive(lockPath) {
   }
 }
 
+function existsYoungerThan(lockPath, maxAgeMs) {
+  try {
+    return Date.now() - fs.statSync(lockPath).mtimeMs < maxAgeMs;
+  } catch (e) {
+    return false;
+  }
+}
+
+// Buckets advance every LOCK_BUCKET_MS and never repeat, so any lock old enough
+// to sweep can no longer be the target of a live claim.
 function sweepAbandonedLocks(dir) {
   try {
     const cutoff = Date.now() - LOCK_SWEEP_MS;
@@ -128,7 +141,7 @@ function sweepAbandonedLocks(dir) {
       const p = path.join(dir, name);
       try {
         if (fs.statSync(p).mtimeMs < cutoff) fs.unlinkSync(p);
-      } catch (e) { /* raced with another sweeper */ }
+      } catch (e) { /* already gone */ }
     }
   } catch (e) { /* unreadable tmpdir — sweeping is best-effort */ }
 }
@@ -151,30 +164,18 @@ function claimPromptLock(payload) {
       .update(JSON.stringify([payload.session_id || '', process.cwd(), payload.prompt || '']))
       .digest('hex')
       .slice(0, 16);
-    const lockPath = path.join(dir, `${LOCK_PREFIX}${key}.lock`);
 
-    if (createLockExclusive(lockPath)) return true;
+    const bucket = Math.floor(Date.now() / LOCK_BUCKET_MS);
+    const lockPath = (n) => path.join(dir, `${LOCK_PREFIX}${key}-${n}.lock`);
 
-    let age;
-    try {
-      age = Date.now() - fs.statSync(lockPath).mtimeMs;
-    } catch (e) {
-      // Vanished between the create attempt and the stat — retry the create.
-      return createLockExclusive(lockPath);
-    }
-    if (age <= LOCK_TTL_MS) return false;
+    if (!createLockExclusive(lockPath(bucket))) return false;
 
-    // Lock is abandoned. Elect exactly one reclaimer: rename is atomic, so of N
-    // contenders only the first moves the file; the rest get ENOENT and stand
-    // down. Refreshing the mtime in place would let all N proceed.
-    const claimPath = `${lockPath}.${process.pid}.${crypto.randomBytes(4).toString('hex')}`;
-    try {
-      fs.renameSync(lockPath, claimPath);
-    } catch (e) {
-      return false; // lost the election
-    }
-    try { fs.unlinkSync(claimPath); } catch (e) { /* best-effort */ }
-    return createLockExclusive(lockPath);
+    // Won this bucket — but duplicate handlers launched microseconds apart can
+    // straddle a bucket boundary and each win a different name. If the previous
+    // bucket was claimed a moment ago, that copy is already emitting.
+    if (existsYoungerThan(lockPath(bucket - 1), LOCK_STRADDLE_MS)) return false;
+
+    return true;
   } catch (e) {
     return true; // never let the guard itself suppress the reminder
   }

@@ -141,11 +141,14 @@ session.
 **Hooks can fire twice under a dual install.** The marketplace plugin registers
 them from `hooks/hooks.json` and `npx glassdesk init` registers the same scripts
 from `.claude/settings.local.json`; Claude Code keeps plugin and project handlers
-separate and runs both. `session-init.cjs` handles this with first-writer-wins on
-`GD_PLUGIN_PATH`, and `dev-rules-reminder.cjs` with a per-prompt lock file in
-`$TMPDIR` so only one copy emits context — which works only while both copies
-carry the guard, so an upgrade-skewed install still double-injects. Preserve
-those guards when editing either script.
+separate and runs both. The two are not coordinated: they run in parallel and
+neither sees the other's `$CLAUDE_ENV_FILE` writes, so `session-init.cjs` ends up
+with last-write-wins on `GD_PLUGIN_PATH` and `GD_SESSION_ID` — its
+`if (!process.env.GD_PLUGIN_PATH)` guard only catches an already-exported value,
+not a concurrent sibling. `dev-rules-reminder.cjs` does dedupe, via a per-prompt
+lock file in `$TMPDIR`, but only while both copies carry that guard; an
+upgrade-skewed install still double-injects. The reliable fix is to register in
+one place only — see `plugins/glassdesk/hooks/README.md`.
 
 **`UserPromptSubmit` → `dev-rules-reminder.cjs`** emits a JSON
 `hookSpecificOutput.additionalContext` envelope. Claude Code accepts both that and
