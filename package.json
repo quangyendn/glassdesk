@@ -35,7 +35,7 @@
   },
   "scripts": {
     "validate": "claude plugin validate .",
-    "test": "node --test tests/**/*.test.js",
+    "test": "node --test \"tests/**/*.test.js\"",
     "pack:check": "npm pack --dry-run",
     "prepare": "husky",
     "guardrails:scan": "node scripts/guardrails/scan-personal-info.js",

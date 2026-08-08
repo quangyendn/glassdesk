@@ -21,8 +21,9 @@ Two consumers, one source tree:
 | Marketplace plugin | `claude plugin install glassdesk` | `plugins/glassdesk/` |
 | npx installer | `npx glassdesk init` | `<project>/.claude/` |
 
-`bin/cli.js` copies `plugins/glassdesk/**` into `<project>/.claude/` and rewrites
-`$GD_PLUGIN_PATH` → `.claude` in every copied `.md`. **Anything you add under
+A project can end up with both at once. `bin/cli.js` copies `plugins/glassdesk/**`
+into `<project>/.claude/` and rewrites `$GD_PLUGIN_PATH` → `.claude` in every
+copied `.md`. **Anything you add under
 `plugins/glassdesk/` must work in both layouts.** Never reference
 `${CLAUDE_PLUGIN_ROOT}` in markdown — use `${GD_PLUGIN_PATH}`. Scripts should
 resolve siblings from their own location (`path.resolve(__dirname, '../config')`),
@@ -55,7 +56,7 @@ another agent can see them: `plans/`, `docs/specs/`.
 ## Commands
 
 ```bash
-npm test                    # node --test tests/**/*.test.js
+npm test                    # node --test "tests/**/*.test.js" — 108 tests
 npm run validate            # claude plugin validate .
 npm run guardrails:scan     # personal-info / secret scan
 npm run guardrails:changelog  # blocks publishing a version the changelog omits
@@ -67,12 +68,19 @@ There is no build step, no linter, and no type checker for the repo itself —
 `npm test` and `sync-models --check` are the whole gate. `website/` is the one
 exception: it is an Astro project with its own dependencies and its own build.
 
+The `test` script quotes its glob (`node --test "tests/**/*.test.js"`) so Node
+expands it. Unquoted, `sh` collapses `**` to `*`, which silently matches only
+`tests/guardrails/` and skips the three top-level suites — 32 tests instead of
+108. Keep the quotes.
+
 ## Conventions that are enforced
 
 **Commit messages must be English and Conventional Commits.** `commitlint` plus
-`scripts/guardrails/lint-commit-msg.js` enforce both; Vietnamese text is blocked
-outright (`.guardrails.json` → `commitMessage.blockVietnamese`). Do not add
-`Co-Authored-By` trailers.
+`scripts/guardrails/lint-commit-msg.js` enforce the Conventional Commits subject.
+English is policy; what is actually automated is a Vietnamese-diacritic check
+(`.guardrails.json` → `commitMessage.blockVietnamese`), so unaccented Vietnamese
+slips through the guard and still violates the rule. Do not add `Co-Authored-By`
+trailers.
 
 **Pre-commit** runs `gitleaks protect --staged` and
 `scripts/guardrails/scan-personal-info.js --staged`. **Pre-push** runs
@@ -84,8 +92,12 @@ them rather than writing new regexes.
 **Agent frontmatter is generated, not hand-written.** An agent file declares
 `tier:`; `plugins/glassdesk/bin/sync-models` derives `model:` and `effort:` from
 `plugins/glassdesk/config/models.yml`. Edit the tier or the policy file, then run
-`sync-models`. Hand-editing `model:`/`effort:` will be reverted and the
-pre-commit drift guard will fail.
+`sync-models`; hand-edited `model:`/`effort:` values are overwritten on the next
+sync. This one is **not** enforced on commit — `.husky/pre-commit` runs only
+gitleaks and the PII scanner, and `plugins/glassdesk/scripts/pre-commit-hook.sh`
+installs into `.git/hooks`, which `core.hooksPath=.husky/_` bypasses. Run
+`node plugins/glassdesk/bin/sync-models --check` yourself before committing agent
+changes.
 
 **Agent files are `gd-<name>.agent.md`.** The `gd-` prefix namespaces them
 against user-defined agents. See `.gd-wiki/decisions/agent-naming-standardization.md`.
@@ -125,6 +137,14 @@ so a newly added hook will appear to do nothing under `codex exec` alone.
 Downstream scripts that read those variables fall back to defaults — in particular
 `dev-rules-reminder.cjs` resolves the active plan by git branch rather than by
 session.
+
+**Hooks can fire twice under a dual install.** The marketplace plugin registers
+them from `hooks/hooks.json` and `npx glassdesk init` registers the same scripts
+from `.claude/settings.local.json`; Claude Code keeps plugin and project handlers
+separate and runs both. `session-init.cjs` handles this with first-writer-wins on
+`GD_PLUGIN_PATH`, and `dev-rules-reminder.cjs` with a per-prompt lock file in
+`$TMPDIR` so only one copy emits context. Preserve those guards when editing
+either script.
 
 **`UserPromptSubmit` → `dev-rules-reminder.cjs`** emits a JSON
 `hookSpecificOutput.additionalContext` envelope. Claude Code accepts both that and

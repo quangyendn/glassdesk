@@ -6,7 +6,7 @@ See [`website/index.html`](./website/index.html) for the introductory landing pa
 
 ## Features
 
-- **28 Slash Commands** — 8-phase SDLC taxonomy: DISCOVER → PLAN → BUILD → VERIFY → REVIEW → SHIP → COMPOUND
+- **28 Slash Commands** — 8-phase SDLC taxonomy: DISCOVER → PLAN → BUILD → VERIFY → REVIEW → SHIP → WIKI → COMPOUND
 - **Compound Engineering** — `/spec` (brainstorm→doc), `/learn` (session→knowledge), `/improve` (gated proposals)
 - **Multi-Agent Framework** — Claude-Flow integration for parallel task orchestration
 - **AI Multimodal** — Gemini API support for audio/image/video processing
