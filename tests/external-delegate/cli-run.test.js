@@ -266,3 +266,142 @@ test('an unwritable --output path still emits the envelope to stdout and reports
   assert.match(r.stderr, /cannot write --output/);
   assert.equal(fs.existsSync(badOutput), false);
 });
+
+// Finding 1: a valueless --output must be rejected before the provider is
+// ever spawned, not after it has already run and returned. The stub writes a
+// marker file as a side effect visible from outside the child process, so
+// "the provider never ran" is checkable independently of the exit code.
+test('a valueless --output is rejected before the provider is spawned', () => {
+  const marker = path.join(os.tmpdir(), `gd-ext-marker-${process.pid}-${Date.now()}`);
+  const s = scenario({ providerScript: `#!/bin/sh\ntouch ${marker}\necho PROVIDER_OUTPUT\nexit 0\n` });
+  const task = writeTask(s.dir, { objective: 'x' });
+  try {
+    const r = run(['run', '--provider', 'stub', '--task-file', task, '--output'], {
+      PATH: s.binDir, GD_EXTERNAL_PROVIDERS: s.registryPath,
+    });
+    assert.equal(r.status, 12, r.stderr);
+    assert.match(r.stderr, /--output requires a value/);
+    assert.equal(r.stdout.trim(), '', 'no envelope should be emitted for a request that never ran');
+    assert.equal(fs.existsSync(marker), false, 'the provider must never have been spawned');
+  } finally {
+    fs.rmSync(marker, { force: true });
+  }
+});
+
+// Finding 4: --output must not be usable to silently overwrite a file that
+// already exists — the dispatcher has no Edit/Write tool of its own, and an
+// unscoped overwrite through --output would hand that capability back.
+test('--output refuses to overwrite an existing file, and never spawns the provider', () => {
+  const marker = path.join(os.tmpdir(), `gd-ext-marker-${process.pid}-${Date.now()}`);
+  const s = scenario({ providerScript: `#!/bin/sh\ntouch ${marker}\necho PROVIDER_OUTPUT\nexit 0\n` });
+  const task = writeTask(s.dir, { objective: 'x' });
+  const existing = path.join(s.dir, 'already-here.json');
+  fs.writeFileSync(existing, 'do not touch me');
+  try {
+    const r = run(['run', '--provider', 'stub', '--task-file', task, '--output', existing], {
+      PATH: s.binDir, GD_EXTERNAL_PROVIDERS: s.registryPath,
+    });
+    assert.equal(r.status, 12, r.stderr);
+    assert.match(r.stderr, /already exists/);
+    assert.equal(fs.readFileSync(existing, 'utf8'), 'do not touch me');
+    assert.equal(fs.existsSync(marker), false, 'the provider must never have been spawned');
+  } finally {
+    fs.rmSync(marker, { force: true });
+  }
+});
+
+// Finding 3: a provider's own exit code lives in a namespace it does not
+// coordinate with this contract's reserved values. Exit 13 from the
+// dispatcher means EXIT.PRIVACY ("refused, nothing sent") — a provider that
+// merely happens to exit 13 after a completed run must not be reported that
+// way, or the agent will wrongly conclude nothing left the machine.
+for (const providerExit of [10, 11, 12, 13, 14, 20]) {
+  test(`a provider exiting ${providerExit} does not collide with the reserved exit-code contract`, () => {
+    const s = scenario({ providerScript: `#!/bin/sh\necho PROVIDER_OUTPUT\nexit ${providerExit}\n` });
+    const task = writeTask(s.dir, { objective: 'x' });
+    const r = run(['run', '--provider', 'stub', '--task-file', task], {
+      PATH: s.binDir, GD_EXTERNAL_PROVIDERS: s.registryPath,
+    });
+    assert.equal(r.status, 1, `dispatcher exit code must collapse to 1, not pass through ${providerExit} raw`);
+    const env = JSON.parse(r.stdout);
+    // The true value is not lost — it is still visible in the envelope.
+    assert.equal(env.exit_code, providerExit);
+    assert.equal(env.status, 'failed');
+  });
+}
+
+// Finding 2: `advisory` promises the provider "no access to the repository"
+// (build-prompt.mjs's MODE_CONTRACT), but a spawned child inherits this
+// process's cwd unless told otherwise. Prove the isolation at the process
+// level, not just in the prompt text: a provider whose own tools try to
+// read a file relative to its cwd must fail to see it in `advisory` mode,
+// and must succeed in `repository-read` mode, where it is deliberately
+// handed the repository.
+test('advisory mode spawns the provider with no view of the repository; repository-read hands it scope.root', () => {
+  const repoDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gd-ext-repo-'));
+  fs.writeFileSync(path.join(repoDir, 'marker.txt'), 'REPO_MARKER_CONTENT');
+  try {
+    const s = scenario({
+      extraProviders: {
+        stub: {
+          type: 'cli-agent', enabled: 'auto', priority: 1, bin: 'stubcli',
+          default_model: 'stub-model',
+          modes: ['advisory', 'repository-read'],
+          capabilities: ['code-review', 'analysis'],
+          privacy: { execution: 'external-service', restricted_data_allowed: false },
+          notes: 'test stub',
+          invoke: {
+            advisory: { argv: ['-p', '{prompt}'], env: {} },
+            'repository-read': { argv: ['-p', '{prompt}', '--dir', '{dir}'], env: {} },
+          },
+        },
+      },
+      providerScript: '#!/bin/sh\ncat marker.txt 2>/dev/null || echo NO_ACCESS\n',
+    });
+
+    // `cat` itself has to resolve from PATH inside the stub script, so PATH
+    // must include the real system path, not just the stub's own directory
+    // (a PATH scoped to only the stub would make `cat` unresolvable and
+    // produce "command not found" on stderr, which the script's `|| echo
+    // NO_ACCESS` would mask as if the file were merely absent).
+    const scopedPath = `${s.binDir}${path.delimiter}${process.env.PATH || ''}`;
+
+    const advisoryTask = writeTask(s.dir, { objective: 'x', scope: { root: repoDir } });
+    const advisoryRun = run(['run', '--provider', 'stub', '--task-file', advisoryTask, '--mode', 'advisory'], {
+      PATH: scopedPath, GD_EXTERNAL_PROVIDERS: s.registryPath,
+    });
+    assert.equal(advisoryRun.status, 0, advisoryRun.stderr);
+    assert.match(JSON.parse(advisoryRun.stdout).raw_output, /NO_ACCESS/);
+
+    const readTask = writeTask(s.dir, { objective: 'x', scope: { root: repoDir } });
+    const readRun = run(['run', '--provider', 'stub', '--task-file', readTask, '--mode', 'repository-read'], {
+      PATH: scopedPath, GD_EXTERNAL_PROVIDERS: s.registryPath,
+    });
+    assert.equal(readRun.status, 0, readRun.stderr);
+    assert.match(JSON.parse(readRun.stdout).raw_output, /REPO_MARKER_CONTENT/);
+  } finally {
+    fs.rmSync(repoDir, { recursive: true, force: true });
+  }
+});
+
+// Finding 8: the envelope's `command` field should not embed the whole
+// prompt a second time — every CLI template contains `{prompt}`, and at the
+// byte cap that one argv element can be most of the envelope.
+test('the command field carries a byte-length placeholder for the prompt, not the prompt itself', () => {
+  // The stub echoes its own argv so the test can see exactly what commandLine
+  // captured, same technique as the specialist-profile test above.
+  const s = scenario({ providerScript: '#!/bin/sh\necho "$2"\n' });
+  const longObjective = 'x'.repeat(5000);
+  const task = writeTask(s.dir, { objective: longObjective });
+  const r = run(['run', '--provider', 'stub', '--task-file', task], {
+    PATH: s.binDir, GD_EXTERNAL_PROVIDERS: s.registryPath,
+  });
+  assert.equal(r.status, 0, r.stderr);
+  const env = JSON.parse(r.stdout);
+  // The full prompt did reach the provider (raw_output proves it, since the
+  // stub echoed its own second argv element back).
+  assert.match(env.raw_output, /x{5000}/);
+  // But the command field must not carry that same text again.
+  assert.equal(env.command.includes('x'.repeat(5000)), false, 'the prompt must not be duplicated into `command`');
+  assert.match(env.command, /<prompt:\d+B>/);
+});

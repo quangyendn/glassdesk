@@ -24,7 +24,7 @@ test('buildArgv substitutes model, prompt and dir at argv level', () => {
   });
   assert.deepEqual(argv, [
     '-p', 'find things',
-    '--model', 'Gemini 3.5 Flash (Medium)',
+    '--model', 'Gemini 3.5 Flash (Medium)', '--mode', 'plan',
     '--add-dir', '/repo',
     '--dangerously-skip-permissions',
   ]);
@@ -67,6 +67,41 @@ test('buildArgv builds codex patch-proposal with a read-only sandbox', () => {
 
 test('buildArgv throws for a mode the provider does not declare', () => {
   assert.throws(() => buildArgv(REG.providers.agy, 'patch-proposal', {}), /patch-proposal/);
+});
+
+// Finding 7: agy has no independently-verified read-only flag the way
+// opencode's permission.write:deny or codex's --sandbox read-only do. `agy
+// --help` documents `--mode plan` as a distinct read-only execution mode, so
+// it is used on every invocation as the best available guardrail — but the
+// registry's own notes must say plainly that this is not enforced the way
+// the other two providers' policies are, so the selecting agent is not
+// misled by "no writes" without qualification.
+test('agy invokes with --mode plan in both advisory and repository-read', () => {
+  for (const mode of ['advisory', 'repository-read']) {
+    const { argv } = buildArgv(REG.providers.agy, mode, { model: 'M', prompt: 'p', dir: '/repo' });
+    const i = argv.indexOf('--mode');
+    assert.notEqual(i, -1, `--mode missing for agy ${mode}`);
+    assert.equal(argv[i + 1], 'plan');
+  }
+});
+
+test('agy notes disclose that read-only enforcement is not independently verified', () => {
+  assert.match(
+    REG.providers.agy.notes,
+    /no independently verified read-only enforcement|not a policy the CLI enforces|prompt-level/i,
+  );
+});
+
+// Finding 10: an unanchored "sign in" substring in agy's auth_error_pattern
+// reclassifies any stderr that happens to mention "sign in" as exit 11
+// (auth wall) — including a transient error whose message merely quotes a
+// sign-in URL — which stops the agent's failure ladder on the wrong branch.
+test('agy auth_error_pattern requires an anchored sign-in phrase, not a bare substring', () => {
+  const re = new RegExp(REG.providers.agy.auth_error_pattern, 'i');
+  assert.equal(re.test('Authentication required. Please visit the URL to sign in: https://...'), false);
+  assert.ok(re.test('please sign in to continue'));
+  assert.ok(re.test('Error: not signed in'));
+  assert.ok(re.test('IneligibleTierError: UNSUPPORTED_CLIENT'));
 });
 
 test('redact replaces every occurrence of each secret', () => {
@@ -143,6 +178,42 @@ test('runCli tolerates a malformed auth_error_pattern instead of crashing', (t) 
   // The malformed pattern must not crash the dispatcher; it degrades to the
   // provider's own exit code instead of being mapped to EXIT.AUTH.
   assert.equal(r.exitCode, 1);
+});
+
+test('runCli spawns the child in the given cwd', (t) => {
+  const { dir, bin } = stubCli('#!/bin/sh\npwd\n');
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const target = fs.mkdtempSync(path.join(os.tmpdir(), 'gd-ext-cwd-'));
+  t.after(() => fs.rmSync(target, { recursive: true, force: true }));
+  const r = runCli({ bin }, 'stub', { argv: [], env: {} }, 10000, { cwd: target });
+  assert.equal(r.stdout.trim(), fs.realpathSync(target));
+});
+
+test('runCli defaults to the caller\'s own cwd when none is given', (t) => {
+  const { dir, bin } = stubCli('#!/bin/sh\npwd\n');
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const r = runCli({ bin }, 'stub', { argv: [], env: {} }, 10000);
+  assert.equal(r.stdout.trim(), fs.realpathSync(process.cwd()));
+});
+
+test('runCli marks a provider\'s own nonzero exit status as raw, unlike its own assigned codes', (t) => {
+  const { dir, bin } = stubCli('#!/bin/sh\nexit 13\n');
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const r = runCli({ bin }, 'stub', { argv: [], env: {} }, 10000);
+  assert.equal(r.exitCode, 13);
+  assert.equal(r.raw, true, 'a raw provider exit code must be flagged so a caller does not treat it as a reserved code');
+});
+
+test('runCli does not mark its own timeout/auth/missing-binary codes as raw', (t) => {
+  const missing = runCli({ bin: '/no/such/binary-gd-test' }, 'stub', { argv: [], env: {} }, 10000);
+  assert.equal(missing.exitCode, EXIT.UNAVAILABLE);
+  assert.equal(missing.raw, false);
+
+  const { dir, bin } = stubCli('#!/bin/sh\nsleep 30\n');
+  const timedOut = runCli({ bin }, 'stub', { argv: [], env: {} }, 700);
+  fs.rmSync(dir, { recursive: true, force: true });
+  assert.equal(timedOut.exitCode, EXIT.TIMEOUT);
+  assert.equal(timedOut.raw, false);
 });
 
 test('runHttp posts to /chat/completions and returns the message content', async () => {

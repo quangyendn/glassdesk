@@ -17,6 +17,7 @@
 //                       [--timeout <seconds>] [--output <path>]
 
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { loadRegistry, loadSpecialist } from './lib/load-config.mjs';
 import { EXIT } from './lib/exit-codes.mjs';
@@ -158,6 +159,20 @@ function parseTimeoutSeconds(raw) {
   return seconds;
 }
 
+// The envelope's `command` field exists so the agent can see what was
+// actually invoked — it is not meant to carry the whole prompt a second
+// time. Every CLI template embeds `{prompt}` as one argv element, and at the
+// 400 KB context cap that element alone can be most of the envelope; joining
+// it into `command` verbatim roughly doubles the envelope for no benefit,
+// since the same text is already in the prompt that was sent. Replace the
+// exact argv element that came from substituting `{prompt}` with a
+// byte-length placeholder instead.
+function commandLineFor(bin, argv, prompt) {
+  const placeholder = `<prompt:${Buffer.byteLength(prompt ?? '', 'utf8')}B>`;
+  const sanitizedArgv = argv.map((a) => (a === prompt ? placeholder : a));
+  return [bin, ...sanitizedArgv].join(' ');
+}
+
 // Deterministic only. Ranking providers on expected quality is a judgment the
 // script must not make — the agent calls `list` and passes an explicit name.
 function pickAuto(registry, task, mode) {
@@ -182,6 +197,18 @@ async function cmdRun(registry, flags) {
   const timeoutSeconds = parseTimeoutSeconds(
     flagValue(flags, 'timeout', { fallback: registry.defaults?.timeout_seconds ?? 300 }),
   );
+  // Also validated up front, alongside --timeout: a provider is expensive and
+  // possibly side-effecting to run, so a bad --output must fail before it is
+  // spawned, not after — otherwise the run's cost and any side effects are
+  // sunk while the envelope that would explain them is discarded on exit.
+  const outputFile = flagValue(flags, 'output');
+  let resolvedOutputFile = null;
+  if (outputFile) {
+    resolvedOutputFile = path.resolve(outputFile);
+    if (fs.existsSync(resolvedOutputFile)) {
+      die(EXIT.UNSUPPORTED, `--output ${outputFile} already exists; refusing to overwrite it`);
+    }
+  }
 
   let name = flagValue(flags, 'provider', { required: true });
   if (name === 'auto') name = pickAuto(registry, task, mode);
@@ -228,8 +255,29 @@ async function cmdRun(registry, flags) {
     } catch (e) {
       die(EXIT.UNSUPPORTED, `${name}: ${e.message}`);
     }
-    commandLine = [entry.bin, ...built.argv].join(' ');
-    result = runCli(entry, name, built, timeoutMs);
+    commandLine = commandLineFor(entry.bin, built.argv, prompt);
+
+    // The mode contract is a promise about what the provider can see.
+    // `advisory` promises "no repository access" — but a spawned child
+    // inherits this process's cwd unless told otherwise, and that cwd is the
+    // user's repository. Without an explicit cwd, an advisory-mode provider
+    // could open any file under the repo root through its own read/grep
+    // tools, bypassing the deny list, the secret sweep, and the byte cap in
+    // one step, no matter what the prompt says. Give it nowhere to look:
+    // spawn it in a throwaway empty directory instead. `repository-read` and
+    // `patch-proposal` are the modes actually meant to see the repo, so they
+    // get scopeRoot, same as the `{dir}` placeholder above.
+    let providerCwd = scopeRoot;
+    let advisoryCwd = null;
+    if (mode === 'advisory') {
+      advisoryCwd = fs.mkdtempSync(path.join(os.tmpdir(), 'gd-ext-advisory-'));
+      providerCwd = advisoryCwd;
+    }
+    try {
+      result = runCli(entry, name, built, timeoutMs, { cwd: providerCwd });
+    } finally {
+      if (advisoryCwd) fs.rmSync(advisoryCwd, { recursive: true, force: true });
+    }
   } else if (entry.type === 'openai-compatible') {
     result = await runHttp(entry, prompt, timeoutMs);
     if (result.apiKey) secrets.push(result.apiKey);
@@ -256,7 +304,6 @@ async function cmdRun(registry, flags) {
   });
 
   const serialised = `${JSON.stringify(envelope, null, 2)}\n`;
-  const outputFile = flagValue(flags, 'output');
   if (outputFile) {
     // The provider has already been spawned and has already returned by this
     // point — its cost and any side effects are sunk. An unwritable path
@@ -264,7 +311,7 @@ async function cmdRun(registry, flags) {
     // just computed: report the write failure and fall back to stdout so the
     // result of an already-paid-for run is never lost.
     try {
-      fs.writeFileSync(outputFile, serialised);
+      fs.writeFileSync(resolvedOutputFile, serialised);
     } catch (e) {
       process.stderr.write(`external-ai: cannot write --output ${outputFile}: ${e.message}\n`);
       process.stdout.write(serialised);
@@ -274,7 +321,17 @@ async function cmdRun(registry, flags) {
   }
 
   // The envelope is emitted either way, so the agent always sees what happened.
-  return result.exitCode === 0 ? EXIT.OK : result.exitCode;
+  // A provider's own nonzero exit code lives in an arbitrary namespace it
+  // does not coordinate with this contract's reserved values (10/11/12/13/
+  // 14/20) — a provider that happens to exit 13 must not be reported as
+  // EXIT.PRIVACY, which the caller reads as "refused, nothing was sent" when
+  // in fact the run completed. `result.raw` is true only when `exitCode` is
+  // that raw, unmapped provider status (set by runCli's final fallback, not
+  // by any of its explicit TIMEOUT/AUTH/UNAVAILABLE/FAILURE branches).
+  // envelope.exit_code above already preserved the true value, so collapsing
+  // it here to a single non-reserved code (1) loses nothing.
+  if (result.exitCode === 0) return EXIT.OK;
+  return result.raw ? 1 : result.exitCode;
 }
 
 async function main() {

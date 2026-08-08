@@ -62,7 +62,7 @@ export function redact(text, secrets = []) {
   return out;
 }
 
-export function runCli(provider, name, { argv, env }, timeoutMs) {
+export function runCli(provider, name, { argv, env }, timeoutMs, { cwd } = {}) {
   const r = spawnSync(provider.bin, argv, {
     encoding: 'utf8',
     timeout: timeoutMs,
@@ -70,6 +70,7 @@ export function runCli(provider, name, { argv, env }, timeoutMs) {
     env: { ...process.env, ...env },
     // No shell. argv elements reach the process verbatim.
     shell: false,
+    ...(cwd ? { cwd } : {}),
   });
 
   if (r.error) {
@@ -79,12 +80,12 @@ export function runCli(provider, name, { argv, env }, timeoutMs) {
     // (a maxBuffer overflow or a self-terminating child also produce
     // `signal: 'SIGTERM', status: null` with no `r.error` set).
     if (r.error.code === 'ETIMEDOUT') {
-      return { exitCode: EXIT.TIMEOUT, stdout: r.stdout ?? '', stderr: r.stderr ?? '', timedOut: true };
+      return { exitCode: EXIT.TIMEOUT, stdout: r.stdout ?? '', stderr: r.stderr ?? '', timedOut: true, raw: false };
     }
     if (r.error.code === 'ENOENT') {
-      return { exitCode: EXIT.UNAVAILABLE, stdout: '', stderr: `${provider.bin}: not found`, timedOut: false };
+      return { exitCode: EXIT.UNAVAILABLE, stdout: '', stderr: `${provider.bin}: not found`, timedOut: false, raw: false };
     }
-    return { exitCode: EXIT.FAILURE, stdout: r.stdout ?? '', stderr: String(r.error.message), timedOut: false };
+    return { exitCode: EXIT.FAILURE, stdout: r.stdout ?? '', stderr: String(r.error.message), timedOut: false, raw: false };
   }
 
   // No `r.error` means spawnSync itself didn't fail to launch/manage the
@@ -94,9 +95,21 @@ export function runCli(provider, name, { argv, env }, timeoutMs) {
   const timedOut = r.signal === 'SIGTERM' && r.status === null;
 
   const stderr = r.stderr ?? '';
+  // `raw` tracks whether `exitCode` below ends up being the *provider's own*
+  // exit status, passed straight through, as opposed to a code this function
+  // assigned itself (timeout, auth-pattern match, or the FAILURE fallback
+  // used when the child left no exit status at all, e.g. killed by a signal
+  // this function did not request). The provider's own exit codes are an
+  // arbitrary namespace it does not coordinate with ours — a provider that
+  // happens to exit 13 must not be reported as EXIT.PRIVACY. Only the
+  // dispatcher-assigned codes below are safe for a caller to treat as this
+  // contract's reserved values; the raw flag is how the caller tells them
+  // apart without re-deriving this logic itself.
   let exitCode = r.status ?? EXIT.FAILURE;
+  let raw = r.status !== null && r.status !== undefined;
   if (timedOut) {
     exitCode = EXIT.TIMEOUT;
+    raw = false;
   } else if (exitCode !== 0 && provider.auth_error_pattern) {
     // A CLI's session state cannot be probed for free, so authentication
     // failure is recognised here, from what it printed. A malformed pattern
@@ -108,10 +121,13 @@ export function runCli(provider, name, { argv, env }, timeoutMs) {
     } catch {
       re = null;
     }
-    if (re && re.test(stderr)) exitCode = EXIT.AUTH;
+    if (re && re.test(stderr)) {
+      exitCode = EXIT.AUTH;
+      raw = false;
+    }
   }
 
-  return { exitCode, stdout: r.stdout ?? '', stderr, timedOut };
+  return { exitCode, stdout: r.stdout ?? '', stderr, timedOut, raw };
 }
 
 export async function runHttp(provider, prompt, timeoutMs) {
