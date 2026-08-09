@@ -549,3 +549,49 @@ test('the child provider does not inherit this process\'s credentials', () => {
   assert.match(env.raw_output, /GD_FAKE_TOKEN=\[\]/);
   assert.match(env.raw_output, /PATH=\[.+\]/, 'the child still needs a usable environment');
 });
+
+// ---------------------------------------------------------------------------
+// Review round 2, P2: an explicitly empty flag value was folded into "absent"
+// and silently replaced with the fallback. `--output ""` was the worst of
+// them: it spawned the provider and then printed the envelope to stdout, so a
+// caller whose output path came out empty got a successful-looking run whose
+// result went somewhere it was not expecting.
+// ---------------------------------------------------------------------------
+
+test('an explicitly empty flag value exits 12 rather than falling back', () => {
+  for (const flag of ['--output', '--mode', '--timeout', '--specialist']) {
+    const s = scenario({ providerScript: '#!/bin/sh\necho SHOULD_NOT_RUN\nexit 0\n' });
+    const task = writeTask(s.dir, { objective: 'x' });
+    const r = run(['run', '--provider', 'stub', '--task-file', task, flag, ''], {
+      PATH: s.binDir, GD_EXTERNAL_PROVIDERS: s.registryPath,
+    });
+    assert.equal(r.status, 12, `${flag} "" must be refused: ${r.stderr}`);
+    assert.match(r.stderr, /non-empty/);
+    assert.doesNotMatch(r.stdout, /SHOULD_NOT_RUN/, `${flag} "" must be refused before the provider runs`);
+  }
+});
+
+test('a scope.files given as a string exits 13 instead of being iterated', () => {
+  const s = scenario({ providerScript: '#!/bin/sh\necho SHOULD_NOT_RUN\nexit 0\n' });
+  const task = writeTask(s.dir, { objective: 'x', scope: { files: 'a.ts', root: s.dir } });
+  const r = run(['run', '--provider', 'stub', '--task-file', task], {
+    PATH: s.binDir, GD_EXTERNAL_PROVIDERS: s.registryPath,
+  });
+  assert.equal(r.status, 13, r.stderr);
+  assert.match(r.stderr, /must be an array/);
+});
+
+test('repository-read exits 13 when a symlink in the scope root points at a denied file', () => {
+  const s = scenario({ providerScript: '#!/bin/sh\necho SHOULD_NOT_RUN\nexit 0\n', extraProviders: REPO_PROVIDER });
+  const root = path.join(s.dir, 'repo');
+  fs.mkdirSync(path.join(root, 'conf'), { recursive: true });
+  fs.writeFileSync(path.join(root, 'a.ts'), 'export const a = 1;\n');
+  fs.writeFileSync(path.join(root, 'conf', 'server.pem'), 'key\n');
+  fs.symlinkSync(path.join(root, 'conf', 'server.pem'), path.join(root, 'notes.txt'));
+  const task = writeTask(s.dir, { objective: 'x', scope: { files: ['a.ts'], root } });
+  const r = run(['run', '--provider', 'repo', '--mode', 'repository-read', '--task-file', task], {
+    PATH: s.binDir, GD_EXTERNAL_PROVIDERS: s.registryPath,
+  });
+  assert.equal(r.status, 13, r.stderr);
+  assert.doesNotMatch(r.stdout, /SHOULD_NOT_RUN/);
+});

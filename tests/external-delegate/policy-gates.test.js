@@ -502,3 +502,67 @@ test('gateRepositoryExposure fails closed when the tree is too large to sweep', 
 test('gateRepositoryExposure refuses a scope root that does not exist', () => {
   assert.equal(gateRepositoryExposure('/no/such/dir-gd-test')?.code, EXIT.PRIVACY);
 });
+
+// ---------------------------------------------------------------------------
+// Review round 2, P1: Dirent reports a symlink as neither file nor directory,
+// so the sweep checked only the link's own name. A link called `notes.txt`
+// pointing at `.env`, or anywhere outside the root, walked straight past the
+// gate and would then be followed by the provider handed that root.
+// ---------------------------------------------------------------------------
+
+test('gateRepositoryExposure rejects a symlink whose target is denied', (t) => {
+  // The target sits inside node_modules, which the walk skips — so only the
+  // symlink's target check can catch this, and the test cannot pass by
+  // accidentally finding the denied file on its own.
+  const dir = repoFixture(t, { 'src/a.ts': 'x', 'node_modules/pkg/server.pem': 'key' });
+  fs.symlinkSync(path.join(dir, 'node_modules/pkg/server.pem'), path.join(dir, 'notes.txt'));
+  const gate = gateRepositoryExposure(dir);
+  assert.equal(gate?.code, EXIT.PRIVACY);
+  assert.match(gate.message, /notes\.txt/);
+  assert.match(gate.message, /server\.pem/);
+});
+
+test('gateRepositoryExposure rejects a symlink pointing outside the scope root', (t) => {
+  const outside = repoFixture(t, { 'elsewhere.txt': 'data' });
+  const dir = repoFixture(t, { 'src/a.ts': 'x' });
+  fs.symlinkSync(outside, path.join(dir, 'escape'));
+  const gate = gateRepositoryExposure(dir);
+  assert.equal(gate?.code, EXIT.PRIVACY);
+  assert.match(gate.message, /outside/);
+});
+
+test('gateRepositoryExposure rejects a symlink it cannot resolve', (t) => {
+  const dir = repoFixture(t, { 'src/a.ts': 'x' });
+  fs.symlinkSync(path.join(dir, 'does-not-exist'), path.join(dir, 'dangling'));
+  assert.equal(gateRepositoryExposure(dir)?.code, EXIT.PRIVACY);
+});
+
+test('gateRepositoryExposure allows an ordinary symlink inside the root', (t) => {
+  const dir = repoFixture(t, { 'src/a.ts': 'x' });
+  fs.symlinkSync(path.join(dir, 'src/a.ts'), path.join(dir, 'alias.ts'));
+  assert.equal(gateRepositoryExposure(dir), null);
+});
+
+test('gateRepositoryExposure does not loop on a symlink cycle', (t) => {
+  const dir = repoFixture(t, { 'src/a.ts': 'x' });
+  fs.symlinkSync(dir, path.join(dir, 'src', 'self'));
+  // The link resolves to the root itself, which is inside the root, so it is
+  // allowed — and must not be descended into a second time.
+  assert.equal(gateRepositoryExposure(dir), null);
+});
+
+// ---------------------------------------------------------------------------
+// Review round 2, P2: a string `scope.files` iterates character by character,
+// turning one declared path into a dozen unrelated ones; any other
+// non-iterable throws a raw TypeError out of the gate meant to fail closed.
+// ---------------------------------------------------------------------------
+
+test('gateContext rejects a scope.files that is not an array', () => {
+  for (const bad of ['a.ts', 42, {}, true]) {
+    assert.throws(
+      () => gateContext({ scope: { files: bad } }, {}, process.cwd()),
+      (e) => e instanceof GateError && e.code === EXIT.PRIVACY && /must be an array/.test(e.message),
+      `scope.files: ${JSON.stringify(bad)} must be refused, not iterated`,
+    );
+  }
+});

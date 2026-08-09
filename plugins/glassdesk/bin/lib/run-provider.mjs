@@ -216,6 +216,13 @@ export function runCli(provider, name, { argv, env }, timeoutMs, { cwd, killGrac
         return;
       }
       if (timedOut) {
+        // The leader can exit on SIGTERM while a descendant that traps it
+        // survives — and if that descendant redirected or closed the inherited
+        // stdio, 'close' fires here immediately, cancelling the grace timer
+        // before its SIGKILL ever ran. Deliver the final kill to the group now,
+        // synchronously, so a timed-out run never settles with a member of its
+        // own process group still alive.
+        killTree('SIGKILL');
         finish({ exitCode: EXIT.TIMEOUT, stdout, stderr, timedOut: true, raw: false });
         return;
       }
@@ -271,7 +278,33 @@ export function runCli(provider, name, { argv, env }, timeoutMs, { cwd, killGrac
   });
 }
 
-export async function runHttp(provider, prompt, timeoutMs) {
+// `res.text()` buffers the whole body before anything gets a chance to
+// truncate it, so a malformed or hostile endpoint can exhaust this process
+// with a single reply — the 64 MB ceiling that bounds a CLI provider's stdout
+// has to bound an HTTP body too. Read incrementally and stop at the cap.
+async function readCappedBody(res, maxBytes) {
+  if (!res.body) return { text: await res.text(), truncated: false };
+  const reader = res.body.getReader();
+  const chunks = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > maxBytes) {
+      try {
+        await reader.cancel();
+      } catch {
+        /* the socket is being torn down anyway */
+      }
+      return { text: '', truncated: true };
+    }
+    chunks.push(Buffer.from(value));
+  }
+  return { text: Buffer.concat(chunks).toString('utf8'), truncated: false };
+}
+
+export async function runHttp(provider, prompt, timeoutMs, { maxBodyBytes = MAX_OUTPUT_BYTES } = {}) {
   const envMap = provider.env || {};
   const defaults = provider.endpoint_defaults || {};
   const baseUrl = (process.env[envMap.base_url] || defaults.base_url || '').replace(/\/+$/, '');
@@ -318,7 +351,17 @@ export async function runHttp(provider, prompt, timeoutMs) {
       signal: controller.signal,
     });
 
-    const text = await res.text();
+    const { text, truncated } = await readCappedBody(res, maxBodyBytes);
+    if (truncated) {
+      return {
+        exitCode: EXIT.FAILURE,
+        stdout: '',
+        stderr: `response body exceeded ${maxBodyBytes} bytes and was discarded (ENOBUFS)`,
+        timedOut: false,
+        raw: false,
+        apiKey,
+      };
+    }
     if (res.status === 401 || res.status === 403) {
       return { exitCode: EXIT.AUTH, stdout: '', stderr: `HTTP ${res.status}: ${text}`, timedOut: false, raw: false, apiKey };
     }

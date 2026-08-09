@@ -35,6 +35,9 @@ const USAGE = `usage:
   external-ai.mjs run --provider <name|auto> [--specialist <name>] [--mode <mode>]
                       --task-file <path> [--timeout <seconds>] [--output <path>]
 
+Every value-bearing flag rejects an absent, empty, or flag-shaped value with
+exit 12. An empty --output is refused, never treated as "no --output".
+
 --output must not already exist — a dangling symlink counts as existing —
 or the run is refused with exit 12 before (or, on a race, after) the
 provider is spawned. Pass a path that does not yet exist, e.g.
@@ -70,10 +73,18 @@ export function parseArgs(argv) {
 // A flag followed by nothing, or by another --flag, parses as boolean true.
 // Treating that as "absent" silently drops what the caller asked for, so
 // every value-bearing flag must reject it.
+//
+// An explicitly empty value (`--output ""`) is the same class of mistake and
+// is rejected the same way. Folding it into "absent" and applying the fallback
+// is worse than it sounds: `--output ""` would spawn the provider and then
+// print to stdout, so a caller that redirected the envelope to a file it
+// computed wrongly gets a successful-looking run whose result went somewhere
+// else entirely.
 export function flagValue(flags, name, { required = false, fallback = undefined } = {}) {
   const v = flags[name];
   if (v === true) die(EXIT.UNSUPPORTED, `--${name} requires a value`);
-  if (v === undefined || v === '') {
+  if (v === '') die(EXIT.UNSUPPORTED, `--${name} requires a non-empty value`);
+  if (v === undefined) {
     if (required) die(EXIT.UNSUPPORTED, `--${name} is required`);
     return fallback;
   }

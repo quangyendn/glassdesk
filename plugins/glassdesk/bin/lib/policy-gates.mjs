@@ -156,10 +156,8 @@ export function gateRepositoryExposure(root, { maxEntries = SWEEP_MAX_ENTRIES } 
         };
       }
       const childRel = rel ? `${rel}/${entry.name}` : entry.name;
-      if (entry.isDirectory()) {
-        if (!SWEEP_SKIP_DIRS.has(entry.name)) stack.push(childRel);
-        continue;
-      }
+
+      // Deny-check the name the entry presents, whatever kind of entry it is.
       const denied = matchesDenyGlob(childRel);
       if (denied) {
         return {
@@ -168,6 +166,54 @@ export function gateRepositoryExposure(root, { maxEntries = SWEEP_MAX_ENTRIES } 
             `scope root "${root}" contains "${childRel}", which matches the deny pattern "${denied}"; ` +
             'the provider would be able to read it directly in this mode',
         };
+      }
+
+      // A symlink is checked by NAME above and by TARGET here. Dirent reports
+      // it as neither a file nor a directory, so without this branch a link
+      // called `notes.txt` pointing at `.env` — or at anything outside the
+      // root — would pass the sweep untouched and then be followed by the
+      // provider, which is handed the root and reads it with its own tools.
+      if (entry.isSymbolicLink()) {
+        const linkPath = path.join(realRoot, childRel);
+        let target;
+        try {
+          target = fs.realpathSync(linkPath);
+        } catch (e) {
+          // Fail closed, as gateContext does for an unreadable scope.files
+          // entry: a link this process cannot resolve is a link whose target
+          // it cannot vouch for.
+          return {
+            code: EXIT.PRIVACY,
+            message: `scope root "${root}" contains symlink "${childRel}" that cannot be resolved: ${e.code || e.message}`,
+          };
+        }
+        if (target !== realRoot && !target.startsWith(realRoot + path.sep)) {
+          return {
+            code: EXIT.PRIVACY,
+            message:
+              `scope root "${root}" contains symlink "${childRel}" pointing outside it; ` +
+              'the provider would follow it straight past the scope boundary',
+          };
+        }
+        const targetRel = path.relative(realRoot, target).split(path.sep).join('/');
+        const targetDenied = targetRel && matchesDenyGlob(targetRel);
+        if (targetDenied) {
+          return {
+            code: EXIT.PRIVACY,
+            message:
+              `scope root "${root}" contains symlink "${childRel}" pointing at "${targetRel}", ` +
+              `which matches the deny pattern "${targetDenied}"`,
+          };
+        }
+        // The target lives inside the root, so the walk reaches it by its real
+        // path anyway. Not descending here also makes a symlink cycle a
+        // non-event.
+        continue;
+      }
+
+      if (entry.isDirectory()) {
+        if (!SWEEP_SKIP_DIRS.has(entry.name)) stack.push(childRel);
+        continue;
       }
     }
   }
@@ -181,6 +227,12 @@ export function gateContext(task, defaults = {}, scopeRoot = process.cwd()) {
   const maxBytes = defaults.max_context_bytes ?? DEFAULT_MAX_CONTEXT_BYTES;
   const root = path.resolve(scopeRoot);
   const declared = task?.scope?.files ?? [];
+  // A string here would iterate character by character and turn one declared
+  // path into a dozen unrelated ones; anything else non-iterable would throw a
+  // raw TypeError out of the gate that exists to fail closed.
+  if (!Array.isArray(declared)) {
+    throw new GateError(EXIT.PRIVACY, 'scope.files must be an array of paths');
+  }
   const files = [];
   let totalBytes = 0;
 

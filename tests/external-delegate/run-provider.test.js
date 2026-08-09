@@ -522,3 +522,74 @@ test('buildEnvelope names the repository root when the provider was given one', 
   });
   assert.equal(e.context_sent.repository_root, '/repo');
 });
+
+// ---------------------------------------------------------------------------
+// Review round 2, P1: the leader can exit on SIGTERM while a descendant that
+// traps it survives. If that descendant redirected the inherited stdio,
+// 'close' fires at once and used to cancel the grace timer before its SIGKILL
+// ran, so the descendant outlived the advertised hard timeout.
+// ---------------------------------------------------------------------------
+
+test('runCli kills a SIGTERM-trapping descendant even when the leader exits first', async (t) => {
+  const marker = path.join(os.tmpdir(), `gd-ext-survivor-${process.pid}-${Math.random().toString(36).slice(2)}`);
+  // The descendant traps TERM and detaches its stdio, so the leader's death
+  // closes the pipes immediately — the exact shape of the reported bug.
+  const { dir, bin } = stubCli(
+    `#!/bin/sh\n( trap "" TERM; sleep 2; touch ${marker} ) </dev/null >/dev/null 2>&1 &\nsleep 60\n`,
+  );
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  t.after(() => fs.rmSync(marker, { force: true }));
+
+  const r = await runCli({ bin }, 'stub', { argv: [], env: {} }, 300, { killGraceMs: 5000 });
+  assert.equal(r.timedOut, true);
+  // Well past the descendant's own 2s sleep: if the final SIGKILL never
+  // reached the group, the marker exists by now.
+  await new Promise((resolve) => setTimeout(resolve, 3500));
+  assert.equal(fs.existsSync(marker), false, 'a timed-out run must not leave its process group alive');
+});
+
+// ---------------------------------------------------------------------------
+// Review round 2, P2: res.text() buffers the whole body before anything can
+// truncate it, so a hostile endpoint could exhaust the dispatcher with one
+// reply while CLI stdout was capped at 64MB.
+// ---------------------------------------------------------------------------
+
+test('runHttp discards a response body over the cap instead of buffering it', async () => {
+  const server = http.createServer((req, res) => {
+    res.writeHead(200, { 'content-type': 'application/json' });
+    // Comfortably past the tiny cap this test injects.
+    res.end(JSON.stringify({ choices: [{ message: { content: 'y'.repeat(50000) } }] }));
+  });
+  await new Promise((r) => server.listen(0, '127.0.0.1', r));
+  const { port } = server.address();
+  try {
+    const provider = { type: 'openai-compatible', env: { base_url: 'GD_TEST_CAP_URL' } };
+    process.env.GD_TEST_CAP_URL = `http://127.0.0.1:${port}/v1`;
+    const r = await runHttp(provider, 'prompt', 5000, { maxBodyBytes: 1024 });
+    assert.equal(r.exitCode, EXIT.FAILURE);
+    assert.match(r.stderr, /ENOBUFS/);
+    assert.equal(r.stdout, '');
+  } finally {
+    delete process.env.GD_TEST_CAP_URL;
+    await new Promise((r) => server.close(r));
+  }
+});
+
+test('runHttp still returns a body that fits under the cap', async () => {
+  const server = http.createServer((req, res) => {
+    res.writeHead(200, { 'content-type': 'application/json' });
+    res.end(JSON.stringify({ choices: [{ message: { content: 'small answer' } }] }));
+  });
+  await new Promise((r) => server.listen(0, '127.0.0.1', r));
+  const { port } = server.address();
+  try {
+    const provider = { type: 'openai-compatible', env: { base_url: 'GD_TEST_CAP_URL' } };
+    process.env.GD_TEST_CAP_URL = `http://127.0.0.1:${port}/v1`;
+    const r = await runHttp(provider, 'prompt', 5000, { maxBodyBytes: 1024 });
+    assert.equal(r.exitCode, EXIT.OK);
+    assert.equal(r.stdout, 'small answer');
+  } finally {
+    delete process.env.GD_TEST_CAP_URL;
+    await new Promise((r) => server.close(r));
+  }
+});

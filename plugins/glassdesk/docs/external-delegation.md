@@ -172,7 +172,7 @@ agent normally calls `list` first and passes an explicit name.
 | 1 | the provider ran and failed with its own exit status — the most common failure path. The true status is preserved in `envelope.exit_code`; `1` itself carries no further meaning beyond "nonzero and not one of the reserved codes below" |
 | 10 | provider unavailable — disabled, binary absent, or a required non-secret env var unset |
 | 11 | authentication unavailable |
-| 12 | unsupported task type, mode, provider name, or specialist — also covers a bad `--output`: missing a value, or a path that already exists (including a dangling symlink) |
+| 12 | unsupported task type, mode, provider name, or specialist — also covers any value-bearing flag given nothing, an empty string, or another flag as its value — and a `--output` path that already exists, including a dangling symlink |
 | 13 | privacy restriction or secret detected |
 | 14 | timeout |
 | 20 | dispatcher failure |
@@ -290,11 +290,15 @@ Enforced in the dispatcher, before any byte leaves the machine.
    else. `gateRepositoryExposure` walks the tree first and aborts the run if
    any file in it matches the path deny list — an undeclared `.env` in the
    repository stops the run rather than being left one `cat` away from a
-   provider whose `context_sent` will never mention it. **Stated limits:** the
-   walk skips `.git`, `node_modules`, and the usual build/venv output
-   directories, so a credential placed inside one of those is not detected;
-   and a tree over 50 000 entries aborts the run rather than being swept
-   partially and reported as clean.
+   provider whose `context_sent` will never mention it. A symlink is checked
+   twice, by its own name and by its resolved target: a link called
+   `notes.txt` pointing at `.env`, at a file inside a skipped directory, or
+   anywhere outside the root aborts the run, and so does a link this process
+   cannot resolve. **Stated limits:** the walk skips `.git`, `node_modules`,
+   and the usual build/venv output directories, so a credential placed inside
+   one of those is not detected unless something in the swept part of the tree
+   links to it; and a tree over 50 000 entries aborts the run rather than
+   being swept partially and reported as clean.
 
 Every one of 1–8 aborts the run with exit code 13 (`EXIT.PRIVACY`) — the byte
 cap is not a privacy violation in the same sense as the others, but it shares
@@ -396,6 +400,10 @@ load.
 - The repository-exposure sweep does not descend into `.git`, `node_modules`,
   or the usual build/venv output directories, and refuses rather than
   part-sweeps a tree over 50 000 entries.
+- CLI stdout and HTTP response bodies are both capped at 64 MB. A provider
+  that writes past it has its process group killed; an endpoint that replies
+  past it has the body discarded. Either way the run fails with exit 20 rather
+  than the dispatcher being exhausted.
 - `bin/lib/secret-patterns.mjs` intentionally duplicates
   `scripts/guardrails/lib/patterns.js`, because the guardrails tree does not
   exist in the copied layout. A drift test
