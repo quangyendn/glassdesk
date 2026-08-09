@@ -37,7 +37,7 @@ The main agent dispatches the subagent by name. There is no slash command.
 
 | Mode | The provider may | Use for |
 |---|---|---|
-| `advisory` | read only what was sent to it | review, architecture, second opinion, adversarial check |
+| `advisory` | is sent nothing but the vetted prompt² | review, architecture, second opinion, adversarial check |
 | `repository-read` | inspect the repository, no writes¹ | codebase investigation, debugging |
 | `patch-proposal` | return a unified diff, never apply it | implementation proposals, targeted fixes, tests |
 
@@ -59,6 +59,15 @@ disables its own permission-prompt guardrails outright (required for
 headless reads at all). Net effect: "no writes" for `agy` is best-effort
 hardening the model is expected to honour, not a verified CLI enforcement
 the way opencode's and codex's are. See `agy`'s entry below.
+
+² `advisory` bounds what the **dispatcher** sends, not what the provider is
+physically able to read. The child is spawned in an empty temp directory and
+with an allowlisted environment, so the repository is neither its working
+directory nor named in any variable it inherits — but a CLI agent that accepts
+an absolute path can still open one. `codex --sandbox read-only` restricts
+*writes*; it does not confine reads. Treat `advisory` as "no repository context
+was sent", not "the provider could not have read the repository". Enforcing the
+latter needs an OS-level sandbox the dispatcher does not build.
 
 ## Providers
 
@@ -210,7 +219,11 @@ are ever returned as such.
   "exit_code": 0,
   "duration_ms": 4210,
   "command": "opencode run --pure --agent plan --format json -m opencode/deepseek-v4-flash-free <prompt:2450B>",
-  "context_sent": { "files": ["db/migrate/update_payment_rates.rb"], "bytes": 8123 },
+  "context_sent": {
+    "files": ["db/migrate/update_payment_rates.rb"],
+    "bytes": 8123,
+    "repository_root": null
+  },
   "raw_output": "...",
   "stderr_tail": "..."
 }
@@ -218,6 +231,12 @@ are ever returned as such.
 
 `raw_output` is unvalidated provider text. The agent normalises it into
 findings and verifies each claim before reporting anything as fact.
+
+`context_sent.repository_root` is non-null exactly when the provider was handed
+a directory to read for itself — the two repository-visible modes. When it is
+set, `files` and `bytes` describe only what was **pushed into the prompt**, not
+the limit of what the provider could see; when it is `null`, they are the whole
+of what was sent.
 
 `command` shows the argv the provider was actually invoked with, but the
 `{prompt}` element is replaced with a `<prompt:NNNNB>` byte-length
@@ -255,23 +274,53 @@ Enforced in the dispatcher, before any byte leaves the machine.
    `Authorization` header, and passed to `buildEnvelope` as a `secrets` value
    that gets redacted out of the `command`, `raw_output`, and `stderr_tail`
    fields of the run envelope before it is ever written or printed.
-7. **Advisory cwd isolation.** A CLI provider is a spawned process, and a
-   spawned process inherits its parent's working directory unless told
-   otherwise. In `advisory` mode the dispatcher spawns the provider inside a
-   fresh, empty `fs.mkdtempSync` directory — not the repository — and removes
-   it once the run ends, so the provider's own file-read tools have nothing
-   under them to find even if the deny list, secret sweep, or byte cap were
-   somehow bypassed. `repository-read` and `patch-proposal` spawn in
-   `scope.root`, as those modes are meant to see it.
+7. **Local-only endpoint check.** `local-openai` is the only provider allowed
+   to receive `restricted` data, and it earns that from
+   `privacy.execution: "local-only"`. But its URL comes from
+   `LOCAL_OPENAI_BASE_URL`, so the registry's claim is not self-enforcing:
+   `gateEndpoint` re-derives it from the URL that will actually be posted to
+   and refuses the run unless the host is loopback (`localhost`,
+   `127.0.0.0/8`, `::1`) over `http`/`https`. Judged from the hostname alone,
+   never DNS — a name that resolves to loopback at check time can resolve
+   elsewhere at request time. `*.localhost` is rejected for the same reason.
+   `runHttp` repeats the check immediately before the socket is opened.
+8. **Repository-exposure sweep.** In `repository-read` and `patch-proposal`
+   the provider is handed `scope.root` and reads it with its own tools, so a
+   deny list applied only to `scope.files` would govern the prompt and nothing
+   else. `gateRepositoryExposure` walks the tree first and aborts the run if
+   any file in it matches the path deny list — an undeclared `.env` in the
+   repository stops the run rather than being left one `cat` away from a
+   provider whose `context_sent` will never mention it. **Stated limits:** the
+   walk skips `.git`, `node_modules`, and the usual build/venv output
+   directories, so a credential placed inside one of those is not detected;
+   and a tree over 50 000 entries aborts the run rather than being swept
+   partially and reported as clean.
 
-Every one of 1–6, including the byte cap, aborts the run with exit code 13
-(`EXIT.PRIVACY`) — the byte cap is not a privacy violation in the same sense
-as the others, but it shares the same code because `gateContext` throws the
-same `GateError` class for all of them. Advisory cwd isolation (7) is
-different in kind: it is not a gate that inspects the envelope and can
-refuse it, but a structural property of how the provider is spawned, so
-there is nothing for it to abort — it simply removes the file for a
-would-be bypass to find.
+Every one of 1–8 aborts the run with exit code 13 (`EXIT.PRIVACY`) — the byte
+cap is not a privacy violation in the same sense as the others, but it shares
+the same code because `gateContext` throws the same `GateError` class for all
+of them.
+
+Two further protections are structural rather than gates — there is no
+envelope for them to inspect and refuse, so they cannot abort anything; they
+remove the thing a bypass would otherwise find:
+
+- **Advisory cwd isolation.** A spawned process inherits its parent's working
+  directory unless told otherwise. In `advisory` mode the dispatcher spawns the
+  provider inside a fresh, empty `fs.mkdtempSync` directory — not the
+  repository — and removes it once the run ends. See footnote ² under
+  *Permission modes* for what this does and does not guarantee.
+- **Environment allowlist.** The child does **not** inherit this process's
+  environment. `buildChildEnv` copies only what a provider needs to run
+  (`PATH`, `HOME`, locale, proxy/TLS, XDG dirs, Windows equivalents) plus
+  whatever the registry entry names in `env_passthrough`, and the invoke
+  template's own values override all of it. A Claude Code session is routinely
+  started with credentials in its environment, and a provider with shell
+  tooling can read its own environment even under a read-only sandbox — those
+  values would otherwise leave the machine on every run, unscanned by the
+  content sweep and unredacted in the envelope. It also keeps the repository
+  path out of `PWD`, `INIT_CWD`, `CLAUDE_PROJECT_DIR` and similar breadcrumbs
+  during an advisory run.
 
 **None of this catches customer data, personal data, or unrelated proprietary
 code.** Those are not detectable by pattern and are not gated by the
@@ -288,10 +337,16 @@ for a provider of an existing type.
   `privacy`, and an `invoke.<mode>` template per supported mode. Placeholders
   `{model}`, `{prompt}`, `{dir}` and `{policy}` are substituted per argv
   element, so nothing is ever passed through a shell. Set
-  `auth_error_pattern` so a login failure maps to exit 11.
+  `auth_error_pattern` so a login failure maps to exit 11. If the CLI reads a
+  credential store located by an environment variable, name that variable in
+  `env_passthrough` — the child's environment is allowlisted, so anything not
+  listed there and not in `ENV_ALLOWLIST` simply will not be visible to it.
 - **`openai-compatible`** — set `env.base_url`, `env.api_key`, `env.model` and
   `endpoint_defaults`. The dispatcher POSTs to `{base_url}/chat/completions`.
-  Defaults never imply availability; the user must export `base_url`.
+  Defaults never imply availability; the user must export `base_url`. Setting
+  `privacy.execution: "local-only"` (or `restricted_data_allowed: true`) opts
+  the entry into the loopback check — its `endpoint_defaults.base_url` must
+  itself be a loopback URL, or the entry ships permanently refused.
 
 Put every non-obvious flag requirement in `notes`. It is a data field, not a
 comment, so `list --json` shows it to the agent choosing the provider.
@@ -334,6 +389,13 @@ load.
 - CLI authentication cannot be probed for free, so `list` reports a CLI as
   available whenever its binary is present. A login failure surfaces at run
   time as exit 11 via `auth_error_pattern`.
+- No read confinement in `advisory`. The dispatcher controls what it sends and
+  what the child inherits; it does not build an OS-level sandbox, so a CLI
+  provider that accepts an absolute path can still read one. See footnote ²
+  under *Permission modes*.
+- The repository-exposure sweep does not descend into `.git`, `node_modules`,
+  or the usual build/venv output directories, and refuses rather than
+  part-sweeps a tree over 50 000 entries.
 - `bin/lib/secret-patterns.mjs` intentionally duplicates
   `scripts/guardrails/lib/patterns.js`, because the guardrails tree does not
   exist in the copied layout. A drift test

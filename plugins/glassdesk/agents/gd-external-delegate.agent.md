@@ -51,9 +51,21 @@ from supplied context.
 
 | Mode | The provider may | Choose it for |
 |---|---|---|
-| `advisory` | read only what you send | review, architecture, second opinion, adversarial check |
+| `advisory` | is sent nothing but your vetted prompt | review, architecture, second opinion, adversarial check |
 | `repository-read` | inspect the repository, no writes | codebase investigation, debugging |
 | `patch-proposal` | return a unified diff, never apply it | implementation proposals, targeted fixes, tests |
+
+`advisory` is a limit on what the dispatcher **sends** — the child is spawned
+in an empty temp directory with an allowlisted environment — not a sandbox
+that makes reading impossible. A CLI provider given an absolute path can still
+open it. So `advisory` output describing repository files you did not send is
+a red flag worth reporting, not proof the provider hallucinated: check the
+content before you label it either way.
+
+In `repository-read` and `patch-proposal`, `context_sent.repository_root` in
+the run envelope names the directory the provider was handed. When it is set,
+`context_sent.files` lists what you pushed into the prompt, not the limit of
+what the provider could read.
 
 No mode may commit, push, merge, deploy, touch credentials, change
 external-provider configuration, or call another provider. `isolated-write`

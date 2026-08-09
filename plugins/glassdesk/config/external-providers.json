@@ -30,7 +30,8 @@
       "cost": "free",
       "latency": "fast",
       "auth_error_pattern": "(no credentials|not authenticated|please log in)",
-      "notes": "Default advisory provider: runs with zero credentials on free models, and its model family is independent of Claude. Three traps, all measured on 1.15.6 — (1) a denied write can hang past 2m30s, so --agent plan plus a hard timeout are both required; (2) without --pure it loads the user's global MCP servers and will route around a write denial through them; (3) it spawns its own subagents unless permission.task is denied.",
+      "env_passthrough": ["OPENCODE_CONFIG", "OPENCODE_DISABLE_AUTOUPDATE"],
+      "notes": "Default advisory provider: runs with zero credentials on free models, and its model family is independent of Claude. Three traps, all measured on 1.15.6 — (1) a denied write can hang past 2m30s, so --agent plan plus a hard timeout are both required; (2) without --pure it loads the user's global MCP servers and will route around a write denial through them; (3) it spawns its own subagents unless permission.task is denied. In advisory mode the dispatcher spawns it in an empty temp dir with an allowlisted environment, which means no repository context is sent — it is not a read confinement, because permission.read is not denied and an absolute path in the prompt would still be openable.",
       "invoke": {
         "advisory": {
           "argv": [
@@ -97,7 +98,8 @@
       "cost": "medium",
       "latency": "medium",
       "auth_error_pattern": "(not logged in|codex login|authentication)",
-      "notes": "Strongest agentic option and the only provider offering patch-proposal. Requires a ChatGPT sign-in. Runs under --sandbox read-only for advisory and repository-read; patch-proposal asks for a unified diff in the prompt and still forbids applying it. The dispatcher spawns advisory mode in a fresh, empty tmp dir (never a git repository), and `codex exec` refuses to run outside a git repository unless told otherwise — hence --skip-git-repo-check on advisory only; repository-read and patch-proposal spawn in the real scope root and do not need it.",
+      "env_passthrough": ["CODEX_HOME"],
+      "notes": "Strongest agentic option and the only provider offering patch-proposal. Requires a ChatGPT sign-in. Runs under --sandbox read-only for advisory and repository-read; patch-proposal asks for a unified diff in the prompt and still forbids applying it. The dispatcher spawns advisory mode in a fresh, empty tmp dir (never a git repository), and `codex exec` refuses to run outside a git repository unless told otherwise — hence --skip-git-repo-check on advisory only; repository-read and patch-proposal spawn in the real scope root and do not need it. IMPORTANT: --sandbox read-only restricts WRITES, not reads. Codex can read any absolute path its OS user can read, in every mode including advisory, so advisory's empty cwd bounds what the dispatcher sends, not what codex could reach on its own.",
       "invoke": {
         "advisory": {
           "argv": ["exec", "--sandbox", "read-only", "--skip-git-repo-check", "{prompt}"],
@@ -231,7 +233,7 @@
         "base_url": "http://127.0.0.1:11434/v1",
         "model": "qwen2.5-coder"
       },
-      "notes": "The only provider permitted to receive privacy.classification=restricted, because execution is local-only. Points at Ollama's OpenAI-compatible endpoint by default; LOCAL_OPENAI_API_KEY is optional and defaults to a placeholder. Set LOCAL_OPENAI_BASE_URL to mark it available."
+      "notes": "The only provider permitted to receive privacy.classification=restricted, because execution is local-only. That permission is enforced, not merely declared: gateEndpoint refuses the run with exit 13 unless LOCAL_OPENAI_BASE_URL resolves to a loopback host (localhost, 127.0.0.0/8, ::1), so pointing it at a remote endpoint disables the provider instead of quietly shipping restricted data off the machine. Points at Ollama's OpenAI-compatible endpoint by default; LOCAL_OPENAI_API_KEY is optional and defaults to a placeholder. Set LOCAL_OPENAI_BASE_URL to mark it available."
     }
   }
 }

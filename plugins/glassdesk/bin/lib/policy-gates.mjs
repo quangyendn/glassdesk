@@ -9,6 +9,21 @@ import { matchesDenyGlob, scanForSecrets } from './secret-patterns.mjs';
 const CLASSIFICATIONS = ['public', 'internal', 'confidential', 'restricted'];
 const DEFAULT_MAX_CONTEXT_BYTES = 400000;
 
+// Modes in which the provider is handed a directory and reads it itself,
+// rather than being handed only the text the gates already vetted.
+export const REPOSITORY_VISIBLE_MODES = ['repository-read', 'patch-proposal'];
+
+// Directories skipped by the repository sweep. `.git` holds no deny-listed
+// filename and would multiply the walk; the rest are vendored or generated
+// trees whose size makes an exhaustive walk cost more than it is worth. This
+// is a stated limit, not a claim of completeness: a credential file placed
+// inside one of these is not detected. See docs/external-delegation.md.
+const SWEEP_SKIP_DIRS = new Set([
+  '.git', 'node_modules', '.venv', 'venv', '__pycache__',
+  'dist', 'build', 'out', 'target', '.next', '.nuxt', '.turbo', '.cache',
+]);
+const SWEEP_MAX_ENTRIES = 50000;
+
 export class GateError extends Error {
   constructor(code, message) {
     super(message);
@@ -51,6 +66,112 @@ export function gatePrivacy(provider, task) {
     message:
       'privacy.classification is "restricted"; this provider does not set privacy.restricted_data_allowed',
   };
+}
+
+// Loopback, judged from the hostname alone — no DNS, because a name that
+// resolves to 127.0.0.1 today can resolve elsewhere on the next lookup, and a
+// privacy gate must not depend on a value that changes between the check and
+// the request. `*.localhost` is excluded deliberately: RFC 6761 reserves it
+// for loopback, but a hosts-file or resolver entry can point it anywhere.
+export function isLoopbackHost(host) {
+  if (!host || typeof host !== 'string') return false;
+  const h = host.toLowerCase().replace(/^\[/, '').replace(/\]$/, '');
+  if (h === 'localhost') return true;
+  if (h === '::1' || h === '0:0:0:0:0:0:0:1') return true;
+  return /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(h);
+}
+
+// `privacy.execution: local-only` is what earns a provider the right to
+// receive restricted data, and `local-openai` is the only entry that has it.
+// But its base URL comes from an environment variable, so the registry's claim
+// is not self-enforcing: point LOCAL_OPENAI_BASE_URL at a remote host and
+// gatePrivacy would still wave restricted data through to it. Verify the claim
+// against the URL that will actually be posted to.
+export function gateEndpoint(provider, env = process.env) {
+  if (provider.type !== 'openai-compatible') return null;
+  const localOnly =
+    provider.privacy?.execution === 'local-only' || provider.privacy?.restricted_data_allowed === true;
+  if (!localOnly) return null;
+
+  const varName = provider.env?.base_url ?? 'base_url';
+  const raw = env[provider.env?.base_url] || provider.endpoint_defaults?.base_url || '';
+  // An unset base URL is unavailability, which probeProvider already reports —
+  // not a privacy violation.
+  if (!raw) return null;
+
+  let url;
+  try {
+    url = new URL(raw);
+  } catch {
+    return { code: EXIT.PRIVACY, message: `${varName} is not a valid URL: "${raw}"` };
+  }
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    return { code: EXIT.PRIVACY, message: `${varName} must be an http(s) URL, got "${url.protocol}"` };
+  }
+  if (!isLoopbackHost(url.hostname)) {
+    return {
+      code: EXIT.PRIVACY,
+      message:
+        `this provider is declared privacy.execution="local-only", but ${varName} points at ` +
+        `"${url.hostname}", which is not a loopback address`,
+    };
+  }
+  return null;
+}
+
+// In repository-read and patch-proposal the provider is handed scope.root and
+// reads it with its own tools, so the per-file deny list gateContext enforces
+// on `scope.files` governs only what is *pushed* into the prompt — an unlisted
+// .env or private key sitting in that tree is still one `cat` away. Enforce
+// the deny list at the directory boundary too: if the tree the provider is
+// about to be given contains a denied path, refuse the run rather than hand it
+// over and report a `context_sent` list that does not mention it.
+export function gateRepositoryExposure(root, { maxEntries = SWEEP_MAX_ENTRIES } = {}) {
+  let realRoot;
+  try {
+    realRoot = fs.realpathSync(path.resolve(root));
+  } catch (e) {
+    return { code: EXIT.PRIVACY, message: `cannot resolve scope root "${root}": ${e.code || e.message}` };
+  }
+
+  const stack = [''];
+  let seen = 0;
+  while (stack.length) {
+    const rel = stack.pop();
+    let entries;
+    try {
+      entries = fs.readdirSync(path.join(realRoot, rel), { withFileTypes: true });
+    } catch {
+      // An unreadable directory cannot leak through a provider running as this
+      // same user either, so skipping it does not weaken the gate.
+      continue;
+    }
+    for (const entry of entries) {
+      if (++seen > maxEntries) {
+        return {
+          code: EXIT.PRIVACY,
+          message:
+            `scope root "${root}" has more than ${maxEntries} entries, so it cannot be swept for ` +
+            'denied paths before being exposed; narrow scope.root or use advisory mode',
+        };
+      }
+      const childRel = rel ? `${rel}/${entry.name}` : entry.name;
+      if (entry.isDirectory()) {
+        if (!SWEEP_SKIP_DIRS.has(entry.name)) stack.push(childRel);
+        continue;
+      }
+      const denied = matchesDenyGlob(childRel);
+      if (denied) {
+        return {
+          code: EXIT.PRIVACY,
+          message:
+            `scope root "${root}" contains "${childRel}", which matches the deny pattern "${denied}"; ` +
+            'the provider would be able to read it directly in this mode',
+        };
+      }
+    }
+  }
+  return null;
 }
 
 // Read every declared file, enforce the deny list, sweep for secrets, and cap

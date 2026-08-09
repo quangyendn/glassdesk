@@ -6,6 +6,7 @@ import path from 'node:path';
 import http from 'node:http';
 import {
   buildArgv,
+  buildChildEnv,
   redact,
   runCli,
   runHttp,
@@ -139,7 +140,7 @@ test('agy auth_error_pattern requires an anchored phrase, not a bare "sign in" s
 // generic failure (and, after the exit-code-collapse fix, to exit 1), so the
 // agent's failure ladder would treat a hard auth wall as a transient error
 // worth retrying, when it cannot succeed without a human completing OAuth.
-test('runCli maps a real unauthenticated agy run to EXIT.AUTH via auth_error_pattern', (t) => {
+test('runCli maps a real unauthenticated agy run to EXIT.AUTH via auth_error_pattern', async (t) => {
   const realAgyOutput = [
     'Authentication required. Please visit the URL to log in:',
     '  https://accounts.google.com/o/oauth2/auth?client_id=example&response_type=code',
@@ -151,7 +152,7 @@ test('runCli maps a real unauthenticated agy run to EXIT.AUTH via auth_error_pat
   const script = `#!/bin/sh\ncat <<'EOF' 1>&2\n${realAgyOutput}\nEOF\nexit 1\n`;
   const { dir, bin } = stubCli(script);
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
-  const r = runCli({ bin, auth_error_pattern: REG.providers.agy.auth_error_pattern }, 'agy', { argv: [], env: {} }, 10000);
+  const r = await runCli({ bin, auth_error_pattern: REG.providers.agy.auth_error_pattern }, 'agy', { argv: [], env: {} }, 10000);
   assert.equal(r.exitCode, EXIT.AUTH);
   assert.equal(r.raw, false, 'an auth-pattern match must not be treated as a raw provider exit code');
 });
@@ -174,32 +175,32 @@ function stubCli(script) {
   return { dir, bin: p };
 }
 
-test('runCli captures stdout and exit code', (t) => {
+test('runCli captures stdout and exit code', async (t) => {
   const { dir, bin } = stubCli('#!/bin/sh\necho "hello from provider"\nexit 0\n');
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
-  const r = runCli({ bin }, 'stub', { argv: [], env: {} }, 10000);
+  const r = await runCli({ bin }, 'stub', { argv: [], env: {} }, 10000);
   assert.equal(r.exitCode, 0);
   assert.match(r.stdout, /hello from provider/);
   assert.equal(r.timedOut, false);
 });
 
-test('runCli reports timedOut when the provider hangs', (t) => {
+test('runCli reports timedOut when the provider hangs', async (t) => {
   // This is the measured opencode denied-write failure mode: the process does
   // not return, so only a hard timeout ends the run.
   const { dir, bin } = stubCli('#!/bin/sh\nsleep 30\n');
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
-  const r = runCli({ bin }, 'stub', { argv: [], env: {} }, 700);
+  const r = await runCli({ bin }, 'stub', { argv: [], env: {} }, 700);
   assert.equal(r.timedOut, true);
 });
 
-test('runCli passes the injected env through to the child', (t) => {
+test('runCli passes the injected env through to the child', async (t) => {
   const { dir, bin } = stubCli('#!/bin/sh\necho "$GD_TEST_MARKER"\n');
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
-  const r = runCli({ bin }, 'stub', { argv: [], env: { GD_TEST_MARKER: 'zebra' } }, 10000);
+  const r = await runCli({ bin }, 'stub', { argv: [], env: { GD_TEST_MARKER: 'zebra' } }, 10000);
   assert.match(r.stdout, /zebra/);
 });
 
-test('runCli reports a maxBuffer overflow as a real failure, not a timeout', (t) => {
+test('runCli reports a maxBuffer overflow as a real failure, not a timeout', async (t) => {
   // Reproduces the Critical finding: a child that writes past maxBuffer is
   // killed with SIGTERM/status:null too — the same shape as a timeout — but
   // spawnSync sets r.error with code ENOBUFS in that case, and that must
@@ -210,59 +211,59 @@ test('runCli reports a maxBuffer overflow as a real failure, not a timeout', (t)
     '#!/bin/sh\nnode -e "process.stdout.write(\'x\'.repeat(70 * 1024 * 1024))"\n',
   );
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
-  const r = runCli({ bin }, 'stub', { argv: [], env: {} }, 10000);
+  const r = await runCli({ bin }, 'stub', { argv: [], env: {} }, 10000);
   assert.equal(r.timedOut, false);
   assert.notEqual(r.exitCode, EXIT.TIMEOUT);
   assert.match(r.stderr, /ENOBUFS/);
 });
 
-test('runCli maps a missing binary to the UNAVAILABLE exit code', () => {
-  const r = runCli({ bin: '/no/such/binary-gd-test' }, 'stub', { argv: [], env: {} }, 10000);
+test('runCli maps a missing binary to the UNAVAILABLE exit code', async () => {
+  const r = await runCli({ bin: '/no/such/binary-gd-test' }, 'stub', { argv: [], env: {} }, 10000);
   assert.equal(r.exitCode, EXIT.UNAVAILABLE);
   assert.equal(r.timedOut, false);
 });
 
-test('runCli tolerates a malformed auth_error_pattern instead of crashing', (t) => {
+test('runCli tolerates a malformed auth_error_pattern instead of crashing', async (t) => {
   const { dir, bin } = stubCli('#!/bin/sh\necho "not authenticated" 1>&2\nexit 1\n');
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const provider = { bin, auth_error_pattern: '(unbalanced(paren' };
-  const r = runCli(provider, 'stub', { argv: [], env: {} }, 10000);
+  const r = await runCli(provider, 'stub', { argv: [], env: {} }, 10000);
   // The malformed pattern must not crash the dispatcher; it degrades to the
   // provider's own exit code instead of being mapped to EXIT.AUTH.
   assert.equal(r.exitCode, 1);
 });
 
-test('runCli spawns the child in the given cwd', (t) => {
+test('runCli spawns the child in the given cwd', async (t) => {
   const { dir, bin } = stubCli('#!/bin/sh\npwd\n');
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const target = fs.mkdtempSync(path.join(os.tmpdir(), 'gd-ext-cwd-'));
   t.after(() => fs.rmSync(target, { recursive: true, force: true }));
-  const r = runCli({ bin }, 'stub', { argv: [], env: {} }, 10000, { cwd: target });
+  const r = await runCli({ bin }, 'stub', { argv: [], env: {} }, 10000, { cwd: target });
   assert.equal(r.stdout.trim(), fs.realpathSync(target));
 });
 
-test('runCli defaults to the caller\'s own cwd when none is given', (t) => {
+test('runCli defaults to the caller\'s own cwd when none is given', async (t) => {
   const { dir, bin } = stubCli('#!/bin/sh\npwd\n');
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
-  const r = runCli({ bin }, 'stub', { argv: [], env: {} }, 10000);
+  const r = await runCli({ bin }, 'stub', { argv: [], env: {} }, 10000);
   assert.equal(r.stdout.trim(), fs.realpathSync(process.cwd()));
 });
 
-test('runCli marks a provider\'s own nonzero exit status as raw, unlike its own assigned codes', (t) => {
+test('runCli marks a provider\'s own nonzero exit status as raw, unlike its own assigned codes', async (t) => {
   const { dir, bin } = stubCli('#!/bin/sh\nexit 13\n');
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
-  const r = runCli({ bin }, 'stub', { argv: [], env: {} }, 10000);
+  const r = await runCli({ bin }, 'stub', { argv: [], env: {} }, 10000);
   assert.equal(r.exitCode, 13);
   assert.equal(r.raw, true, 'a raw provider exit code must be flagged so a caller does not treat it as a reserved code');
 });
 
-test('runCli does not mark its own timeout/auth/missing-binary codes as raw', (t) => {
-  const missing = runCli({ bin: '/no/such/binary-gd-test' }, 'stub', { argv: [], env: {} }, 10000);
+test('runCli does not mark its own timeout/auth/missing-binary codes as raw', async (t) => {
+  const missing = await runCli({ bin: '/no/such/binary-gd-test' }, 'stub', { argv: [], env: {} }, 10000);
   assert.equal(missing.exitCode, EXIT.UNAVAILABLE);
   assert.equal(missing.raw, false);
 
   const { dir, bin } = stubCli('#!/bin/sh\nsleep 30\n');
-  const timedOut = runCli({ bin }, 'stub', { argv: [], env: {} }, 700);
+  const timedOut = await runCli({ bin }, 'stub', { argv: [], env: {} }, 700);
   fs.rmSync(dir, { recursive: true, force: true });
   assert.equal(timedOut.exitCode, EXIT.TIMEOUT);
   assert.equal(timedOut.raw, false);
@@ -363,7 +364,7 @@ test('buildEnvelope produces the documented shape', () => {
   });
   assert.equal(e.version, 'external-ai-run-v1');
   assert.equal(e.status, 'completed');
-  assert.deepEqual(e.context_sent, { files: ['a.ts'], bytes: 10 });
+  assert.deepEqual(e.context_sent, { files: ['a.ts'], bytes: 10, repository_root: null });
   assert.equal(e.raw_output, 'out');
 });
 
@@ -389,4 +390,135 @@ test('buildEnvelope redacts secrets from every field, even if the caller forgot 
   assert.match(e.command, /\*\*\*/);
   assert.match(e.raw_output, /\*\*\*/);
   assert.match(e.stderr_tail, /\*\*\*/);
+});
+
+// ---------------------------------------------------------------------------
+// Review round 1, P1: a Claude Code session routinely holds credentials in its
+// environment, and `...process.env` handed every one of them to every spawned
+// provider. A provider with shell tooling can read its own environment even
+// under a read-only sandbox, so those values left the machine unscanned and
+// unredacted on every run.
+// ---------------------------------------------------------------------------
+
+test('buildChildEnv keeps only allowlisted variables', () => {
+  const source = {
+    PATH: '/usr/bin',
+    HOME: '/var/empty',
+    ANTHROPIC_API_KEY: 'ant-nope',
+    AWS_SECRET_ACCESS_KEY: 'aws-nope',
+    GITHUB_TOKEN: 'gh-nope',
+    CLAUDE_PROJECT_DIR: '/var/empty/private-repo',
+  };
+  const env = buildChildEnv({}, {}, source);
+  assert.equal(env.PATH, '/usr/bin');
+  assert.equal(env.HOME, '/var/empty');
+  for (const leaked of ['ANTHROPIC_API_KEY', 'AWS_SECRET_ACCESS_KEY', 'GITHUB_TOKEN', 'CLAUDE_PROJECT_DIR']) {
+    assert.equal(Object.hasOwn(env, leaked), false, `${leaked} must not reach the provider`);
+  }
+});
+
+test('buildChildEnv honours a registry env_passthrough and lets injected values win', () => {
+  const source = { PATH: '/usr/bin', CODEX_HOME: '/var/empty/.codex', OTHER: 'dropped', TERM: 'xterm' };
+  const env = buildChildEnv({ env_passthrough: ['CODEX_HOME'] }, { TERM: 'dumb' }, source);
+  assert.equal(env.CODEX_HOME, '/var/empty/.codex');
+  assert.equal(Object.hasOwn(env, 'OTHER'), false);
+  assert.equal(env.TERM, 'dumb', 'invoke-template env is policy and must override inherited state');
+});
+
+test('runCli does not leak an inherited credential to the child', async (t) => {
+  const { dir, bin } = stubCli('#!/bin/sh\necho "KEY=[$GD_FAKE_SECRET_KEY]"\n');
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  process.env.GD_FAKE_SECRET_KEY = 'sk-live-must-not-travel';
+  t.after(() => { delete process.env.GD_FAKE_SECRET_KEY; });
+  const r = await runCli({ bin }, 'stub', { argv: [], env: {} }, 10000);
+  assert.equal(r.stdout.trim(), 'KEY=[]');
+});
+
+// ---------------------------------------------------------------------------
+// Review round 1, P2: spawnSync's timeout sends a signal and then keeps
+// waiting, so a provider that traps SIGTERM outlives the advertised hard
+// timeout — the exact hang this dispatcher exists to bound.
+// ---------------------------------------------------------------------------
+
+test('runCli hard-kills a provider that ignores SIGTERM', async (t) => {
+  const { dir, bin } = stubCli('#!/bin/sh\ntrap "" TERM\nsleep 60\n');
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const started = Date.now();
+  const r = await runCli({ bin }, 'stub', { argv: [], env: {} }, 400, { killGraceMs: 300 });
+  const elapsed = Date.now() - started;
+  assert.equal(r.timedOut, true);
+  assert.equal(r.exitCode, EXIT.TIMEOUT);
+  assert.ok(elapsed < 10000, `run must not outlive the timeout plus grace, took ${elapsed}ms`);
+});
+
+test('runCli kills the whole process group, not just the direct child', async (t) => {
+  // `sh` backgrounds a long sleep and exits immediately. The sleep inherits
+  // the pipes, so waiting on stdio EOF alone would hang for a full minute.
+  const marker = path.join(os.tmpdir(), `gd-ext-group-${process.pid}-${Math.random().toString(36).slice(2)}`);
+  const { dir, bin } = stubCli(`#!/bin/sh\n(sleep 60; touch ${marker}) &\nsleep 60\n`);
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  t.after(() => fs.rmSync(marker, { force: true }));
+  const started = Date.now();
+  const r = await runCli({ bin }, 'stub', { argv: [], env: {} }, 400, { killGraceMs: 300 });
+  assert.equal(r.timedOut, true);
+  assert.ok(Date.now() - started < 10000, 'a descendant holding the pipes must not extend the run');
+});
+
+// ---------------------------------------------------------------------------
+// Review round 1, P1: `local-openai` is the only provider allowed to receive
+// restricted data, and it earns that by being local — but its base URL comes
+// from an environment variable, so the registry's claim is not self-enforcing.
+// ---------------------------------------------------------------------------
+
+test('runHttp refuses to post to a non-loopback endpoint declared local-only', async () => {
+  const provider = {
+    type: 'openai-compatible',
+    privacy: { execution: 'local-only', restricted_data_allowed: true },
+    env: { base_url: 'GD_TEST_LOCAL_URL', api_key: 'GD_T_LOCAL_K', model: 'GD_TEST_LOCAL_MODEL' },
+  };
+  process.env.GD_TEST_LOCAL_URL = 'https://api.example.com/v1';
+  try {
+    const r = await runHttp(provider, 'prompt', 5000);
+    assert.equal(r.exitCode, EXIT.PRIVACY);
+    assert.match(r.stderr, /loopback/);
+  } finally {
+    delete process.env.GD_TEST_LOCAL_URL;
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Review round 1, P2: exit 20 is reserved for a dispatcher failure. A 429 or a
+// 5xx is the provider running and failing, which the contract reports as
+// exit 1 with the true status preserved in the envelope.
+// ---------------------------------------------------------------------------
+
+test('runHttp reports an HTTP 503 as a raw provider failure, not a dispatcher failure', async () => {
+  const server = http.createServer((req, res) => {
+    res.writeHead(503, { 'content-type': 'text/plain' });
+    res.end('upstream overloaded');
+  });
+  await new Promise((r) => server.listen(0, '127.0.0.1', r));
+  const { port } = server.address();
+  try {
+    const provider = {
+      type: 'openai-compatible',
+      env: { base_url: 'GD_TEST_HTTP_URL', api_key: 'GD_T_HTTP_K', model: 'GD_TEST_HTTP_MODEL' },
+    };
+    process.env.GD_TEST_HTTP_URL = `http://127.0.0.1:${port}/v1`;
+    const r = await runHttp(provider, 'prompt', 5000);
+    assert.equal(r.exitCode, 503, 'the HTTP status must survive into the envelope');
+    assert.equal(r.raw, true, 'raw is what collapses the process exit to 1 rather than 20');
+    assert.notEqual(r.exitCode, EXIT.FAILURE);
+  } finally {
+    delete process.env.GD_TEST_HTTP_URL;
+    await new Promise((r) => server.close(r));
+  }
+});
+
+test('buildEnvelope names the repository root when the provider was given one', () => {
+  const e = buildEnvelope({
+    provider: 'codex', mode: 'repository-read', exitCode: 0,
+    files: [{ path: 'a.ts', bytes: 10 }], totalBytes: 10, repositoryRoot: '/repo',
+  });
+  assert.equal(e.context_sent.repository_root, '/repo');
 });

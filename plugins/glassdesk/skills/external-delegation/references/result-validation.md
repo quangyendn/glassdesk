@@ -37,9 +37,12 @@ Check, in this order:
    not trimmed.
 7. **Commands and APIs** — a named flag, command, or endpoint must exist.
    Providers invent plausible ones.
-8. **Assumed permissions** — output claiming it ran tests, wrote files, or
-   read the repository in `advisory` mode is describing something that did not
-   happen. Report the discrepancy.
+8. **Assumed permissions** — output claiming it ran tests or wrote files is
+   describing something that did not happen. Report the discrepancy. Output
+   citing repository content in `advisory` mode is a weaker signal than it
+   looks: advisory bounds what the dispatcher *sent*, not what the provider
+   could read, so verify the cited content against the repository before
+   deciding whether it was invented or read. Either way, say which.
 
 ## Claim classification
 

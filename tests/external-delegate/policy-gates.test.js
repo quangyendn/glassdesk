@@ -8,6 +8,9 @@ import {
   gateMode,
   gateCapability,
   gatePrivacy,
+  gateEndpoint,
+  gateRepositoryExposure,
+  isLoopbackHost,
   gateContext,
   GateError,
 } from '../../plugins/glassdesk/bin/lib/policy-gates.mjs';
@@ -385,4 +388,117 @@ test('gateContext rejects a secret in context.inline[].content and names the ind
     assert.match(e.message, /aws-access-key/);
     assert.equal(e.message.includes('AKIA'), false, 'error message must not expose secret');
   }
+});
+
+// ---------------------------------------------------------------------------
+// Review round 1, P1: gatePrivacy lets `local-openai` receive restricted data
+// because the registry says execution is local-only. The base URL, however,
+// comes from LOCAL_OPENAI_BASE_URL — so without this gate, exporting a remote
+// URL keeps the local-only label and ships restricted data off the machine.
+// ---------------------------------------------------------------------------
+
+const LOCAL_PROVIDER = {
+  type: 'openai-compatible',
+  privacy: { execution: 'local-only', restricted_data_allowed: true },
+  env: { base_url: 'GD_TEST_BASE_URL', api_key: 'GD_TEST_KEY', model: 'GD_TEST_MODEL' },
+  endpoint_defaults: { base_url: 'http://127.0.0.1:11434/v1', model: 'qwen' },
+};
+
+test('isLoopbackHost accepts only addresses that cannot leave the machine', () => {
+  for (const host of ['localhost', '127.0.0.1', '127.1.2.3', '::1', '[::1]', 'LOCALHOST']) {
+    assert.equal(isLoopbackHost(host), true, `${host} is loopback`);
+  }
+  for (const host of ['api.example.com', '10.0.0.5', '192.168.1.10', '0.0.0.0', 'evil.localhost', '', null]) {
+    assert.equal(isLoopbackHost(host), false, `${host} is not loopback`);
+  }
+});
+
+test('gateEndpoint refuses a local-only provider pointed at a remote host', () => {
+  const gate = gateEndpoint(LOCAL_PROVIDER, { GD_TEST_BASE_URL: 'https://api.example.com/v1' });
+  assert.equal(gate?.code, EXIT.PRIVACY);
+  assert.match(gate.message, /loopback/);
+});
+
+test('gateEndpoint allows loopback and the loopback default', () => {
+  assert.equal(gateEndpoint(LOCAL_PROVIDER, { GD_TEST_BASE_URL: 'http://127.0.0.1:11434/v1' }), null);
+  assert.equal(gateEndpoint(LOCAL_PROVIDER, {}), null, 'the registry default is itself loopback');
+});
+
+test('gateEndpoint refuses a malformed or non-http base URL', () => {
+  assert.equal(gateEndpoint(LOCAL_PROVIDER, { GD_TEST_BASE_URL: 'not a url' })?.code, EXIT.PRIVACY);
+  assert.equal(gateEndpoint(LOCAL_PROVIDER, { GD_TEST_BASE_URL: 'file:///etc/passwd' })?.code, EXIT.PRIVACY);
+});
+
+test('gateEndpoint does not constrain a provider that never claimed to be local', () => {
+  const remote = {
+    type: 'openai-compatible',
+    privacy: { execution: 'remote-api', restricted_data_allowed: false },
+    env: { base_url: 'GD_TEST_BASE_URL' },
+  };
+  assert.equal(gateEndpoint(remote, { GD_TEST_BASE_URL: 'https://api.moonshot.ai/v1' }), null);
+  assert.equal(gateEndpoint({ type: 'cli-agent' }, {}), null, 'a CLI provider has no endpoint to gate');
+});
+
+test('the shipped local-openai entry is the only registry provider that takes restricted data', () => {
+  const reg = JSON.parse(
+    fs.readFileSync(new URL('../../plugins/glassdesk/config/external-providers.json', import.meta.url), 'utf8'),
+  );
+  const restricted = Object.entries(reg.providers).filter(
+    ([, p]) => p.privacy?.restricted_data_allowed === true,
+  );
+  assert.deepEqual(restricted.map(([n]) => n), ['local-openai']);
+  // …and its shipped default must itself pass the gate, or the entry ships broken.
+  assert.equal(gateEndpoint(reg.providers['local-openai'], {}), null);
+});
+
+// ---------------------------------------------------------------------------
+// Review round 1, P1: in repository-read and patch-proposal the provider is
+// handed scope.root and reads it itself, so deny-listing only `scope.files`
+// left an unlisted .env one `cat` away while `context_sent` never named it.
+// ---------------------------------------------------------------------------
+
+function repoFixture(t, files) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gd-ext-expose-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  for (const [rel, body] of Object.entries(files)) {
+    const full = path.join(dir, rel);
+    fs.mkdirSync(path.dirname(full), { recursive: true });
+    fs.writeFileSync(full, body);
+  }
+  return dir;
+}
+
+test('gateRepositoryExposure passes a tree with nothing denied in it', (t) => {
+  const dir = repoFixture(t, { 'src/index.ts': 'export const a = 1;\n', 'README.md': '# hi\n' });
+  assert.equal(gateRepositoryExposure(dir), null);
+});
+
+test('gateRepositoryExposure refuses a tree holding an undeclared .env', (t) => {
+  const dir = repoFixture(t, { 'src/index.ts': 'x', '.env': 'TOKEN=abc\n' });
+  const gate = gateRepositoryExposure(dir);
+  assert.equal(gate?.code, EXIT.PRIVACY);
+  assert.match(gate.message, /\.env/);
+});
+
+test('gateRepositoryExposure finds a denied file nested below the root', (t) => {
+  const dir = repoFixture(t, { 'deploy/keys/server.pem': 'x' });
+  assert.equal(gateRepositoryExposure(dir)?.code, EXIT.PRIVACY);
+});
+
+test('gateRepositoryExposure skips vendored trees, and says so rather than claiming completeness', (t) => {
+  const dir = repoFixture(t, { 'node_modules/pkg/.env': 'TOKEN=abc\n', 'src/a.ts': 'x' });
+  assert.equal(gateRepositoryExposure(dir), null, 'documented limit: node_modules is not swept');
+});
+
+test('gateRepositoryExposure fails closed when the tree is too large to sweep', (t) => {
+  const files = {};
+  for (let i = 0; i < 40; i++) files[`f${i}.txt`] = 'x';
+  const dir = repoFixture(t, files);
+  const gate = gateRepositoryExposure(dir, { maxEntries: 10 });
+  assert.equal(gate?.code, EXIT.PRIVACY);
+  assert.match(gate.message, /narrow scope\.root|advisory/);
+});
+
+test('gateRepositoryExposure refuses a scope root that does not exist', () => {
+  assert.equal(gateRepositoryExposure('/no/such/dir-gd-test')?.code, EXIT.PRIVACY);
 });

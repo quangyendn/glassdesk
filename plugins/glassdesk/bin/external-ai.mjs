@@ -22,7 +22,10 @@ import path from 'node:path';
 import { loadRegistry, loadSpecialist } from './lib/load-config.mjs';
 import { EXIT } from './lib/exit-codes.mjs';
 import { probeProvider, probeAll } from './lib/provider-availability.mjs';
-import { gateMode, gateCapability, gatePrivacy, gateContext, GateError } from './lib/policy-gates.mjs';
+import {
+  gateMode, gateCapability, gatePrivacy, gateEndpoint, gateRepositoryExposure, gateContext,
+  GateError, REPOSITORY_VISIBLE_MODES,
+} from './lib/policy-gates.mjs';
 import { buildPrompt } from './lib/build-prompt.mjs';
 import { buildArgv, runCli, runHttp, buildEnvelope } from './lib/run-provider.mjs';
 
@@ -135,6 +138,12 @@ function cmdCheck(registry, flags) {
     if (capGate) die(capGate.code, `${name}: ${capGate.message}`);
   }
 
+  // `check` exists so the agent can find out whether a run would be refused
+  // without paying for it, so it must apply every gate a run applies that does
+  // not need the task file.
+  const endpointGate = gateEndpoint(entry);
+  if (endpointGate) die(endpointGate.code, `${name}: ${endpointGate.message}`);
+
   process.stdout.write(`${name}: ready for mode "${mode}"\n`);
   return EXIT.OK;
 }
@@ -189,6 +198,9 @@ function pickAuto(registry, task, mode) {
     if (gateMode(entry, mode)) continue;
     if (gateCapability(entry, task.task_type)) continue;
     if (gatePrivacy(entry, task)) continue;
+    // A local-only provider whose endpoint is not actually local must not be
+    // silently selected here and then refused two lines later in cmdRun.
+    if (gateEndpoint(entry)) continue;
     return probe.name;
   }
   die(EXIT.UNAVAILABLE, `no available provider satisfies mode "${mode}" for this task`);
@@ -225,7 +237,12 @@ async function cmdRun(registry, flags) {
   const probe = probeProvider(name, entry);
   if (!probe.available) die(probe.code, `${name}: ${probe.reason}`);
 
-  for (const gate of [gateMode(entry, mode), gateCapability(entry, task.task_type), gatePrivacy(entry, task)]) {
+  for (const gate of [
+    gateMode(entry, mode),
+    gateCapability(entry, task.task_type),
+    gatePrivacy(entry, task),
+    gateEndpoint(entry),
+  ]) {
     if (gate) die(gate.code, `${name}: ${gate.message}`);
   }
 
@@ -239,6 +256,17 @@ async function cmdRun(registry, flags) {
   // Reading, deny-listing, secret-sweeping and size-capping all happen here,
   // before anything is handed to a provider.
   const scopeRoot = task.scope?.root ? path.resolve(task.scope.root) : process.cwd();
+
+  // In the repository-visible modes the provider is handed scope.root itself,
+  // so the deny list has to hold at the directory boundary as well as on the
+  // declared file list — otherwise an unlisted .env in that tree is readable
+  // while `context_sent` names only the files that were pushed.
+  const repositoryVisible = REPOSITORY_VISIBLE_MODES.includes(mode) && entry.type === 'cli-agent';
+  if (repositoryVisible) {
+    const exposureGate = gateRepositoryExposure(scopeRoot);
+    if (exposureGate) die(exposureGate.code, `${name}: ${exposureGate.message}`);
+  }
+
   let context;
   try {
     context = gateContext(task, registry.defaults ?? {}, scopeRoot);
@@ -264,16 +292,22 @@ async function cmdRun(registry, flags) {
     }
     commandLine = commandLineFor(entry.bin, built.argv, prompt);
 
-    // The mode contract is a promise about what the provider can see.
-    // `advisory` promises "no repository access" — but a spawned child
-    // inherits this process's cwd unless told otherwise, and that cwd is the
-    // user's repository. Without an explicit cwd, an advisory-mode provider
-    // could open any file under the repo root through its own read/grep
-    // tools, bypassing the deny list, the secret sweep, and the byte cap in
-    // one step, no matter what the prompt says. Give it nowhere to look:
-    // spawn it in a throwaway empty directory instead. `repository-read` and
-    // `patch-proposal` are the modes actually meant to see the repo, so they
-    // get scopeRoot, same as the `{dir}` placeholder above.
+    // `advisory` means no repository context is *sent*, and the dispatcher
+    // makes the repository hard to stumble into: the child is spawned in a
+    // throwaway empty directory rather than inheriting this process's cwd, and
+    // buildChildEnv strips every variable that is not on its allowlist, so the
+    // repository path does not travel in PWD, INIT_CWD, CLAUDE_PROJECT_DIR or
+    // any of the other breadcrumbs a Claude Code session exports.
+    //
+    // It is NOT a read confinement. A CLI provider that accepts an absolute
+    // path can still open one — codex's `--sandbox read-only` restricts writes,
+    // not reads — so advisory bounds what this dispatcher hands over, not what
+    // a determined provider could reach. Enforcing the latter needs an OS-level
+    // sandbox this script does not build. Stated in the same terms in
+    // docs/external-delegation.md; do not upgrade the claim here.
+    //
+    // `repository-read` and `patch-proposal` are the modes actually meant to
+    // see the repo, so they get scopeRoot, same as the `{dir}` placeholder.
     let providerCwd = scopeRoot;
     let advisoryCwd = null;
     if (mode === 'advisory') {
@@ -281,7 +315,7 @@ async function cmdRun(registry, flags) {
       providerCwd = advisoryCwd;
     }
     try {
-      result = runCli(entry, name, built, timeoutMs, { cwd: providerCwd });
+      result = await runCli(entry, name, built, timeoutMs, { cwd: providerCwd });
     } finally {
       if (advisoryCwd) fs.rmSync(advisoryCwd, { recursive: true, force: true });
     }
@@ -308,6 +342,7 @@ async function cmdRun(registry, flags) {
     stderr: result.stderr,
     timedOut: result.timedOut,
     secrets,
+    repositoryRoot: repositoryVisible ? scopeRoot : null,
   });
 
   const serialised = `${JSON.stringify(envelope, null, 2)}\n`;

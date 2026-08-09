@@ -447,3 +447,105 @@ test('the command field carries a byte-length placeholder for the prompt, not th
   assert.equal(env.command.includes('x'.repeat(5000)), false, 'the prompt must not be duplicated into `command`');
   assert.match(env.command, /<prompt:\d+B>/);
 });
+
+// ---------------------------------------------------------------------------
+// Review round 1, P1: repository-visible modes hand the provider scope.root
+// itself. The per-file deny list therefore governs only what is pushed into
+// the prompt, and an unlisted credential file in that tree stays readable
+// while `context_sent` reports just the declared files.
+// ---------------------------------------------------------------------------
+
+const REPO_PROVIDER = {
+  repo: {
+    type: 'cli-agent', enabled: 'auto', priority: 2, bin: 'stubcli',
+    default_model: 'stub-model',
+    modes: ['advisory', 'repository-read'],
+    capabilities: ['code-review', 'analysis'],
+    privacy: { execution: 'external-service', restricted_data_allowed: false },
+    notes: 'test stub with repository access',
+    invoke: {
+      advisory: { argv: ['-p', '{prompt}'], env: {} },
+      'repository-read': { argv: ['-p', '{prompt}', '--dir', '{dir}'], env: {} },
+    },
+  },
+};
+
+test('repository-read exits 13 when the scope root holds an undeclared .env', () => {
+  const s = scenario({ providerScript: '#!/bin/sh\necho SHOULD_NOT_RUN\nexit 0\n', extraProviders: REPO_PROVIDER });
+  const root = path.join(s.dir, 'repo');
+  fs.mkdirSync(root);
+  fs.writeFileSync(path.join(root, 'a.ts'), 'export const a = 1;\n');
+  fs.writeFileSync(path.join(root, '.env'), 'TOKEN=abc\n');
+  const task = writeTask(s.dir, { objective: 'x', scope: { files: ['a.ts'], root } });
+  const r = run(['run', '--provider', 'repo', '--mode', 'repository-read', '--task-file', task], {
+    PATH: s.binDir, GD_EXTERNAL_PROVIDERS: s.registryPath,
+  });
+  assert.equal(r.status, 13, r.stderr);
+  assert.match(r.stderr, /\.env/);
+  assert.doesNotMatch(r.stdout, /SHOULD_NOT_RUN/, 'the gate must run before the provider is spawned');
+});
+
+test('repository-read records the exposed root in the envelope, advisory records null', () => {
+  const s = scenario({ extraProviders: REPO_PROVIDER });
+  const root = path.join(s.dir, 'repo');
+  fs.mkdirSync(root);
+  fs.writeFileSync(path.join(root, 'a.ts'), 'export const a = 1;\n');
+  const task = writeTask(s.dir, { objective: 'x', scope: { files: ['a.ts'], root } });
+
+  const repoRun = run(['run', '--provider', 'repo', '--mode', 'repository-read', '--task-file', task], {
+    PATH: s.binDir, GD_EXTERNAL_PROVIDERS: s.registryPath,
+  });
+  assert.equal(repoRun.status, 0, repoRun.stderr);
+  assert.equal(JSON.parse(repoRun.stdout).context_sent.repository_root, root);
+
+  const advisoryRun = run(['run', '--provider', 'repo', '--mode', 'advisory', '--task-file', task], {
+    PATH: s.binDir, GD_EXTERNAL_PROVIDERS: s.registryPath,
+  });
+  assert.equal(advisoryRun.status, 0, advisoryRun.stderr);
+  assert.equal(JSON.parse(advisoryRun.stdout).context_sent.repository_root, null);
+});
+
+test('a provider declared local-only but pointed at a remote endpoint exits 13', () => {
+  const s = scenario({
+    extraProviders: {
+      localish: {
+        type: 'openai-compatible', enabled: 'auto', priority: 3,
+        modes: ['advisory'], capabilities: ['analysis'],
+        privacy: { execution: 'local-only', restricted_data_allowed: true },
+        env: { base_url: 'GD_TEST_LOCALISH_URL', api_key: 'GD_T_LOCALISH_K', model: 'GD_TEST_LOCALISH_MODEL' },
+        endpoint_defaults: { base_url: 'http://127.0.0.1:11434/v1', model: 'm' },
+        notes: 'test stub',
+      },
+    },
+  });
+  const task = writeTask(s.dir, { objective: 'x', privacy: { classification: 'restricted' } });
+  const r = run(['run', '--provider', 'localish', '--task-file', task], {
+    PATH: s.binDir, GD_EXTERNAL_PROVIDERS: s.registryPath,
+    GD_TEST_LOCALISH_URL: 'https://api.example.com/v1',
+  });
+  assert.equal(r.status, 13, r.stderr);
+  assert.match(r.stderr, /loopback/);
+});
+
+test('the child provider does not inherit this process\'s credentials', () => {
+  // The stub prints what it can see of the parent's environment. Only shell
+  // builtins are used: the child's PATH is now allowlisted down to the stub's
+  // own directory, so /usr/bin/env is not reachable from it.
+  const s = scenario({
+    providerScript: '#!/bin/sh\necho "ANTHROPIC_API_KEY=[$ANTHROPIC_API_KEY]"\n'
+      + 'echo "GD_FAKE_TOKEN=[$GD_FAKE_TOKEN]"\necho "PATH=[$PATH]"\n',
+  });
+  const task = writeTask(s.dir, { objective: 'x' });
+  const r = run(['run', '--provider', 'stub', '--task-file', task], {
+    PATH: s.binDir,
+    GD_EXTERNAL_PROVIDERS: s.registryPath,
+    ANTHROPIC_API_KEY: 'ant-must-not-travel',
+    GD_FAKE_TOKEN: 'gh-must-not-travel',
+  });
+  assert.equal(r.status, 0, r.stderr);
+  const env = JSON.parse(r.stdout);
+  assert.doesNotMatch(env.raw_output, /must-not-travel/);
+  assert.match(env.raw_output, /ANTHROPIC_API_KEY=\[\]/);
+  assert.match(env.raw_output, /GD_FAKE_TOKEN=\[\]/);
+  assert.match(env.raw_output, /PATH=\[.+\]/, 'the child still needs a usable environment');
+});
