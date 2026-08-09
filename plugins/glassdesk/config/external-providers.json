@@ -1,0 +1,239 @@
+{
+  "version": 1,
+  "defaults": {
+    "timeout_seconds": 300,
+    "mode": "advisory",
+    "max_context_bytes": 400000
+  },
+  "providers": {
+    "opencode": {
+      "type": "cli-agent",
+      "enabled": "auto",
+      "priority": 10,
+      "bin": "opencode",
+      "default_model": "opencode/deepseek-v4-flash-free",
+      "modes": ["advisory", "repository-read"],
+      "capabilities": [
+        "analysis",
+        "code-review",
+        "architecture-review",
+        "debugging",
+        "repository-investigation",
+        "security-review",
+        "adversarial-review",
+        "documentation"
+      ],
+      "privacy": {
+        "execution": "external-service",
+        "restricted_data_allowed": false
+      },
+      "cost": "free",
+      "latency": "fast",
+      "auth_error_pattern": "(no credentials|not authenticated|please log in)",
+      "env_passthrough": ["OPENCODE_CONFIG", "OPENCODE_DISABLE_AUTOUPDATE"],
+      "notes": "Default advisory provider: runs with zero credentials on free models, and its model family is independent of Claude. Three traps, all measured on 1.15.6 — (1) a denied write can hang past 2m30s, so --agent plan plus a hard timeout are both required; (2) without --pure it loads the user's global MCP servers and will route around a write denial through them; (3) it spawns its own subagents unless permission.task is denied. In advisory mode the dispatcher spawns it in an empty temp dir with an allowlisted environment, which means no repository context is sent — it is not a read confinement, because permission.read is not denied and an absolute path in the prompt would still be openable.",
+      "invoke": {
+        "advisory": {
+          "argv": [
+            "run", "--pure", "--agent", "plan", "--format", "json",
+            "-m", "{model}", "{prompt}"
+          ],
+          "env": {
+            "OPENCODE_DISABLE_PROJECT_CONFIG": "1",
+            "OPENCODE_CONFIG_CONTENT": "{policy}"
+          },
+          "policy": {
+            "permission": {
+              "edit": "deny",
+              "write": "deny",
+              "bash": "deny",
+              "webfetch": "deny",
+              "task": "deny"
+            },
+            "mcp": {}
+          }
+        },
+        "repository-read": {
+          "argv": [
+            "run", "--pure", "--agent", "plan", "--format", "json",
+            "--dir", "{dir}", "-m", "{model}", "{prompt}"
+          ],
+          "env": {
+            "OPENCODE_DISABLE_PROJECT_CONFIG": "1",
+            "OPENCODE_CONFIG_CONTENT": "{policy}"
+          },
+          "policy": {
+            "permission": {
+              "edit": "deny",
+              "write": "deny",
+              "bash": "deny",
+              "webfetch": "deny",
+              "task": "deny"
+            },
+            "mcp": {}
+          }
+        }
+      }
+    },
+
+    "codex": {
+      "type": "cli-agent",
+      "enabled": "auto",
+      "priority": 20,
+      "bin": "codex",
+      "default_model": null,
+      "modes": ["advisory", "repository-read", "patch-proposal"],
+      "capabilities": [
+        "code-review",
+        "debugging",
+        "repository-investigation",
+        "implementation-proposal",
+        "test-generation",
+        "security-review"
+      ],
+      "privacy": {
+        "execution": "external-service",
+        "restricted_data_allowed": false
+      },
+      "cost": "medium",
+      "latency": "medium",
+      "auth_error_pattern": "(not logged in|codex login|authentication)",
+      "env_passthrough": ["CODEX_HOME"],
+      "notes": "Strongest agentic option and the only provider offering patch-proposal. Requires a ChatGPT sign-in. Runs under --sandbox read-only for advisory and repository-read; patch-proposal asks for a unified diff in the prompt and still forbids applying it. The dispatcher spawns advisory mode in a fresh, empty tmp dir (never a git repository), and `codex exec` refuses to run outside a git repository unless told otherwise — hence --skip-git-repo-check on advisory only; repository-read and patch-proposal spawn in the real scope root and do not need it. IMPORTANT: --sandbox read-only restricts WRITES, not reads. Codex can read any absolute path its OS user can read, in every mode including advisory, so advisory's empty cwd bounds what the dispatcher sends, not what codex could reach on its own.",
+      "invoke": {
+        "advisory": {
+          "argv": ["exec", "--sandbox", "read-only", "--skip-git-repo-check", "{prompt}"],
+          "env": {}
+        },
+        "repository-read": {
+          "argv": ["exec", "--sandbox", "read-only", "--cd", "{dir}", "{prompt}"],
+          "env": {}
+        },
+        "patch-proposal": {
+          "argv": ["exec", "--sandbox", "read-only", "--cd", "{dir}", "{prompt}"],
+          "env": {}
+        }
+      }
+    },
+
+    "agy": {
+      "type": "cli-agent",
+      "enabled": "auto",
+      "priority": 30,
+      "bin": "agy",
+      "default_model": "Gemini 3.5 Flash (Medium)",
+      "modes": ["advisory", "repository-read"],
+      "capabilities": [
+        "analysis",
+        "code-review",
+        "architecture-review",
+        "research",
+        "multimodal-analysis",
+        "long-context-analysis",
+        "documentation"
+      ],
+      "privacy": {
+        "execution": "external-service",
+        "restricted_data_allowed": false
+      },
+      "cost": "medium",
+      "latency": "medium",
+      "auth_error_pattern": "(IneligibleTier|UNSUPPORTED_CLIENT|please sign in|not signed in|authentication required|authentication failed|authentication timed out)",
+      "notes": "Large context and multimodal input; authenticates through the system keyring, never an API key. Two silent failure modes — omitting --add-dir makes it scan its own scratch dir and report the repo as empty, and an unknown --model does not error, it falls back to the default model and exits 0. The model string must be an exact display label from `agy models`. UNLIKE opencode and codex, agy has no independently verified read-only enforcement: `--dangerously-skip-permissions` disables its own guardrails outright, so \"no writes\" in repository-read mode is a prompt-level request, not a policy the CLI enforces. Two flags mitigate that, on every invocation: `--mode plan`, which the binary's own embedded help text describes as \"research and plan without making changes\" — the strongest evidence found that it genuinely disables agy's file-edit tool, not just a prompt hint; and `--sandbox`, which `agy --help` describes as \"terminal restrictions\" and which the binary's strings show is backed by an OS-level sandbox profile (macOS Seatbelt) — this covers a different route than --mode plan: it constrains what a shell/bash tool call can do, in case the model tries to route around plan mode through a terminal command rather than its dedicated edit tool. Both are accepted flags with no conflict between them, but end-to-end enforcement has not been measured against a signed-in session — treat both as best-effort hardening, not a guarantee, and note --sandbox's OS-level backing may not extend to non-macOS platforms. An unauthenticated run prints an OAuth URL and blocks INTERACTIVELY for up to 60s waiting for an authorization code before failing with \"Authentication required... Error: authentication timed out / authentication failed or timed out\" — in a headless run that is a minute of dead wall-clock before auth_error_pattern ever gets a chance to classify it, on top of whatever `--timeout` this run was given. `probeProvider` reports `agy` as available whenever the binary is on PATH — CLI session state cannot be probed for free — so \"available: true\" for `agy` means installed, not authenticated or usable.",
+      "invoke": {
+        "advisory": {
+          "argv": [
+            "-p", "{prompt}", "--model", "{model}", "--mode", "plan", "--sandbox",
+            "--dangerously-skip-permissions"
+          ],
+          "env": {}
+        },
+        "repository-read": {
+          "argv": [
+            "-p", "{prompt}", "--model", "{model}", "--mode", "plan", "--sandbox",
+            "--add-dir", "{dir}", "--dangerously-skip-permissions"
+          ],
+          "env": {}
+        }
+      }
+    },
+
+    "kimi": {
+      "type": "openai-compatible",
+      "enabled": "auto",
+      "priority": 40,
+      "modes": ["advisory"],
+      "capabilities": [
+        "analysis",
+        "code-review",
+        "architecture-review",
+        "long-context-analysis",
+        "documentation"
+      ],
+      "privacy": {
+        "execution": "remote-api",
+        "restricted_data_allowed": false
+      },
+      "cost": "medium",
+      "latency": "medium",
+      "env": {
+        "base_url": "KIMI_BASE_URL",
+        "api_key": "KIMI_API_KEY",
+        "model": "KIMI_MODEL"
+      },
+      "endpoint_defaults": {
+        "base_url": "https://api.moonshot.ai/v1",
+        "model": "kimi-k2-turbo-preview"
+      },
+      "notes": "Long-context synthesis and multilingual review. Unavailable until KIMI_API_KEY is exported."
+    },
+
+    "deepseek": {
+      "type": "openai-compatible",
+      "enabled": "auto",
+      "priority": 50,
+      "modes": ["advisory"],
+      "capabilities": ["analysis", "code-review", "debugging", "documentation"],
+      "privacy": {
+        "execution": "remote-api",
+        "restricted_data_allowed": false
+      },
+      "cost": "low",
+      "latency": "medium",
+      "env": {
+        "base_url": "DEEPSEEK_BASE_URL",
+        "api_key": "DEEPSEEK_API_KEY",
+        "model": "DEEPSEEK_MODEL"
+      },
+      "endpoint_defaults": {
+        "base_url": "https://api.deepseek.com/v1",
+        "model": "deepseek-chat"
+      },
+      "notes": "Cheap independent review. Unavailable until DEEPSEEK_API_KEY is exported."
+    },
+
+    "local-openai": {
+      "type": "openai-compatible",
+      "enabled": "auto",
+      "priority": 60,
+      "modes": ["advisory"],
+      "capabilities": ["analysis", "code-review", "documentation", "private-analysis"],
+      "privacy": {
+        "execution": "local-only",
+        "restricted_data_allowed": true
+      },
+      "cost": "free",
+      "latency": "variable",
+      "env": {
+        "base_url": "LOCAL_OPENAI_BASE_URL",
+        "api_key": "LOCAL_OPENAI_API_KEY",
+        "model": "LOCAL_OPENAI_MODEL"
+      },
+      "endpoint_defaults": {
+        "base_url": "http://127.0.0.1:11434/v1",
+        "model": "qwen2.5-coder"
+      },
+      "notes": "The only provider permitted to receive privacy.classification=restricted, because execution is local-only. That permission is enforced, not merely declared: gateEndpoint refuses the run with exit 13 unless LOCAL_OPENAI_BASE_URL resolves to a loopback host (localhost, 127.0.0.0/8, ::1), so pointing it at a remote endpoint disables the provider instead of quietly shipping restricted data off the machine. Points at Ollama's OpenAI-compatible endpoint by default; LOCAL_OPENAI_API_KEY is optional and defaults to a placeholder. Set LOCAL_OPENAI_BASE_URL to mark it available."
+    }
+  }
+}

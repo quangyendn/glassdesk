@@ -10,7 +10,7 @@
   "plugins": [
     {
       "name": "glassdesk",
-      "description": "Comprehensive framework with 28 commands, 28 specialized agents, 12 skills, and parallel multi-agent execution capabilities",
+      "description": "Comprehensive framework with 28 commands, 29 specialized agents, 13 skills, and parallel multi-agent execution capabilities",
       "version": "0.1.0",
       "author": {
         "name": "glassdesk contributors"
@@ -26,7 +26,7 @@
     },
     {
       "name": "gd",
-      "description": "Short alias for glassdesk — comprehensive framework with 28 commands, 28 specialized agents, 12 skills, and parallel execution",
+      "description": "Short alias for glassdesk — comprehensive framework with 28 commands, 29 specialized agents, 13 skills, and parallel execution",
       "version": "0.1.0",
       "author": {
         "name": "glassdesk contributors"
