@@ -595,3 +595,14 @@ test('repository-read exits 13 when a symlink in the scope root points at a deni
   assert.equal(r.status, 13, r.stderr);
   assert.doesNotMatch(r.stdout, /SHOULD_NOT_RUN/);
 });
+
+test('a specialist applied outside its use_for list exits 12 before the provider runs', () => {
+  const s = scenario({ providerScript: '#!/bin/sh\necho SHOULD_NOT_RUN\nexit 0\n' });
+  const task = writeTask(s.dir, { task_type: 'analysis', objective: 'x' });
+  const r = run(['run', '--provider', 'stub', '--specialist', 'code-reviewer', '--task-file', task], {
+    PATH: s.binDir, GD_EXTERNAL_PROVIDERS: s.registryPath,
+  });
+  assert.equal(r.status, 12, r.stderr);
+  assert.match(r.stderr, /use_for/);
+  assert.doesNotMatch(r.stdout, /SHOULD_NOT_RUN/);
+});

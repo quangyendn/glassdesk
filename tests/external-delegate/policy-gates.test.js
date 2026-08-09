@@ -7,6 +7,7 @@ import { EXIT } from '../../plugins/glassdesk/bin/lib/exit-codes.mjs';
 import {
   gateMode,
   gateCapability,
+  gateSpecialist,
   gatePrivacy,
   gateEndpoint,
   gateRepositoryExposure,
@@ -777,4 +778,36 @@ test('gateContext still accepts an ordinary path', (t) => {
   fs.mkdirSync(path.join(dir, 'src'));
   fs.writeFileSync(path.join(dir, 'src/build-2026-08-09.log'), 'ok\n');
   assert.equal(gateContext({ scope: { files: ['src/build-2026-08-09.log'] } }, {}, dir).files.length, 1);
+});
+
+// ---------------------------------------------------------------------------
+// Sign-off round, P2: a profile's `use_for` list was parsed, carried, and then
+// ignored — the one declared constraint in the system that nothing enforced.
+// Prepending code-reviewer to a debugging task produces a review-shaped answer
+// to a question nobody asked.
+// ---------------------------------------------------------------------------
+
+const REVIEWER = { name: 'code-reviewer', useFor: ['code-review'], instructions: 'x' };
+
+test('gateSpecialist rejects a profile applied outside its declared task types', () => {
+  const gate = gateSpecialist(REVIEWER, 'debugging');
+  assert.equal(gate?.code, EXIT.UNSUPPORTED);
+  assert.match(gate.message, /code-reviewer/);
+  assert.match(gate.message, /debugging/);
+});
+
+test('gateSpecialist accepts a declared task type, and does not constrain an undeclared one', () => {
+  assert.equal(gateSpecialist(REVIEWER, 'code-review'), null);
+  // Same rule as gateCapability: a task that states no task_type is unconstrained.
+  assert.equal(gateSpecialist(REVIEWER, undefined), null);
+  assert.equal(gateSpecialist(null, 'debugging'), null);
+});
+
+test('every shipped specialist profile declares a non-empty use_for', () => {
+  const dir = new URL('../../plugins/glassdesk/config/specialists/', import.meta.url);
+  for (const file of fs.readdirSync(dir).filter((f) => f.endsWith('.md'))) {
+    const fm = fs.readFileSync(new URL(file, dir), 'utf8').match(/^use_for:\s*\[(.*)\]\s*$/m);
+    assert.ok(fm, `${file} must declare use_for as an inline array`);
+    assert.ok(fm[1].trim().length > 0, `${file} declares an empty use_for and could never be selected`);
+  }
 });

@@ -23,7 +23,7 @@ import { loadRegistry, loadSpecialist } from './lib/load-config.mjs';
 import { EXIT } from './lib/exit-codes.mjs';
 import { probeProvider, probeAll } from './lib/provider-availability.mjs';
 import {
-  gateMode, gateCapability, gatePrivacy, gateEndpoint, gateRepositoryExposure, gateContext,
+  gateMode, gateCapability, gatePrivacy, gateSpecialist, gateEndpoint, gateRepositoryExposure, gateContext,
   gatePromptSize, GateError, REPOSITORY_VISIBLE_MODES,
 } from './lib/policy-gates.mjs';
 import { buildPrompt } from './lib/build-prompt.mjs';
@@ -262,6 +262,8 @@ async function cmdRun(registry, flags) {
   if (specialistName && specialistName !== 'none') {
     specialist = loadSpecialist(specialistName);
     if (!specialist) die(EXIT.UNSUPPORTED, `unknown specialist profile "${specialistName}"`);
+    const specialistGate = gateSpecialist(specialist, task.task_type);
+    if (specialistGate) die(specialistGate.code, `${name}: ${specialistGate.message}`);
   }
 
   // Reading, deny-listing, secret-sweeping and size-capping all happen here,

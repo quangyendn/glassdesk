@@ -51,6 +51,25 @@ export function gateCapability(provider, taskType) {
   };
 }
 
+// A profile's `use_for` list is routing metadata the loader already parses and
+// fails closed on, and `gateCapability` enforces the provider's equivalent —
+// so a specialist applied outside its declared task types was the one place
+// where a declared constraint was parsed, carried, and then ignored. Silently
+// prepending `code-reviewer` to a debugging task produces a review-shaped
+// answer to a question nobody asked. As with gateCapability, a task that
+// declares no `task_type` is not constrained.
+export function gateSpecialist(specialist, taskType) {
+  if (!specialist || !taskType) return null;
+  const useFor = specialist.useFor ?? [];
+  if (useFor.includes(taskType)) return null;
+  return {
+    code: EXIT.UNSUPPORTED,
+    message:
+      `specialist "${specialist.name}" declares use_for [${useFor.join(', ') || 'none'}], ` +
+      `which does not include task type "${taskType}"`,
+  };
+}
+
 export function gatePrivacy(provider, task) {
   const classification = task?.privacy?.classification ?? 'internal';
   if (!CLASSIFICATIONS.includes(classification)) {

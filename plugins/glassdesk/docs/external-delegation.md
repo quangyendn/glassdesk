@@ -398,6 +398,12 @@ tests.
 A new markdown file in `config/specialists/` with `name` and `use_for`
 frontmatter. Profiles are provider-neutral — never one per provider.
 
+`use_for` is enforced, not documentation: a run whose `task_type` is not in the
+list is refused with exit 12, the same way `gateCapability` refuses a provider
+that does not declare the task type. A task stating no `task_type` is
+unconstrained. A profile with an empty `use_for` can therefore never be
+selected by a task that declares its type.
+
 The agent may propose a profile only after a workflow has repeated and the
 existing six are demonstrably insufficient. It never writes into
 `config/specialists/` on its own.
