@@ -12,6 +12,7 @@ import {
   gateRepositoryExposure,
   isLoopbackHost,
   gateContext,
+  gatePromptSize,
   GateError,
 } from '../../plugins/glassdesk/bin/lib/policy-gates.mjs';
 
@@ -565,4 +566,113 @@ test('gateContext rejects a scope.files that is not an array', () => {
       `scope.files: ${JSON.stringify(bad)} must be refused, not iterated`,
     );
   }
+});
+
+// ---------------------------------------------------------------------------
+// Review round 3, P2: the sweep swallowed every readdir error, so a transient
+// EMFILE or EIO made a subtree read as clean — and the child that follows gets
+// a fresh descriptor table, so the condition that stopped this process would
+// not stop it.
+// ---------------------------------------------------------------------------
+
+test('gateRepositoryExposure refuses when the sweep hits a non-permission error', (t) => {
+  const dir = repoFixture(t, { 'src/a.ts': 'x' });
+  const realReaddir = fs.readdirSync;
+  t.after(() => { fs.readdirSync = realReaddir; });
+  fs.readdirSync = () => {
+    const e = new Error('too many open files');
+    e.code = 'EMFILE';
+    throw e;
+  };
+  const gate = gateRepositoryExposure(dir);
+  assert.equal(gate?.code, EXIT.PRIVACY);
+  assert.match(gate.message, /EMFILE/);
+});
+
+test('gateRepositoryExposure still skips a directory it merely lacks permission for', (t) => {
+  const dir = repoFixture(t, { 'src/a.ts': 'x', 'locked/inner.ts': 'y' });
+  const locked = path.join(dir, 'locked');
+  fs.chmodSync(locked, 0o000);
+  try {
+    // The provider runs as this same user, so a directory this process cannot
+    // open is one the provider cannot open either.
+    assert.equal(gateRepositoryExposure(dir), null);
+  } finally {
+    // Restored here rather than in t.after: repoFixture registered its rmSync
+    // first, and after-hooks run in registration order, so the directory would
+    // still be unreadable when the cleanup tried to remove it.
+    fs.chmodSync(locked, 0o755);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Review round 3, P2: the cap was a sum of inputs, not a measurement of the
+// document that leaves the machine. Many empty files report almost no bytes
+// while rendering a prompt far past the limit.
+// ---------------------------------------------------------------------------
+
+test('gatePromptSize measures the rendered prompt, not the inputs', () => {
+  assert.equal(gatePromptSize('x'.repeat(100), { max_context_bytes: 200 }), null);
+  const gate = gatePromptSize('x'.repeat(300), { max_context_bytes: 200 });
+  assert.equal(gate?.code, EXIT.PRIVACY);
+  assert.match(gate.message, /rendered prompt is 300 bytes/);
+});
+
+test('gatePromptSize counts bytes, not characters', () => {
+  // Three-byte characters: 40 of them is 120 bytes, over a 100-byte cap that
+  // a naive length check would pass.
+  assert.equal(gatePromptSize('あ'.repeat(40), { max_context_bytes: 100 })?.code, EXIT.PRIVACY);
+});
+
+// ---------------------------------------------------------------------------
+// Review round 3, P2: in the repository-visible modes buildPrompt emits paths
+// and the provider reads the tree itself, so counting file contents rejected
+// runs over bytes that were never sent and misreported context_sent.bytes.
+// ---------------------------------------------------------------------------
+
+test('gateContext bills file contents to the cap only in advisory mode', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gd-ext-bill-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  fs.writeFileSync(path.join(dir, 'big.ts'), 'y'.repeat(5000));
+  const task = { scope: { files: ['big.ts'] } };
+
+  const advisory = gateContext(task, {}, dir, { mode: 'advisory' });
+  assert.equal(advisory.totalBytes, 5000);
+
+  const repo = gateContext(task, {}, dir, { mode: 'repository-read' });
+  assert.equal(repo.totalBytes, 'big.ts'.length, 'only the path travels in this mode');
+  assert.equal(repo.files[0].content.length, 5000, 'the content is still read and swept');
+});
+
+test('a file over the cap is refused in advisory mode but allowed in repository-read', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gd-ext-bill2-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  fs.writeFileSync(path.join(dir, 'big.ts'), 'y'.repeat(5000));
+  const task = { scope: { files: ['big.ts'] } };
+  const defaults = { max_context_bytes: 1000 };
+
+  assert.throws(
+    () => gateContext(task, defaults, dir, { mode: 'advisory' }),
+    (e) => e instanceof GateError && e.code === EXIT.PRIVACY,
+  );
+  assert.equal(gateContext(task, defaults, dir, { mode: 'repository-read' }).totalBytes < 1000, true);
+});
+
+// ---------------------------------------------------------------------------
+// Review round 3, P2: expected_output now reaches the prompt, so it has to
+// pass through the same single scan-and-count choke point as every other
+// free-text field — otherwise adding it re-opens the unscanned-input hole
+// round 1 closed for objective and constraints.
+// ---------------------------------------------------------------------------
+
+test('gateContext scans and counts expected_output', () => {
+  assert.throws(
+    () => gateContext({ expected_output: 'ghp_' + 'a'.repeat(40) }, {}, process.cwd()),
+    (e) => e instanceof GateError && /expected_output/.test(e.message),
+  );
+  assert.throws(
+    () => gateContext({ expected_output: 42 }, {}, process.cwd()),
+    (e) => e instanceof GateError && /expected_output must be a string/.test(e.message),
+  );
+  assert.equal(gateContext({ expected_output: 'findings' }, {}, process.cwd()).totalBytes, 'findings'.length);
 });

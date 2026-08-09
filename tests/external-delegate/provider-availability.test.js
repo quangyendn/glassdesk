@@ -150,3 +150,67 @@ test('probeAll orders by priority', () => {
     assert.deepEqual(probeAll(reg).map((p) => p.name), ['a', 'b']);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Review round 3, P1: the docs say kimi and deepseek need only their API key,
+// and the entries ship a base URL for exactly that reason — but probing
+// ignored the default and reported exit 10, so a user who followed the
+// documented setup found both providers permanently unusable.
+// ---------------------------------------------------------------------------
+
+test('a remote provider is available on its API key alone, using its shipped default URL', () => {
+  process.env.TEST_KEY = 'set';
+  delete process.env.TEST_BASE;
+  const p = probeProvider('t', {
+    type: 'openai-compatible', enabled: 'auto',
+    privacy: { execution: 'remote-api' },
+    env: { base_url: 'TEST_BASE', api_key: 'TEST_KEY', model: 'TEST_MODEL' },
+    endpoint_defaults: { base_url: 'https://api.example.test/v1' },
+  });
+  delete process.env.TEST_KEY;
+  assert.equal(p.available, true);
+  assert.equal(p.detail, 'https://api.example.test/v1');
+});
+
+test('an exported base URL still overrides the shipped default', () => {
+  process.env.TEST_KEY = 'set';
+  process.env.TEST_BASE = 'https://override.test/v1';
+  const p = probeProvider('t', {
+    type: 'openai-compatible', enabled: 'auto',
+    privacy: { execution: 'remote-api' },
+    env: { base_url: 'TEST_BASE', api_key: 'TEST_KEY', model: 'TEST_MODEL' },
+    endpoint_defaults: { base_url: 'https://api.example.test/v1' },
+  });
+  delete process.env.TEST_KEY;
+  delete process.env.TEST_BASE;
+  assert.equal(p.detail, 'https://override.test/v1');
+});
+
+test('a local-only provider still needs its base URL exported explicitly', () => {
+  // It has no API key to gate on, so the exported URL is the only thing
+  // separating "the user runs a local model" from "this entry ships a
+  // plausible default".
+  delete process.env.TEST_BASE;
+  const p = probeProvider('t', {
+    type: 'openai-compatible', enabled: 'auto',
+    privacy: { execution: 'local-only', restricted_data_allowed: true },
+    env: { base_url: 'TEST_BASE', api_key: 'TEST_KEY', model: 'TEST_MODEL' },
+    endpoint_defaults: { base_url: 'http://127.0.0.1:11434/v1' },
+  });
+  assert.equal(p.available, false);
+  assert.equal(p.code, EXIT.UNAVAILABLE);
+});
+
+test('the shipped kimi and deepseek entries come up on their key alone', () => {
+  const reg = JSON.parse(
+    fs.readFileSync(new URL('../../plugins/glassdesk/config/external-providers.json', import.meta.url), 'utf8'),
+  );
+  for (const nm of ['kimi', 'deepseek']) {
+    const entry = reg.providers[nm];
+    process.env[entry.env.api_key] = 'set';
+    delete process.env[entry.env.base_url];
+    const p = probeProvider(nm, entry);
+    delete process.env[entry.env.api_key];
+    assert.equal(p.available, true, `${nm} must be usable with only ${entry.env.api_key} exported`);
+  }
+});

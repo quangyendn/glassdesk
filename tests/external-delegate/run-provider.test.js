@@ -593,3 +593,31 @@ test('runHttp still returns a body that fits under the cap', async () => {
     await new Promise((r) => server.close(r));
   }
 });
+
+// ---------------------------------------------------------------------------
+// Review round 3, P2: slicing the tail before redacting can cut a credential
+// in half at the 4000-character boundary, and the exact-match redactor no
+// longer recognises the surviving fragment.
+// ---------------------------------------------------------------------------
+
+test('buildEnvelope redacts stderr before truncating it, so no fragment survives the tail cut', () => {
+  // Assembled rather than written as one literal: the repo's own guardrails
+  // scanner refuses a credential-shaped assignment, which is the point.
+  const secret = ['sk-live', '0123456789abcdefghij'].join('-');
+  // Position the secret so it straddles the 4000-character boundary: half of
+  // it falls outside the published tail, half inside.
+  const head = 'a'.repeat(20000 - 4000 - Math.floor(secret.length / 2));
+  const stderr = head + secret + 'b'.repeat(4000);
+  const e = buildEnvelope({
+    provider: 'kimi', mode: 'advisory', exitCode: 0,
+    files: [], totalBytes: 0, stderr, secrets: [secret],
+  });
+  assert.equal(e.stderr_tail.includes(secret), false);
+  for (let cut = 8; cut < secret.length; cut++) {
+    assert.equal(
+      e.stderr_tail.includes(secret.slice(cut)),
+      false,
+      `a ${secret.length - cut}-character tail of the credential survived`,
+    );
+  }
+});

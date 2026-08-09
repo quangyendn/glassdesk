@@ -52,18 +52,25 @@ export function probeProvider(name, provider) {
 
   if (provider.type === 'openai-compatible') {
     const envMap = provider.env || {};
-    const baseUrl = process.env[envMap.base_url];
-    if (!baseUrl) {
-      // endpoint_defaults exist so a configured user need not retype the URL.
-      // They deliberately do NOT imply availability — otherwise every shipped
-      // entry would advertise itself as ready.
-      return unavailable(name, provider, `${envMap.base_url} is not set`);
-    }
     const localOnly = provider.privacy?.execution === 'local-only';
     const apiKey = process.env[envMap.api_key];
-    if (!apiKey && !localOnly) {
-      return needsAuth(name, provider, `${envMap.api_key} is not set`);
-    }
+
+    // What counts as "the user configured this" differs by provider, and
+    // getting it wrong in either direction is a real failure:
+    //
+    // For a remote provider the API key IS the configuration signal — nothing
+    // is reachable without it, so no shipped entry can advertise itself as
+    // ready just by carrying a default URL. Requiring the base URL as well
+    // meant a user who followed the documented setup and exported only
+    // KIMI_API_KEY got exit 10 from a provider that would have worked.
+    //
+    // A local provider has no key to gate on, so an explicitly exported base
+    // URL is the only thing separating "the user runs a local model" from
+    // "this entry ships a plausible-looking default".
+    const baseUrl = process.env[envMap.base_url]
+      || (localOnly ? '' : provider.endpoint_defaults?.base_url) || '';
+    if (!baseUrl) return unavailable(name, provider, `${envMap.base_url} is not set`);
+    if (!localOnly && !apiKey) return needsAuth(name, provider, `${envMap.api_key} is not set`);
     return { name, type: provider.type, available: true, code: EXIT.OK, reason: null, detail: baseUrl };
   }
 

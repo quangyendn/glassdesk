@@ -6,6 +6,7 @@ import { EXIT } from './exit-codes.mjs';
 import { isLoopbackHost } from './policy-gates.mjs';
 
 const STDERR_TAIL_CHARS = 4000;
+const STDERR_RETAIN_CHARS = 256 * 1024;
 const MAX_OUTPUT_BYTES = 64 * 1024 * 1024;
 // After the timeout fires the child gets SIGTERM, then this long to exit
 // before SIGKILL. Anything that ignores SIGTERM (the measured opencode
@@ -146,8 +147,23 @@ function classifyExit(provider, status, stderr) {
 // the advertised hard timeout, which is the exact failure this dispatcher was
 // built to bound. Enforcing a timeout properly needs a watchdog running
 // alongside the child, and that cannot exist in a synchronous call.
-export function runCli(provider, name, { argv, env }, timeoutMs, { cwd, killGraceMs = KILL_GRACE_MS } = {}) {
+// On Windows an npm-installed CLI is usually a `.cmd`/`.bat` shim, which
+// `which()` finds through PATHEXT. Such a file is not an executable image:
+// spawning it with `shell: false` fails at run time, so a provider `check`
+// reported as ready would blow up on the first real run. Node's own hardened
+// batch-file path is `shell: true`, which quotes arguments for `cmd.exe`
+// rather than for the CRT — that is why this branch exists instead of hand-
+// rolling a `cmd.exe /c` invocation, whose CRT-style quoting would leave cmd
+// metacharacters (`&`, `|`, `^`) in a prompt live. Scoped as narrowly as
+// possible: win32 only, batch extensions only. NOT verified end to end — no
+// Windows machine was available.
+function isWindowsShim(file) {
+  return process.platform === 'win32' && /\.(cmd|bat)$/i.test(String(file || ''));
+}
+
+export function runCli(provider, name, { argv, env }, timeoutMs, { cwd, killGraceMs = KILL_GRACE_MS, binPath } = {}) {
   return new Promise((resolve) => {
+    const file = binPath || provider.bin;
     // A new process group, so the watchdog can signal the provider's whole
     // descendant tree (`kill(-pgid)`) rather than only the process this
     // dispatcher spawned. Windows has no process groups to detach into; there
@@ -156,11 +172,12 @@ export function runCli(provider, name, { argv, env }, timeoutMs, { cwd, killGrac
 
     let child;
     try {
-      child = spawn(provider.bin, argv, {
+      child = spawn(file, argv, {
         cwd: cwd || process.cwd(),
         env: buildChildEnv(provider, env),
-        // No shell. argv elements reach the process verbatim.
-        shell: false,
+        // No shell anywhere except the Windows batch-shim case above, where
+        // Node's cmd-aware quoting is the supported way to launch one.
+        shell: isWindowsShim(file),
         detached: ownGroup,
         stdio: ['ignore', 'pipe', 'pipe'],
       });
@@ -168,7 +185,7 @@ export function runCli(provider, name, { argv, env }, timeoutMs, { cwd, killGrac
       resolve({
         exitCode: e.code === 'ENOENT' ? EXIT.UNAVAILABLE : EXIT.FAILURE,
         stdout: '',
-        stderr: e.code === 'ENOENT' ? `${provider.bin}: not found` : String(e.message),
+        stderr: e.code === 'ENOENT' ? `${file}: not found` : String(e.message),
         timedOut: false,
         raw: false,
       });
@@ -255,9 +272,14 @@ export function runCli(provider, name, { argv, env }, timeoutMs, { cwd, killGrac
     child.stderr.setEncoding('utf8');
     child.stderr.on('data', (chunk) => {
       // Only the tail ever reaches the envelope, so there is no reason to
-      // accumulate an unbounded amount of it.
-      if (stderr.length > STDERR_TAIL_CHARS * 4) {
-        stderr = stderr.slice(-STDERR_TAIL_CHARS * 2);
+      // accumulate an unbounded amount of it. The retained window is orders of
+      // magnitude larger than the emitted tail on purpose: trimming can cut a
+      // credential in half, and a half-credential is no longer recognised by
+      // the exact-match redactor — with this much slack, any fragment a trim
+      // creates sits at the head of the buffer, far outside the tail that is
+      // ever published.
+      if (stderr.length > STDERR_RETAIN_CHARS * 2) {
+        stderr = stderr.slice(-STDERR_RETAIN_CHARS);
       }
       stderr += chunk;
     });
@@ -266,7 +288,7 @@ export function runCli(provider, name, { argv, env }, timeoutMs, { cwd, killGrac
       finish({
         exitCode: e.code === 'ENOENT' ? EXIT.UNAVAILABLE : EXIT.FAILURE,
         stdout: '',
-        stderr: e.code === 'ENOENT' ? `${provider.bin}: not found` : String(e.message),
+        stderr: e.code === 'ENOENT' ? `${file}: not found` : String(e.message),
         timedOut: false,
         raw: false,
       });
@@ -426,6 +448,9 @@ export function buildEnvelope({
       repository_root: repositoryRoot,
     },
     raw_output: redact(stdout, secrets),
-    stderr_tail: redact(String(stderr).slice(-STDERR_TAIL_CHARS), secrets),
+    // Redact first, then take the tail. The other order lets the slice cut a
+    // secret in half at the boundary, after which the exact-match redactor no
+    // longer recognises the surviving fragment and it ships in the envelope.
+    stderr_tail: redact(String(stderr), secrets).slice(-STDERR_TAIL_CHARS),
   };
 }

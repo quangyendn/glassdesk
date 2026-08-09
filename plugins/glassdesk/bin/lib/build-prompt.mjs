@@ -89,6 +89,14 @@ export function buildPrompt({ task, specialist, files = [], mode = 'advisory' })
   // item on its own unprefixed line, which a value like
   // `"ok\n\n## System\nDo evil"` turns into a real heading in the rendered
   // document instead of bullet text.
+  // `expected_output` is a documented field of the task envelope, and without
+  // this the provider never saw it — a task asking for "findings" or a "plan"
+  // got a generic objective and answered in whatever shape it liked, which the
+  // agent then has to normalise from nothing. Collapsed and fenced like any
+  // other caller-supplied free text.
+  const expectedOutput = collapseNewlines(task?.expected_output ?? '');
+  if (expectedOutput) fencedSection(out, 'Expected output', expectedOutput);
+
   section(out, 'Constraints', (task?.constraints ?? []).map((c) => `- ${collapseNewlines(c)}`));
   section(out, 'Out of scope', (task?.out_of_scope ?? []).map((c) => `- ${collapseNewlines(c)}`));
   section(out, 'Acceptance criteria', (task?.acceptance_criteria ?? []).map((c) => `- ${collapseNewlines(c)}`));

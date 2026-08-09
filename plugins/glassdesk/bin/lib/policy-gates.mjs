@@ -141,10 +141,20 @@ export function gateRepositoryExposure(root, { maxEntries = SWEEP_MAX_ENTRIES } 
     let entries;
     try {
       entries = fs.readdirSync(path.join(realRoot, rel), { withFileTypes: true });
-    } catch {
-      // An unreadable directory cannot leak through a provider running as this
-      // same user either, so skipping it does not weaken the gate.
-      continue;
+    } catch (e) {
+      // A permission failure is safe to skip: the provider runs as this same
+      // user, so a directory this process may not open is one the provider may
+      // not open either. Any OTHER error — EMFILE, EIO, ENOTDIR — says the
+      // sweep failed, not that the subtree is unreachable, and the child gets
+      // a fresh descriptor table of its own. Refuse rather than report a
+      // subtree as clean because reading it happened to fail here.
+      if (e.code === 'EACCES' || e.code === 'EPERM') continue;
+      return {
+        code: EXIT.PRIVACY,
+        message:
+          `cannot sweep "${rel || '.'}" under scope root "${root}" for denied paths ` +
+          `(${e.code || e.message}); refusing to expose a tree that was not fully checked`,
+      };
     }
     for (const entry of entries) {
       if (++seen > maxEntries) {
@@ -220,11 +230,37 @@ export function gateRepositoryExposure(root, { maxEntries = SWEEP_MAX_ENTRIES } 
   return null;
 }
 
+// The cap gateContext applies is a sum of the inputs, which is what makes it
+// checkable before anything is read twice — but it is not what leaves the
+// machine. The prompt buildPrompt renders adds the specialist profile, the
+// mode contract, headings, fences and file paths on top, and a task made of
+// many empty files can report almost no input bytes while producing a
+// document far past the advertised limit. Measure the thing actually sent.
+export function gatePromptSize(prompt, defaults = {}) {
+  const maxBytes = defaults.max_context_bytes ?? DEFAULT_MAX_CONTEXT_BYTES;
+  const bytes = Buffer.byteLength(String(prompt ?? ''), 'utf8');
+  if (bytes <= maxBytes) return null;
+  return {
+    code: EXIT.PRIVACY,
+    message:
+      `the rendered prompt is ${bytes} bytes, over defaults.max_context_bytes (${maxBytes}); ` +
+      'narrow scope.files or shorten the task envelope',
+  };
+}
+
 // Read every declared file, enforce the deny list, sweep for secrets, and cap
 // total size. Returns the material the prompt builder will use, so nothing is
 // read twice and nothing unscanned can reach a provider.
-export function gateContext(task, defaults = {}, scopeRoot = process.cwd()) {
+export function gateContext(task, defaults = {}, scopeRoot = process.cwd(), { mode = 'advisory' } = {}) {
   const maxBytes = defaults.max_context_bytes ?? DEFAULT_MAX_CONTEXT_BYTES;
+  // Only advisory inlines file contents into the prompt. In the
+  // repository-visible modes buildPrompt emits paths and the provider reads
+  // the tree itself, so counting those contents against the cap would reject a
+  // run over bytes that are never sent, and report them in
+  // `context_sent.bytes` as if they had been. The contents are still read and
+  // swept — a secret in an explicitly declared file is worth refusing over
+  // whichever mode is running — they just are not billed to the cap.
+  const inlinesFileContents = mode === 'advisory';
   const root = path.resolve(scopeRoot);
   const declared = task?.scope?.files ?? [];
   // A string here would iterate character by character and turn one declared
@@ -299,7 +335,9 @@ export function gateContext(task, defaults = {}, scopeRoot = process.cwd()) {
       );
     }
     const bytes = Buffer.byteLength(content, 'utf8');
-    totalBytes += bytes;
+    // In a repository-visible mode only the path travels in the prompt, so
+    // that is what the cap counts.
+    totalBytes += inlinesFileContents ? bytes : Buffer.byteLength(rel, 'utf8');
     files.push({ path: rel, content, bytes });
   }
 
@@ -366,18 +404,23 @@ export function gateContext(task, defaults = {}, scopeRoot = process.cwd()) {
   // the prompt builder puts all of them into the outgoing prompt verbatim.
   // gateContext is the single scan-and-count choke point by design, so they
   // must pass through it too, not reach the provider unscanned.
-  const objective = task?.objective ?? '';
-  if (objective !== '' && typeof objective !== 'string') {
-    throw new GateError(EXIT.PRIVACY, 'objective must be a string');
+  for (const [field, value] of [
+    ['objective', task?.objective],
+    ['expected_output', task?.expected_output],
+  ]) {
+    const text = value ?? '';
+    if (text !== '' && typeof text !== 'string') {
+      throw new GateError(EXIT.PRIVACY, `${field} must be a string`);
+    }
+    const hits = scanForSecrets(text);
+    if (hits.length) {
+      throw new GateError(
+        EXIT.PRIVACY,
+        `secret detected in ${field}: ${hits.map((h) => h.id).join(', ')}`,
+      );
+    }
+    totalBytes += Buffer.byteLength(text, 'utf8');
   }
-  const objectiveHits = scanForSecrets(objective);
-  if (objectiveHits.length) {
-    throw new GateError(
-      EXIT.PRIVACY,
-      `secret detected in objective: ${objectiveHits.map((h) => h.id).join(', ')}`,
-    );
-  }
-  totalBytes += Buffer.byteLength(objective, 'utf8');
 
   for (const [field, arr] of [
     ['constraints', task?.constraints],

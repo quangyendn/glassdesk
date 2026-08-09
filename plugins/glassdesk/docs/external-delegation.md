@@ -76,9 +76,9 @@ latter needs an OS-level sandbox the dispatcher does not build.
 | `opencode` | CLI | advisory, repository-read | nothing — free models work with no credentials |
 | `codex` | CLI | advisory, repository-read, patch-proposal | ChatGPT sign-in |
 | `agy` | CLI | advisory, repository-read | Google sign-in |
-| `kimi` | HTTP | advisory | `KIMI_API_KEY` |
-| `deepseek` | HTTP | advisory | `DEEPSEEK_API_KEY` |
-| `local-openai` | HTTP | advisory | `LOCAL_OPENAI_BASE_URL` |
+| `kimi` | HTTP | advisory | `KIMI_API_KEY` (the base URL falls back to the shipped default) |
+| `deepseek` | HTTP | advisory | `DEEPSEEK_API_KEY` (the base URL falls back to the shipped default) |
+| `local-openai` | HTTP | advisory | `LOCAL_OPENAI_BASE_URL`, exported explicitly — it has no key to gate on, so the default never implies availability |
 
 `local-openai` is the only provider permitted to receive data classified
 `restricted`, because its execution is local-only.
@@ -204,8 +204,19 @@ are ever returned as such.
 }
 ```
 
-`scope.root` defaults to the current working directory. Every entry in
-`scope.files` must resolve inside it.
+`scope.root` defaults to the current working directory. `scope.files` must be
+an array, and every entry in it must resolve inside `scope.root`.
+
+`expected_output` is rendered into the prompt as its own section, so a task
+asking for `"findings"` or `"plan"` actually tells the provider so. Like every
+other free-text field it passes through the secret sweep and counts toward the
+byte cap.
+
+In `repository-read` and `patch-proposal` the contents of `scope.files` are
+not inlined — only the paths are, and the provider reads the tree itself. The
+contents are still read and swept for secrets, but only the path lengths count
+toward the byte cap, so declaring a large file does not fail a run over bytes
+that never leave the machine.
 
 ## Run envelope
 
@@ -257,12 +268,17 @@ Enforced in the dispatcher, before any byte leaves the machine.
 3. **Content sweep.** PEM private-key headers, AWS access keys, GitHub tokens,
    `sk-` keys, Slack tokens, and credential assignments with high-entropy
    literals.
-4. **Byte cap.** Total context — file contents, inline blocks, the summary,
-   and the objective/constraints/out\_of\_scope/acceptance\_criteria text —
-   is capped at `defaults.max_context_bytes` (400000 by default, overridable
-   per-registry). Over the cap aborts the run rather than truncating, so the
-   agent is never left guessing which part of a truncated context the
-   provider actually saw.
+4. **Byte cap, twice.** First on the inputs — inline blocks, the summary, and
+   the objective/expected\_output/constraints/out\_of\_scope/acceptance\_criteria
+   text, plus file contents in `advisory` and file *paths* in the
+   repository-visible modes, where the contents are never inlined. Then again
+   on the rendered prompt, because the first sum does not include the
+   specialist profile, the mode contract, headings or fences: a task made of
+   many empty files could report almost no input bytes and still produce a
+   document far past the limit. Both use `defaults.max_context_bytes` (400000
+   by default, overridable per-registry). Over the cap aborts the run rather
+   than truncating, so the agent is never left guessing which part of a
+   truncated context the provider actually saw.
 5. **Path-containment check.** Every `scope.files` entry must resolve inside
    `scope.root`, checked twice: syntactically (after `path.resolve()`
    collapses any `..` segments), and again with both sides passed through
@@ -294,7 +310,11 @@ Enforced in the dispatcher, before any byte leaves the machine.
    twice, by its own name and by its resolved target: a link called
    `notes.txt` pointing at `.env`, at a file inside a skipped directory, or
    anywhere outside the root aborts the run, and so does a link this process
-   cannot resolve. **Stated limits:** the walk skips `.git`, `node_modules`,
+   cannot resolve. A directory the sweep cannot even list aborts the run too,
+   unless the reason was `EACCES`/`EPERM` — the provider runs as the same user,
+   so a directory this process may not open is one it may not open either,
+   while an `EMFILE` or `EIO` says the sweep failed rather than that the
+   subtree is unreachable. **Stated limits:** the walk skips `.git`, `node_modules`,
    and the usual build/venv output directories, so a credential placed inside
    one of those is not detected unless something in the swept part of the tree
    links to it; and a tree over 50 000 entries aborts the run rather than
@@ -347,7 +367,9 @@ for a provider of an existing type.
   listed there and not in `ENV_ALLOWLIST` simply will not be visible to it.
 - **`openai-compatible`** — set `env.base_url`, `env.api_key`, `env.model` and
   `endpoint_defaults`. The dispatcher POSTs to `{base_url}/chat/completions`.
-  Defaults never imply availability; the user must export `base_url`. Setting
+  A remote entry becomes available once its API key is exported, falling back
+  to `endpoint_defaults.base_url`; a local-only entry has no key to gate on, so
+  it stays unavailable until `base_url` is exported explicitly. Setting
   `privacy.execution: "local-only"` (or `restricted_data_allowed: true`) opts
   the entry into the loopback check — its `endpoint_defaults.base_url` must
   itself be a loopback URL, or the entry ships permanently refused.

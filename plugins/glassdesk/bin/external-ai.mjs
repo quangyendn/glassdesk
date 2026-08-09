@@ -24,7 +24,7 @@ import { EXIT } from './lib/exit-codes.mjs';
 import { probeProvider, probeAll } from './lib/provider-availability.mjs';
 import {
   gateMode, gateCapability, gatePrivacy, gateEndpoint, gateRepositoryExposure, gateContext,
-  GateError, REPOSITORY_VISIBLE_MODES,
+  gatePromptSize, GateError, REPOSITORY_VISIBLE_MODES,
 } from './lib/policy-gates.mjs';
 import { buildPrompt } from './lib/build-prompt.mjs';
 import { buildArgv, runCli, runHttp, buildEnvelope } from './lib/run-provider.mjs';
@@ -280,13 +280,18 @@ async function cmdRun(registry, flags) {
 
   let context;
   try {
-    context = gateContext(task, registry.defaults ?? {}, scopeRoot);
+    context = gateContext(task, registry.defaults ?? {}, scopeRoot, { mode });
   } catch (e) {
     if (e instanceof GateError) die(e.code, `${name}: ${e.message}`);
     die(EXIT.FAILURE, e.message);
   }
 
   const prompt = buildPrompt({ task, specialist, files: context.files, mode });
+  // gateContext capped the inputs; this caps the document they render into,
+  // which is the thing that actually leaves the machine.
+  const promptGate = gatePromptSize(prompt, registry.defaults ?? {});
+  if (promptGate) die(promptGate.code, `${name}: ${promptGate.message}`);
+
   const timeoutMs = timeoutSeconds * 1000;
 
   const started = Date.now();
@@ -326,7 +331,10 @@ async function cmdRun(registry, flags) {
       providerCwd = advisoryCwd;
     }
     try {
-      result = await runCli(entry, name, built, timeoutMs, { cwd: providerCwd });
+      // probe.detail is the path `which()` resolved. Passing it matters on
+      // Windows, where an npm-installed provider is a `.cmd` shim that PATHEXT
+      // finds but a bare-name spawn cannot execute.
+      result = await runCli(entry, name, built, timeoutMs, { cwd: providerCwd, binPath: probe.detail });
     } finally {
       if (advisoryCwd) fs.rmSync(advisoryCwd, { recursive: true, force: true });
     }
