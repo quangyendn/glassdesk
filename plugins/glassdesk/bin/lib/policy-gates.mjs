@@ -251,7 +251,12 @@ export function gatePromptSize(prompt, defaults = {}) {
 // Read every declared file, enforce the deny list, sweep for secrets, and cap
 // total size. Returns the material the prompt builder will use, so nothing is
 // read twice and nothing unscanned can reach a provider.
-export function gateContext(task, defaults = {}, scopeRoot = process.cwd(), { mode = 'advisory' } = {}) {
+export function gateContext(
+  task,
+  defaults = {},
+  scopeRoot = process.cwd(),
+  { mode = 'advisory', specialistInstructions = '' } = {},
+) {
   const maxBytes = defaults.max_context_bytes ?? DEFAULT_MAX_CONTEXT_BYTES;
   // Only advisory inlines file contents into the prompt. In the
   // repository-visible modes buildPrompt emits paths and the provider reads
@@ -321,24 +326,56 @@ export function gateContext(task, defaults = {}, scopeRoot = process.cwd(), { mo
       throw new GateError(EXIT.PRIVACY, `scope.files entry "${rel}" resolves outside the scope root`);
     }
 
-    let content;
+    // Decide from metadata whether this file may be read at all. Reading
+    // first and checking the cap afterwards means a multi-gigabyte log named
+    // in scope.files is fully resident in memory before anything objects to
+    // it — the cap cannot protect the process it is loaded into.
+    let sizeOnDisk;
     try {
-      content = fs.readFileSync(full, 'utf8');
+      sizeOnDisk = fs.statSync(full).size;
     } catch (e) {
       throw new GateError(EXIT.PRIVACY, `cannot read scope.files entry "${rel}": ${e.code || e.message}`);
     }
-    const hits = scanForSecrets(content);
-    if (hits.length) {
+
+    if (inlinesFileContents && totalBytes + sizeOnDisk > maxBytes) {
       throw new GateError(
         EXIT.PRIVACY,
-        `secret detected in "${rel}": ${hits.map((h) => h.id).join(', ')}`,
+        `scope.files entry "${rel}" is ${sizeOnDisk} bytes, which takes the context over ` +
+          `defaults.max_context_bytes (${maxBytes}); narrow scope.files`,
       );
     }
-    const bytes = Buffer.byteLength(content, 'utf8');
+
+    let content = null;
+    let scanned = true;
+    if (!inlinesFileContents && sizeOnDisk > maxBytes) {
+      // Repository-visible mode: this file's contents are not sent, only its
+      // path. Loading it purely to sweep it would be the same denial of
+      // service in a different coat, and the sweep would add nothing the
+      // provider cannot already do — it has been handed the whole tree, whose
+      // deny list gateRepositoryExposure enforced at the directory boundary.
+      // Skip the read and record that it was skipped rather than reporting a
+      // clean scan that never ran.
+      scanned = false;
+    } else {
+      try {
+        content = fs.readFileSync(full, 'utf8');
+      } catch (e) {
+        throw new GateError(EXIT.PRIVACY, `cannot read scope.files entry "${rel}": ${e.code || e.message}`);
+      }
+      const hits = scanForSecrets(content);
+      if (hits.length) {
+        throw new GateError(
+          EXIT.PRIVACY,
+          `secret detected in "${rel}": ${hits.map((h) => h.id).join(', ')}`,
+        );
+      }
+    }
+
+    const bytes = content === null ? sizeOnDisk : Buffer.byteLength(content, 'utf8');
     // In a repository-visible mode only the path travels in the prompt, so
     // that is what the cap counts.
     totalBytes += inlinesFileContents ? bytes : Buffer.byteLength(rel, 'utf8');
-    files.push({ path: rel, content, bytes });
+    files.push({ path: rel, content, bytes, scanned });
   }
 
   (task?.context?.inline ?? []).forEach((item, i) => {
@@ -404,7 +441,13 @@ export function gateContext(task, defaults = {}, scopeRoot = process.cwd(), { mo
   // the prompt builder puts all of them into the outgoing prompt verbatim.
   // gateContext is the single scan-and-count choke point by design, so they
   // must pass through it too, not reach the provider unscanned.
+  // The specialist profile is markdown from disk, not from the task envelope,
+  // but buildPrompt puts it at the very top of the outgoing prompt — so it is
+  // text sent to the provider, and this function is where sent text gets
+  // swept. A profile is installed or hand-written; a credential pasted into
+  // one as an example must not ride out on every run that uses it.
   for (const [field, value] of [
+    ['specialist instructions', specialistInstructions],
     ['objective', task?.objective],
     ['expected_output', task?.expected_output],
   ]) {

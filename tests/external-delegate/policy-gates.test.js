@@ -676,3 +676,76 @@ test('gateContext scans and counts expected_output', () => {
   );
   assert.equal(gateContext({ expected_output: 'findings' }, {}, process.cwd()).totalBytes, 'findings'.length);
 });
+
+// ---------------------------------------------------------------------------
+// Verification round, P2: buildPrompt puts the specialist profile at the top
+// of the outgoing prompt, but the profile comes from disk rather than the task
+// envelope — so it reached the provider without passing the sweep that covers
+// every other piece of sent text.
+// ---------------------------------------------------------------------------
+
+test('gateContext sweeps the specialist instructions it will send', () => {
+  assert.throws(
+    () => gateContext({}, {}, process.cwd(), { specialistInstructions: 'e.g. AKIAIOSFODNN7EXAMPLE' }),
+    (e) => e instanceof GateError && /specialist instructions/.test(e.message),
+  );
+});
+
+test('gateContext counts the specialist instructions toward the cap', () => {
+  const out = gateContext({}, {}, process.cwd(), { specialistInstructions: 'be terse' });
+  assert.equal(out.totalBytes, 'be terse'.length);
+});
+
+// ---------------------------------------------------------------------------
+// Verification round, P2: the cap was checked after readFileSync, so a
+// multi-gigabyte file named in scope.files was fully resident in memory before
+// anything objected to it — the cap could not protect the process it loads into.
+// ---------------------------------------------------------------------------
+
+test('gateContext refuses an oversized advisory file from its metadata, without reading it', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gd-ext-big-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  fs.writeFileSync(path.join(dir, 'huge.log'), 'z'.repeat(5000));
+
+  const realRead = fs.readFileSync;
+  t.after(() => { fs.readFileSync = realRead; });
+  let readCalled = false;
+  fs.readFileSync = (...args) => {
+    if (String(args[0]).endsWith('huge.log')) readCalled = true;
+    return realRead(...args);
+  };
+
+  assert.throws(
+    () => gateContext({ scope: { files: ['huge.log'] } }, { max_context_bytes: 1000 }, dir),
+    (e) => e instanceof GateError && e.code === EXIT.PRIVACY && /takes the context over/.test(e.message),
+  );
+  assert.equal(readCalled, false, 'the file must be refused from stat, never loaded');
+});
+
+test('gateContext skips reading an oversized file in a repository-visible mode', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gd-ext-big2-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  fs.writeFileSync(path.join(dir, 'huge.log'), 'z'.repeat(5000));
+
+  // Its contents are never sent in this mode, so loading it purely to sweep
+  // it would be the same denial of service in a different coat.
+  const out = gateContext(
+    { scope: { files: ['huge.log'] } },
+    { max_context_bytes: 1000 },
+    dir,
+    { mode: 'repository-read' },
+  );
+  assert.equal(out.files[0].content, null);
+  assert.equal(out.files[0].scanned, false, 'a skipped read must not be reported as a clean scan');
+  assert.equal(out.totalBytes, 'huge.log'.length);
+});
+
+test('a file under the cap is still read and swept in a repository-visible mode', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gd-ext-big3-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  fs.writeFileSync(path.join(dir, 'small.ts'), 'const k = "AKIAIOSFODNN7EXAMPLE";\n');
+  assert.throws(
+    () => gateContext({ scope: { files: ['small.ts'] } }, {}, dir, { mode: 'repository-read' }),
+    (e) => e instanceof GateError && /aws-access-key/.test(e.message),
+  );
+});

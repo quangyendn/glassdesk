@@ -280,7 +280,10 @@ async function cmdRun(registry, flags) {
 
   let context;
   try {
-    context = gateContext(task, registry.defaults ?? {}, scopeRoot, { mode });
+    context = gateContext(task, registry.defaults ?? {}, scopeRoot, {
+      mode,
+      specialistInstructions: specialist?.instructions ?? '',
+    });
   } catch (e) {
     if (e instanceof GateError) die(e.code, `${name}: ${e.message}`);
     die(EXIT.FAILURE, e.message);

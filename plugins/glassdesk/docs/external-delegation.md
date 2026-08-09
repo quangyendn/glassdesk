@@ -216,7 +216,15 @@ In `repository-read` and `patch-proposal` the contents of `scope.files` are
 not inlined — only the paths are, and the provider reads the tree itself. The
 contents are still read and swept for secrets, but only the path lengths count
 toward the byte cap, so declaring a large file does not fail a run over bytes
-that never leave the machine.
+that never leave the machine. A file larger than the cap is the one exception:
+in those modes it is not read at all, since loading it purely to sweep content
+that is never sent would be a denial of service against the dispatcher, and the
+sweep would add nothing the deny-list boundary check does not already cover.
+Its entry carries `scanned: false` rather than being reported as clean.
+
+In `advisory` an oversized file is refused from its metadata, before any read —
+the byte cap cannot protect the process a multi-gigabyte log is already loaded
+into.
 
 ## Run envelope
 
@@ -267,7 +275,9 @@ Enforced in the dispatcher, before any byte leaves the machine.
    believe context was sent that was not.
 3. **Content sweep.** PEM private-key headers, AWS access keys, GitHub tokens,
    `sk-` keys, Slack tokens, and credential assignments with high-entropy
-   literals.
+   literals. The specialist profile is swept too: that text comes from disk
+   rather than the task envelope, but `buildPrompt` puts it at the top of the
+   outgoing prompt, so it is sent text like any other.
 4. **Byte cap, twice.** First on the inputs — inline blocks, the summary, and
    the objective/expected\_output/constraints/out\_of\_scope/acceptance\_criteria
    text, plus file contents in `advisory` and file *paths* in the
