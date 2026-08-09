@@ -238,22 +238,28 @@ test('rewrite: update is idempotent — second run rewrites 0 of N files', () =>
   assert.deepEqual(afterHashes, beforeHashes, 'second update should produce identical .md content');
 });
 
-test('rewrite: bundle invariant — source plugins/glassdesk/**/*.md keeps GD_PLUGIN_PATH refs (bare or braced) in 7 known files', () => {
+test('rewrite: bundle invariant — source plugins/glassdesk/**/*.md keeps GD_PLUGIN_PATH refs (bare or braced) in 10 known files', () => {
   const bundleDir = path.join(REPO_ROOT, 'plugins', 'glassdesk');
   const mds = collectMarkdownFiles(bundleDir);
-  // Match both `$GD_PLUGIN_PATH` (bare, preserved in 3 skill files for
-  // backwards compatibility) and `${GD_PLUGIN_PATH:?...}` (braced loud-fail
-  // guard, used by the 4 plan commands that depend on the SessionStart hook).
+  // Match both `$GD_PLUGIN_PATH` (bare, preserved in 3 planning skill files
+  // for backwards compatibility) and `${GD_PLUGIN_PATH:?...}` (braced
+  // loud-fail guard, used by the 4 plan commands that depend on the
+  // SessionStart hook, and by the three external-delegation files that invoke
+  // bin/external-ai.mjs — that path must survive `npx glassdesk init`, which
+  // is exactly what this invariant pins).
   const refRe = /\$\{GD_PLUGIN_PATH(?::\?[^}]*)?\}|\$GD_PLUGIN_PATH\b/;
   const withToken = mds
     .filter((f) => refRe.test(fs.readFileSync(f, 'utf8')))
     .map((f) => path.relative(bundleDir, f).split(path.sep).join('/'))
     .filter((rel) => !rel.endsWith('CHANGELOG.md'));
   assert.deepEqual(withToken.sort(), [
+    'agents/gd-external-delegate.agent.md',
     'commands/plan.md',
     'commands/plan/hard.md',
     'commands/plan/list.md',
     'commands/plan/status.md',
+    'docs/external-delegation.md',
+    'skills/external-delegation/SKILL.md',
     'skills/planning/SKILL.md',
     'skills/planning/references/input-resolution.md',
     'skills/planning/references/plan-organization.md',
