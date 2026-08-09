@@ -601,23 +601,26 @@ test('runHttp still returns a body that fits under the cap', async () => {
 // ---------------------------------------------------------------------------
 
 test('buildEnvelope redacts stderr before truncating it, so no fragment survives the tail cut', () => {
-  // Assembled rather than written as one literal: the repo's own guardrails
-  // scanner refuses a credential-shaped assignment, which is the point.
-  const secret = ['sk-live', '0123456789abcdefghij'].join('-');
-  // Position the secret so it straddles the 4000-character boundary: half of
+  // `redact` matches literally, so this needs to be a distinctive string, not
+  // a credential-shaped one. Deliberately unlike a real key: a fixture that
+  // looks like a credential would either trip the repo's own secret scanner or
+  // have to be written in a way that evades it, and a test file that teaches
+  // scanner evasion is worse than one that avoids the shape entirely.
+  const dummyCredential = 'DUMMY-VALUE-FOR-REDACTION-TEST-0123456789';
+  // Position it so it straddles the 4000-character boundary: half of
   // it falls outside the published tail, half inside.
-  const head = 'a'.repeat(20000 - 4000 - Math.floor(secret.length / 2));
-  const stderr = head + secret + 'b'.repeat(4000);
+  const head = 'a'.repeat(20000 - 4000 - Math.floor(dummyCredential.length / 2));
+  const stderr = head + dummyCredential + 'b'.repeat(4000);
   const e = buildEnvelope({
     provider: 'kimi', mode: 'advisory', exitCode: 0,
-    files: [], totalBytes: 0, stderr, secrets: [secret],
+    files: [], totalBytes: 0, stderr, secrets: [dummyCredential],
   });
-  assert.equal(e.stderr_tail.includes(secret), false);
-  for (let cut = 8; cut < secret.length; cut++) {
+  assert.equal(e.stderr_tail.includes(dummyCredential), false);
+  for (let cut = 8; cut < dummyCredential.length; cut++) {
     assert.equal(
-      e.stderr_tail.includes(secret.slice(cut)),
+      e.stderr_tail.includes(dummyCredential.slice(cut)),
       false,
-      `a ${secret.length - cut}-character tail of the credential survived`,
+      `a ${dummyCredential.length - cut}-character tail of the credential survived`,
     );
   }
 });

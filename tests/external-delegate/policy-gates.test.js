@@ -761,7 +761,12 @@ test('a file under the cap is still read and swept in a repository-visible mode'
 test('gateContext sweeps the declared path, not only its contents', (t) => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gd-ext-pathscan-'));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
-  const leaky = `build-${['sk', 'abcdefghijklmnopqrstuvwx'].join('-')}.log`;
+  // This fixture has to be credential-shaped — a filename that does not match
+  // a pattern would not exercise the gate. Written as a plain literal, not
+  // assembled: the file is already listed in .guardrails.json for exactly this
+  // reason, and stitching the string together to slip past a scanner is the
+  // habit a repo full of guardrails should not be teaching.
+  const leaky = 'build-sk-abcdefghijklmnopqrstuvwx.log';
   fs.writeFileSync(path.join(dir, leaky), 'perfectly clean contents\n');
   assert.throws(
     () => gateContext({ scope: { files: [leaky] } }, {}, dir),
