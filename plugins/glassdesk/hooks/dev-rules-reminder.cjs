@@ -86,6 +86,81 @@ function buildPlanContext(sessionId, config) {
   return { reportsPath, gitBranch, planLine, namePattern, validationMode, validationMin, validationMax };
 }
 
+// A project can have glassdesk installed twice at once: the marketplace plugin
+// registers this hook from hooks/hooks.json, and `npx glassdesk init` registers
+// a copy of it from .claude/settings.local.json. Claude Code keeps plugin and
+// project handlers separate and runs both, concatenating both context blocks.
+//
+// The two processes share no event identifier — no turn id, no sequence number —
+// so they cannot arbitrate at runtime. Any lock keyed on the prompt text is
+// stuck choosing between letting a boundary case through and suppressing a
+// legitimate repeat of the same prompt, and suppressing the only copy is far
+// worse than injecting twice.
+//
+// Decide statically instead: the copies differ by where they live. The project
+// copy is authoritative when it exists and is registered, so the plugin copy
+// stands down. No timing, no shared state, no race.
+// Symlink-safe: `.claude/hooks` is a symlink into the main checkout under the
+// managed-worktree setup, so comparing lexical paths would make the project copy
+// fail to recognise itself.
+function realPath(p) {
+  try {
+    return fs.realpathSync(p);
+  } catch (e) {
+    return path.resolve(p);
+  }
+}
+
+// Claude Code exports CLAUDE_PROJECT_DIR; cwd may be a subdirectory of it, in
+// which case `<cwd>/.claude` does not exist and neither copy would find the
+// other. Walk up as a fallback for harnesses that do not set the variable.
+function resolveProjectDir() {
+  if (process.env.CLAUDE_PROJECT_DIR) return realPath(process.env.CLAUDE_PROJECT_DIR);
+  let dir = realPath(process.cwd());
+  for (;;) {
+    if (fs.existsSync(path.join(dir, '.claude'))) return dir;
+    const parent = path.dirname(dir);
+    if (parent === dir) return realPath(process.cwd());
+    dir = parent;
+  }
+}
+
+function projectCopyWillRun(payload) {
+  // Standing down is only safe if the harness actually runs project-settings
+  // hooks. Claude Code does, and supplies transcript_path; Codex runs the plugin
+  // manifest alone and ignores .claude/settings*.json, so a registration there
+  // is inert and yielding to it would silence the only copy.
+  if (!payload.transcript_path) return false;
+
+  const projectDir = resolveProjectDir();
+  const projectHooks = path.join(projectDir, '.claude', 'hooks');
+  const projectHook = path.join(projectHooks, 'dev-rules-reminder.cjs');
+
+  // We are the project copy — we are the one that runs.
+  if (realPath(__dirname) === realPath(projectHooks)) return false;
+  if (!fs.existsSync(projectHook)) return false;
+
+  // Present on disk is not enough: `npx glassdesk init` also has to have wired
+  // it into settings, and a user may have removed that registration.
+  for (const file of ['settings.local.json', 'settings.json']) {
+    try {
+      const settings = JSON.parse(
+        fs.readFileSync(path.join(projectDir, '.claude', file), 'utf-8')
+      );
+      const groups = settings && settings.hooks && settings.hooks.UserPromptSubmit;
+      if (!Array.isArray(groups)) continue;
+      for (const group of groups) {
+        for (const hook of (group && group.hooks) || []) {
+          if (typeof hook.command === 'string' && hook.command.includes('dev-rules-reminder.cjs')) {
+            return true;
+          }
+        }
+      }
+    } catch (e) { /* missing or malformed — treat as not registered */ }
+  }
+  return false;
+}
+
 function wasRecentlyInjected(transcriptPath) {
   try {
     if (!transcriptPath || !fs.existsSync(transcriptPath)) return false;
@@ -200,6 +275,7 @@ async function main() {
 
     const payload = JSON.parse(stdin);
     if (wasRecentlyInjected(payload.transcript_path)) process.exit(0);
+    if (projectCopyWillRun(payload)) process.exit(0);
 
     const sessionId = process.env.GD_SESSION_ID || null;
     const config = loadConfig({ includeProject: false, includeAssertions: false });
@@ -223,7 +299,15 @@ async function main() {
       validationMax
     });
 
-    console.log(output.join('\n'));
+    // Emit the JSON envelope rather than bare stdout. Claude Code accepts both,
+    // but Codex only injects context from `hookSpecificOutput.additionalContext` —
+    // plain stdout there is logged and discarded.
+    console.log(JSON.stringify({
+      hookSpecificOutput: {
+        hookEventName: 'UserPromptSubmit',
+        additionalContext: output.join('\n')
+      }
+    }));
     process.exit(0);
   } catch (error) {
     console.error(`Dev rules hook error: ${error.message}`);

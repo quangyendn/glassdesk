@@ -41,11 +41,13 @@ This hook automatically injects development rules and session context at the sta
 
 ### Marketplace install (auto-registration)
 
-`session-init.cjs` is auto-registered via `hooks/hooks.json` for any consumer of the marketplace plugin. No per-project wiring needed — Claude Code reads `hooks/hooks.json` at plugin load and fires the SessionStart hook on every session. `${CLAUDE_PLUGIN_ROOT}` resolves to the installed plugin directory.
+`session-init.cjs` (SessionStart) and `dev-rules-reminder.cjs` (UserPromptSubmit) are auto-registered via `hooks/hooks.json` for any consumer of the marketplace plugin. No per-project wiring needed — Claude Code reads `hooks/hooks.json` at plugin load, and Codex reads the same manifest for plugins installed from a marketplace. `${CLAUDE_PLUGIN_ROOT}` resolves to the installed plugin directory in both.
+
+Do **not** also register these hooks by hand when the marketplace plugin is enabled. Claude Code keeps plugin handlers and project-settings handlers separate and runs both, so a duplicate registration fires the hook twice per event. `dev-rules-reminder.cjs` guards against the resulting double context injection: the plugin copy exits early when a project copy exists at `.claude/hooks/` and is registered in `.claude/settings*.json`, so the project copy wins. The duplicate process still runs, and the guard only holds when the copies carry it — a stale `npx` install beside an updated marketplace plugin can still inject twice, so keep both installs in sync or drop one.
 
 ### Manual / per-project (optional override or npx install)
 
-You can still wire hooks explicitly in `.claude/settings.json` or `.claude/settings.local.json` — useful when developing the plugin locally (so the project source runs, not the marketplace copy) or when registering optional hooks like `dev-rules-reminder.cjs`:
+You can still wire hooks explicitly in `.claude/settings.json` or `.claude/settings.local.json` — this is how `npx glassdesk init` installs them (see `templates/settings.local.json`), and it is useful when developing the plugin locally so the project source runs instead of the marketplace copy:
 
 ```json
 {

@@ -1,5 +1,5 @@
 {
-  "description": "GlassDesk plugin lifecycle hooks: SessionStart sets GD_SESSION_ID, GD_PLUGIN_PATH, GD_SERENA_AVAILABLE for plan-state persistence and script-path resolution.",
+  "description": "GlassDesk plugin lifecycle hooks. SessionStart sets GD_SESSION_ID, GD_PLUGIN_PATH, GD_SERENA_AVAILABLE for plan-state persistence and script-path resolution. UserPromptSubmit injects project rules and plan context. Read by Claude Code marketplace installs and by Codex plugin installs; npx installs register the same hooks via templates/settings.local.json instead.",
   "hooks": {
     "SessionStart": [
       {
@@ -7,6 +7,17 @@
           {
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/session-init.cjs\"",
+            "timeout": 20
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/dev-rules-reminder.cjs\"",
             "timeout": 20
           }
         ]
