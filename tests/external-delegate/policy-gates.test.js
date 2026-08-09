@@ -749,3 +749,32 @@ test('a file under the cap is still read and swept in a repository-visible mode'
     (e) => e instanceof GateError && /aws-access-key/.test(e.message),
   );
 });
+
+// ---------------------------------------------------------------------------
+// Final round, P2: a declared path travels — into the prompt as a heading or
+// bullet, and into context_sent — so it is sent text. It was checked only
+// against the deny globs, which say nothing about a filename that happens to
+// contain the key that produced the artifact.
+// ---------------------------------------------------------------------------
+
+test('gateContext sweeps the declared path, not only its contents', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gd-ext-pathscan-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const leaky = `build-${['sk', 'abcdefghijklmnopqrstuvwx'].join('-')}.log`;
+  fs.writeFileSync(path.join(dir, leaky), 'perfectly clean contents\n');
+  assert.throws(
+    () => gateContext({ scope: { files: [leaky] } }, {}, dir),
+    (e) => e instanceof GateError
+      && e.code === EXIT.PRIVACY
+      && /path itself/.test(e.message)
+      && !e.message.includes(leaky),
+  );
+});
+
+test('gateContext still accepts an ordinary path', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gd-ext-pathscan2-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  fs.mkdirSync(path.join(dir, 'src'));
+  fs.writeFileSync(path.join(dir, 'src/build-2026-08-09.log'), 'ok\n');
+  assert.equal(gateContext({ scope: { files: ['src/build-2026-08-09.log'] } }, {}, dir).files.length, 1);
+});

@@ -291,6 +291,18 @@ export function gateContext(
     if (typeof rel !== 'string') {
       throw new GateError(EXIT.PRIVACY, `scope.files entry ${JSON.stringify(rel)} must be a string path`);
     }
+    // The path itself travels — into the prompt as a heading or a bullet, and
+    // into the envelope's context_sent list — so it is sent text and gets the
+    // same sweep as sent content. A build artifact named after the key that
+    // produced it leaks that key through its filename while its contents scan
+    // perfectly clean.
+    const pathHits = scanForSecrets(rel);
+    if (pathHits.length) {
+      throw new GateError(
+        EXIT.PRIVACY,
+        `secret detected in the scope.files path itself: ${pathHits.map((h) => h.id).join(', ')}`,
+      );
+    }
     const denied = matchesDenyGlob(rel);
     if (denied) {
       // Abort, never skip. A silent drop would let the agent believe context

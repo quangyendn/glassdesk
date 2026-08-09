@@ -275,7 +275,10 @@ Enforced in the dispatcher, before any byte leaves the machine.
    believe context was sent that was not.
 3. **Content sweep.** PEM private-key headers, AWS access keys, GitHub tokens,
    `sk-` keys, Slack tokens, and credential assignments with high-entropy
-   literals. The specialist profile is swept too: that text comes from disk
+   literals. Declared paths are swept as well as file contents — a path travels
+   into the prompt and into `context_sent`, and an artifact named after the key
+   that produced it leaks that key while its contents scan clean. The
+   specialist profile is swept too: that text comes from disk
    rather than the task envelope, but `buildPrompt` puts it at the top of the
    outgoing prompt, so it is sent text like any other.
 4. **Byte cap, twice.** First on the inputs — inline blocks, the summary, and
