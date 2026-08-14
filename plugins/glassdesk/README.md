@@ -52,7 +52,7 @@ Maintain a project knowledge base in `.gd-wiki/` — Obsidian-flavored, QMD-inde
 | `/wiki-lint [--deep]` | Detect broken links, orphans, stale frontmatter, empty pages; `--deep` adds LLM contradiction sweep |
 | `/ask-wiki <q>` | QMD search + Sonnet synthesis with `path:line` citations; ~10× cheaper than `/ask` general when wiki has the answer |
 
-Powered by skill `wiki` (5 reference docs: maintaining, querying, linting, obsidian-conventions, cost-budget) and agent `gd-wiki-curator` (Sonnet, scope-bound to `.gd-wiki/`). Depends on `obsidian@obsidian-skills` (auto-resolved via plugin dependency) and `qmd` CLI ≥ 2.1.0 (manual install — see quick-start).
+Powered by skill `wiki` (5 reference docs: maintaining, querying, linting, obsidian-conventions, cost-budget) and agent `gd-wiki-curator` (Sonnet, scope-bound to `.gd-wiki/`). Depends on `obsidian@obsidian-skills` and `qmd` CLI ≥ 2.1.0 — both manual installs, see quick-start.
 
 `/learn` writes to `.gd-wiki/insights/` (auto-mkdir; no `/wiki-init` prerequisite). The curator never touches `insights/` — that subfolder is `/learn` territory.
 

@@ -64,10 +64,11 @@ Full mapping: [docs/migration-v0.2.md](migration-v0.2.md)
 
 The `/wiki:*` commands depend on:
 
-1. **Obsidian skills plugin** (auto-resolved via `dependencies`):
+1. **Obsidian skills plugin** (install it yourself — glassdesk declares no plugin
+   dependency; see the changelog entry "no plugin dependencies"):
    ```bash
    /plugin marketplace add kepano/obsidian-skills
-   /plugin install obsidian@obsidian-skills    # if not auto-installed
+   /plugin install obsidian@obsidian-skills
    ```
 
 2. **QMD CLI** (host-level prerequisite, ~2GB models on first embed):

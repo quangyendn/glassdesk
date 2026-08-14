@@ -6,9 +6,6 @@
     "name": "glassdesk contributors"
   },
   "license": "ISC",
-  "dependencies": [
-    { "name": "obsidian", "marketplace": "obsidian-skills" }
-  ],
   "keywords": [
     "sdlc",
     "planning",
