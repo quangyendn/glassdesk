@@ -1,5 +1,23 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- **The plugin no longer declares plugin dependencies — declaring any made Claude Code Desktop drop glassdesk entirely.** Desktop does not hand the CLI an installed-plugin registry; it passes each enabled plugin as `--plugin-dir <path>` (verified in the session's process arguments). On that path dependency resolution has nothing to resolve against, and the loader discards the whole plugin — silently: no error in `main.log`, no entry in the session's skill list, and every `/glassdesk:*` command answering `Unknown command`. `claude plugin list` still reported `✔ enabled` and `claude plugin details glassdesk` still listed all 41 skills, because both read the install registry rather than what the session loaded.
+
+  Isolated on Claude Code 2.1.229 by A/B/A against one copy of the 0.6.0 bundle, changing only `.claude-plugin/plugin.json` and asking a headless `--print` session to list its skills:
+
+  | `dependencies` | glassdesk skills visible |
+  |---|---|
+  | `[{ "name": "obsidian", "marketplace": "obsidian-skills" }]` | 0 |
+  | key removed | 4/4 probed |
+  | `[]` | 4/4 probed |
+
+  An empty array loads fine, so this is resolution failing, not the key being rejected. A control run with the same harness on `codex@openai-codex` (no dependencies) loaded its skills normally, ruling out the probe itself.
+
+  `obsidian@obsidian-skills` is now an ordinary documented prerequisite of the wiki commands — install it yourself, see quick-start. `marketplace.json::allowCrossMarketplaceDependenciesOn` stays as-is so the dependency can be restored in one line once Desktop resolves dependencies on the `--plugin-dir` path.
+
 ## [0.6.0] — 2026-08-14
 
 ### Changed — BREAKING
