@@ -186,13 +186,13 @@ test('rewrite: post-init no .md contains $GD_PLUGIN_PATH; project-relative .clau
 test('rewrite: subagent env-isolation — rewritten command runs with cwd=project root and minimal env', () => {
   const cwd = mkProject();
   runCli(['init', '--yes'], { cwd });
-  // Pull the actual rewritten command line from a known file. Use plan/hard.md
-  // because plan.md is renamed to plan/fast.md by RENAME_MAP — plan/hard.md is
+  // Pull the actual rewritten command line from a known file. Use plan-hard.md
+  // because plan.md is renamed to plan-fast.md by RENAME_MAP — plan-hard.md is
   // path-stable across the rename and carries the same set-active-plan.cjs
   // invocation.
-  const planMd = fs.readFileSync(path.join(cwd, '.claude', 'commands', 'plan', 'hard.md'), 'utf8');
+  const planMd = fs.readFileSync(path.join(cwd, '.claude', 'commands', 'plan-hard.md'), 'utf8');
   const match = planMd.match(/node "[^"]*set-active-plan\.cjs"/);
-  assert.ok(match, 'expected rewritten node invocation in plan/hard.md');
+  assert.ok(match, 'expected rewritten node invocation in plan-hard.md');
   // Simulate subagent: NO GD_PLUGIN_PATH, NO GD_SESSION_ID, NO CLAUDE_PROJECT_DIR.
   // Rely solely on cwd=project root (which Claude Code's Bash tool always sets).
   const r = spawnSync('bash', ['-c', `${match[0]} plans/dummy`], {
@@ -208,9 +208,9 @@ test('rewrite: subagent env-isolation — rewritten command runs with cwd=projec
 test('rewrite: update re-rewrites tampered $GD_PLUGIN_PATH back to project-relative .claude', () => {
   const cwd = mkProject();
   runCli(['init', '--yes'], { cwd });
-  // plan.md is renamed to plan/fast.md; use plan/hard.md (path-stable) which
+  // plan.md is renamed to plan-fast.md; use plan-hard.md (path-stable) which
   // has the same $GD_PLUGIN_PATH reference for tamper-and-update assertion.
-  const target = path.join(cwd, '.claude', 'commands', 'plan', 'hard.md');
+  const target = path.join(cwd, '.claude', 'commands', 'plan-hard.md');
   // Tamper: replace the rewritten path back to the legacy env-var form.
   const tampered = fs.readFileSync(target, 'utf8').replace(/"\.claude\//g, '"$GD_PLUGIN_PATH/');
   fs.writeFileSync(target, tampered);
@@ -254,10 +254,10 @@ test('rewrite: bundle invariant — source plugins/glassdesk/**/*.md keeps GD_PL
     .filter((rel) => !rel.endsWith('CHANGELOG.md'));
   assert.deepEqual(withToken.sort(), [
     'agents/gd-external-delegate.agent.md',
+    'commands/plan-hard.md',
+    'commands/plan-list.md',
+    'commands/plan-status.md',
     'commands/plan.md',
-    'commands/plan/hard.md',
-    'commands/plan/list.md',
-    'commands/plan/status.md',
     'docs/external-delegation.md',
     'skills/external-delegation/SKILL.md',
     'skills/planning/SKILL.md',
@@ -308,4 +308,70 @@ test('session-init: respects existing GD_PLUGIN_PATH (first-writer-wins)', () =>
   assert.doesNotMatch(r.envFileContent, /export GD_PLUGIN_PATH=/);
   // GD_SESSION_ID is still always regenerated.
   assert.match(r.envFileContent, /export GD_SESSION_ID=/);
+});
+
+// ----- v0.6.0: commands/ must stay flat (Desktop scanner names by basename) -----
+
+test('bundle invariant: plugins/glassdesk/commands contains no subdirectories', () => {
+  // Claude Code Desktop's plugin scanner registers legacy commands using the
+  // file BASENAME only, dropping the parent directory. A nested
+  // `commands/plan/hard.md` would register as `hard` and silently collide with
+  // `commands/fix/hard.md`. Keep the directory flat.
+  const commandsDir = path.join(REPO_ROOT, 'plugins', 'glassdesk', 'commands');
+  const nested = fs
+    .readdirSync(commandsDir, { withFileTypes: true })
+    .filter((e) => e.isDirectory())
+    .map((e) => e.name);
+  assert.deepEqual(nested, [], `commands/ must be flat, found subdirs: ${nested.join(', ')}`);
+});
+
+test('bundle invariant: no command basename collides with a skill directory name', () => {
+  // Desktop skips any command whose name matches a skills/ entry — the log
+  // reads `Skipping legacy command "glassdesk:wiki" — name collides with
+  // skills/ entry`. That is why commands/wiki.md is named wiki-run.md.
+  const pluginDir = path.join(REPO_ROOT, 'plugins', 'glassdesk');
+  const skillNames = new Set(
+    fs
+      .readdirSync(path.join(pluginDir, 'skills'), { withFileTypes: true })
+      .filter((e) => e.isDirectory())
+      .map((e) => e.name)
+  );
+  const collisions = fs
+    .readdirSync(path.join(pluginDir, 'commands'))
+    .filter((n) => n.endsWith('.md'))
+    .map((n) => n.replace(/\.md$/, ''))
+    .filter((n) => skillNames.has(n));
+  assert.deepEqual(collisions, [], `command names collide with skills/: ${collisions.join(', ')}`);
+});
+
+test('update: removes managed files the new bundle no longer ships', () => {
+  const cwd = mkProject();
+  runCli(['init', '--yes'], { cwd });
+  // Simulate a pre-flattening install: a nested command file plus a manifest
+  // entry claiming it. `update` must delete it and prune the empty directory.
+  const stalePath = path.join(cwd, '.claude', 'commands', 'plan', 'hard.md');
+  fs.mkdirSync(path.dirname(stalePath), { recursive: true });
+  fs.writeFileSync(stalePath, 'legacy nested command');
+  const manifestPath = path.join(cwd, '.claude', '.glassdesk.json');
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+  manifest.files.push('commands/plan/hard.md');
+  fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + '\n');
+
+  const r = runCli(['update', '--yes'], { cwd });
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(fs.existsSync(stalePath), false, 'stale nested command should be deleted');
+  assert.equal(fs.existsSync(path.dirname(stalePath)), false, 'emptied dir should be pruned');
+  // Current files survive.
+  assert.ok(fs.existsSync(path.join(cwd, '.claude', 'commands', 'plan-hard.md')));
+});
+
+test('update: never deletes files the user added outside the manifest', () => {
+  const cwd = mkProject();
+  runCli(['init', '--yes'], { cwd });
+  const userFile = path.join(cwd, '.claude', 'commands', 'my-own.md');
+  fs.writeFileSync(userFile, 'user command');
+
+  const r = runCli(['update', '--yes'], { cwd });
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(fs.readFileSync(userFile, 'utf8'), 'user command');
 });

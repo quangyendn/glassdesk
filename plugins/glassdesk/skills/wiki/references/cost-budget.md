@@ -33,7 +33,7 @@ MAX=$(jq -r '.query.max_tokens // 1000000' .gd-wiki/.config.json)
 
 if [ "$EST" -gt "$MAX" ]; then
   echo "ABORT: estimated $EST tokens exceeds budget $MAX"
-  echo "Hint: split via 'git rev-list <last>..HEAD | split -l N' and run /wiki:update on each chunk"
+  echo "Hint: split via 'git rev-list <last>..HEAD | split -l N' and run /wiki-update on each chunk"
   exit 1
 fi
 ```
@@ -66,7 +66,7 @@ Opus is opt-in only — never the default. The wiki maintainer is a high-frequen
 
 ## First-Embed Warning
 
-`qmd embed` downloads ~2GB of models on first run (per machine, not per project). `/wiki:init` MUST:
+`qmd embed` downloads ~2GB of models on first run (per machine, not per project). `/wiki-init` MUST:
 
 1. Detect if first embed: `[ ! -d ~/.qmd/models ]`
 2. Print the size warning
@@ -75,13 +75,13 @@ Opus is opt-in only — never the default. The wiki maintainer is a high-frequen
 
 ## Cost Comparison vs `/ask` General
 
-| Scenario | `/ask` general | `/ask:wiki` |
+| Scenario | `/ask` general | `/ask-wiki` |
 |---|---|---|
 | Single project question | full codebase grep + read 5-20 files (~50K input tokens) | QMD lookup (~0 tokens) + 5 snippets (~3K input) | 
 | Repeated questions on same area | each call re-greps | snippets already retrieved by QMD; near-cached |
 | Cross-project / general programming | works | likely [] miss → fallback to `/ask` |
 
-Rule of thumb: `/ask:wiki` ≈ 10x cheaper when wiki has the answer. `/wiki:update` amortizes its own cost over many `/ask:wiki` calls.
+Rule of thumb: `/ask-wiki` ≈ 10x cheaper when wiki has the answer. `/wiki-update` amortizes its own cost over many `/ask-wiki` calls.
 
 ## Caching Posture
 
@@ -105,4 +105,4 @@ User-tunable knobs in `.config.json`:
 }
 ```
 
-Lower `default_n` → cheaper synthesis. Raise `min_score` → fewer noisy hits. `max_tokens` is the hard abort threshold for `/wiki:update`.
+Lower `default_n` → cheaper synthesis. Raise `min_score` → fewer noisy hits. `max_tokens` is the hard abort threshold for `/wiki-update`.

@@ -24,7 +24,7 @@ After last phase: detect API keys, env vars, config requirements. Use `AskUserQu
 
 Generate concise report. Use `AskUserQuestion` to ask:
 - Preview report with `/preview`?
-- Archive plan with `/plan:archive`?
+- Archive plan with `/plan-archive`?
 
 ## Subagent Pattern
 

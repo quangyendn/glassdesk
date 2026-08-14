@@ -20,8 +20,8 @@ Demo vault seeded by Phase 05 of the wiki-maintainer plan. Curated by `gd-wiki-c
 
 ## Querying
 
-Use `/ask:wiki <question>` for grounded answers. Use `/wiki:update` on `main` after merges. Run `/wiki:lint` periodically to catch broken links + stale frontmatter.
+Use `/ask-wiki <question>` for grounded answers. Use `/wiki-update` on `main` after merges. Run `/wiki-lint` periodically to catch broken links + stale frontmatter.
 
 ## Status
 
-This is a seed vault. Live `qmd embed` registration deferred to user (requires ~2GB model download). After running `/wiki:init`, the curator can incrementally distill commits via `/wiki:update`.
+This is a seed vault. Live `qmd embed` registration deferred to user (requires ~2GB model download). After running `/wiki-init`, the curator can incrementally distill commits via `/wiki-update`.

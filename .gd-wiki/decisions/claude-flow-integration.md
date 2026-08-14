@@ -18,8 +18,8 @@ Claude Flow was not a hard dependency. The plugin used Claude Code's built-in Ta
 
 ### When Claude Flow Added Value
 
-- Running multiple independent research agents in parallel during `/plan:hard`
-- Fan-out exploration across many files simultaneously during deep `/scout:ext` runs
+- Running multiple independent research agents in parallel during `/plan-hard`
+- Fan-out exploration across many files simultaneously during deep `/scout-ext` runs
 - Batch operations where sequential Task calls would take too long
 
 ## Related Pages

@@ -2,7 +2,7 @@
 title: "Debugging and Fixing"
 updated: 2026-04-29
 tags: [category/feature, debugging, fixing, skill]
-summary: "The debugging and fixing features provide systematic root cause analysis (/debug, /fix:hard) and fast recovery workflows (/fix) for bugs and test failures."
+summary: "The debugging and fixing features provide systematic root cause analysis (/debug, /fix-hard) and fast recovery workflows (/fix) for bugs and test failures."
 ---
 
 Glassdesk ships two overlapping but distinct skills for dealing with failures: `debugging` (systematic four-phase root cause tracing) and `fixing` (fast recovery + test-failure loop).
@@ -12,7 +12,7 @@ Glassdesk ships two overlapping but distinct skills for dealing with failures: `
 | Command | Tier | Description |
 |---|---|---|
 | `/fix` | standard | Fast fix for known or obvious issues |
-| `/fix:hard` | premium | Deep investigation, comprehensive fix |
+| `/fix-hard` | premium | Deep investigation, comprehensive fix |
 | `/debug` | premium | Systematic debugging, root cause analysis |
 
 ## Debugging Skill

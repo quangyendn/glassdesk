@@ -14,7 +14,7 @@ Refer to 'output-standards' reference in 'planning' skill for plan file spec and
 
 ## Pre-Spec Check (Input Resolution)
 
-Run **Step 0** of `planning` skill (`references/input-resolution.md`) BEFORE the Pre-Creation Check below. Step 0 calls `scripts/resolve-spec-input.cjs`, branches on the JSON `mode` field (`spec` / `spec-confirm` / `task` / `error`), and produces either a spec path or task text. Keep this section identical between `plan.md` and `plan/hard.md`.
+Run **Step 0** of `planning` skill (`references/input-resolution.md`) BEFORE the Pre-Creation Check below. Step 0 calls `scripts/resolve-spec-input.cjs`, branches on the JSON `mode` field (`spec` / `spec-confirm` / `task` / `error`), and produces either a spec path or task text. Keep this section identical between `plan.md` and `plan-hard.md`.
 
 ## Pre-Creation Check (Active vs Suggested Plan)
 
@@ -35,10 +35,10 @@ Check the `## Plan Context` section in the injected context:
 
 Check `## Plan Context` → `Validation: mode=X, questions=MIN-MAX`:
 - `prompt`: Ask user "Validate this plan with a brief interview?" → Yes / No
-- `auto`: Execute `/plan:validate {plan-path}`
+- `auto`: Execute `/plan-validate {plan-path}`
 - `off`: Skip
 
-If validation chosen or mode is `auto`: Execute `/plan:validate {plan-path}`.
+If validation chosen or mode is `auto`: Execute `/plan-validate {plan-path}`.
 
 ## Important Notes
 - Ensure token efficiency while maintaining high quality.

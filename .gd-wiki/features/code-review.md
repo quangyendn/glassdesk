@@ -2,7 +2,7 @@
 title: "Code Review"
 updated: 2026-04-29
 tags: [category/feature, code-review, agents, skill]
-summary: "The code review feature provides PR analysis and adherence checks via /review:pr, powered by the code-review skill and specialized reviewer agents."
+summary: "The code review feature provides PR analysis and adherence checks via /review-pr, powered by the code-review skill and specialized reviewer agents."
 ---
 
 The code review feature provides structured PR review and code adherence checks, powered by the `code-review` skill.
@@ -11,7 +11,7 @@ The code review feature provides structured PR review and code adherence checks,
 
 | Command | Description |
 |---|---|
-| `/review:pr` | Comprehensive PR review using specialized review agents |
+| `/review-pr` | Comprehensive PR review using specialized review agents |
 
 ## Reviewer Agents
 

@@ -34,29 +34,31 @@ const COPY_SKIPLIST = new Set([
 // references in copied `.md` are rewritten to match (see COMMAND_REWRITES).
 //
 // Keys are POSIX rel paths under plugins/glassdesk/. Values are dest rel paths
-// under <project>/.claude/. Renaming into a subdirectory (e.g. plan.md →
-// plan/fast.md) is supported — copyPluginFiles creates the parent dir on copy.
+// under <project>/.claude/. `commands/` is flat by contract (see v0.6.0) — the
+// Claude Code Desktop plugin scanner names legacy commands from the file
+// BASENAME only, so a nested `commands/plan/hard.md` would register as `hard`
+// and silently collide with `fix/hard.md`. Never rename into a subdirectory.
 export const RENAME_MAP = new Map([
   ['commands/debug.md', 'commands/gd-debug.md'],
-  // `/plan` → `/plan:fast`: built-in `/plan [description]` enters plan mode
-  // and shadows project-scope `/plan`. Move the bare command into the existing
-  // `commands/plan/` namespace as a `:fast` variant alongside `:hard`,
-  // `:list`, etc. — variants are unaffected by the built-in.
-  ['commands/plan.md', 'commands/plan/fast.md'],
+  // `/plan` → `/plan-fast`: built-in `/plan [description]` enters plan mode and
+  // shadows project-scope `/plan`. Renamed to join the flat `plan-*` family
+  // alongside `plan-hard`, `plan-list`, etc. — variants are unaffected by the
+  // built-in.
+  ['commands/plan.md', 'commands/plan-fast.md'],
 ]);
 // Slash-command name rewrites applied to copied .md files in <project>/.claude/.
 // Each entry rewrites `/{from}` → `/{to}` when the match is NOT followed by
 // `[\w.:/-]` — preserves:
 //   - Filename refs:        `commands/plan.md`, `/debug.md`
-//   - Colon variants:       `/plan:hard`, `/plan:list`, `/debug:hard` (future)
-//   - Path segments:        `commands/plan/hard.md`
+//   - Kebab variants:       `/plan-hard`, `/plan-list`, `/debug-hard` (future)
+//   - Path segments:        `commands/plan-hard.md`
 //   - Identifier extensions:`/debugger`, `/planning`
-// Excluding `:` and `/` also makes the rewrite idempotent: a re-run finds the
-// already-rewritten `/plan:fast` blocked by the `:` lookahead and skips it.
+// Excluding `-` also makes the rewrite idempotent: a re-run finds the
+// already-rewritten `/plan-fast` blocked by the `-` lookahead and skips it.
 // Keep keys in sync with RENAME_MAP basenames.
 export const COMMAND_REWRITES = new Map([
   ['debug', 'gd-debug'],
-  ['plan', 'plan:fast'],
+  ['plan', 'plan-fast'],
 ]);
 const FLAG_ALIASES = {
   '--yes': 'yes',
@@ -558,6 +560,54 @@ export function writeManifest(cwd, version, files) {
   fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + '\n');
 }
 
+// Remove files that a PREVIOUS install wrote into <project>/.claude/ but the
+// current bundle no longer ships. Without this, an upgrade leaves orphans
+// behind — the v0.6.0 `commands/` flattening is the motivating case: stale
+// `.claude/commands/plan/hard.md` would keep registering as a ghost `/hard`
+// command in Claude Code Desktop (its plugin scanner names legacy commands by
+// basename, ignoring the parent directory), colliding with `fix-hard`.
+//
+// Scope is strictly the previous manifest's file list — files the user added
+// themselves are never touched. Empty parent directories left behind by the
+// deletion are pruned upward, stopping at <project>/.claude/.
+export function purgeStaleManagedFiles(cwd, prevFiles, nextFiles, { dryRun = false } = {}) {
+  const removed = [];
+  if (!Array.isArray(prevFiles) || prevFiles.length === 0) return { removed };
+  const keep = new Set(nextFiles);
+  const claudeDir = path.join(cwd, '.claude');
+  for (const rel of prevFiles) {
+    if (keep.has(rel)) continue;
+    const abs = path.join(claudeDir, rel);
+    // Guard against a tampered manifest escaping .claude/ via `../`.
+    if (path.relative(claudeDir, abs).startsWith('..')) continue;
+    if (!fs.existsSync(abs)) continue;
+    if (!dryRun) {
+      try {
+        fs.unlinkSync(abs);
+      } catch {
+        continue;
+      }
+    }
+    removed.push(rel);
+  }
+  if (!dryRun) {
+    // Prune directories emptied by the deletions, deepest first.
+    const dirs = [...new Set(removed.map((rel) => path.dirname(path.join(claudeDir, rel))))]
+      .sort((a, b) => b.length - a.length);
+    for (let dir of dirs) {
+      while (dir !== claudeDir && !path.relative(claudeDir, dir).startsWith('..')) {
+        try {
+          fs.rmdirSync(dir);
+        } catch {
+          break;
+        }
+        dir = path.dirname(dir);
+      }
+    }
+  }
+  return { removed };
+}
+
 export function looksLikeProjectRoot(cwd) {
   return fs.existsSync(path.join(cwd, '.git')) || fs.existsSync(path.join(cwd, 'package.json'));
 }
@@ -649,6 +699,10 @@ async function runInstall(cwd, mode, flags) {
     log.plain(`  Would rewrite $GD_PLUGIN_PATH in ${rwPreview.rewritten}/${rwPreview.scanned} .md files.`);
     const cmdPreview = rewriteCommandRefs(BUNDLED_PLUGIN_DIR, { dryRun: true });
     log.plain(`  Would rewrite slash-command refs in ${cmdPreview.rewritten}/${cmdPreview.scanned} .md files.`);
+    const stalePreview = purgeStaleManagedFiles(cwd, installed?.files, filesPreview, { dryRun: true });
+    if (stalePreview.removed.length) {
+      log.plain(`  Would remove ${stalePreview.removed.length} stale managed files (no longer shipped).`);
+    }
     return 0;
   }
 
@@ -669,6 +723,12 @@ async function runInstall(cwd, mode, flags) {
     log.warn('Settings and manifest were NOT written. Re-run to retry — overwrite is idempotent.');
     return 1;
   }
+
+  // Drop files the previous install left behind that this bundle no longer
+  // ships (see purgeStaleManagedFiles). Runs after a successful copy so a
+  // failed copy never deletes a working install.
+  const stale = purgeStaleManagedFiles(cwd, installed?.files, files, { dryRun: false });
+  for (const rel of stale.removed) log.plain(`  Removed stale managed file — ${rel}`);
 
   // Rewrite env-var references in copied markdown so commands/skills work in
   // subagent contexts (see rewritePluginPathRefs for rationale).

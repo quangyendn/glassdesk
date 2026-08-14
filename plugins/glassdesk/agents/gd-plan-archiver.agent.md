@@ -3,7 +3,7 @@ name: gd-plan-archiver
 description: |
   Read implementation plan(s), write concise journal entries summarizing
   what was built and lessons learned, then archive plan files. Used by
-  `/plan:archive`.
+  `/plan-archive`.
 
   Default behavior (no path arg): archive ONLY plans whose
   frontmatter `status` is `done` or `completed`. Skip in-progress

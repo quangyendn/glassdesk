@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Resolve spec input for /plan and /plan:hard.
+ * Resolve spec input for /plan and /plan-hard.
  *
  * Usage: node "$GD_PLUGIN_PATH/scripts/resolve-spec-input.cjs" [arg]
  *

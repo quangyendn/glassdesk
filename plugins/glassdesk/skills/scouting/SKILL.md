@@ -1,6 +1,6 @@
 ---
 name: scouting
-description: Use when exploring a codebase to find relevant files, understand project structure, or locate implementation patterns before starting a task. Use for /scout and /scout:ext workflows.
+description: Use when exploring a codebase to find relevant files, understand project structure, or locate implementation patterns before starting a task. Use for /scout and /scout-ext workflows.
 ---
 
 # Scouting

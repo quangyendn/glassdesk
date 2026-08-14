@@ -6,7 +6,7 @@
 
 ### 1. DISCOVER
 Understand requirements, explore codebase, diagnose issues.
-- `/ask`, `/brainstorm`, `/scout`, `/scout:ext`, `/debug`
+- `/ask`, `/brainstorm`, `/scout`, `/scout-ext`, `/debug`
 - Skills: `brainstorming` (ideation), `scouting` (exploration), `debugging` (root cause)
 
 ### 2. SPEC
@@ -20,32 +20,32 @@ Create implementation plan from spec or task. Input modes:
 - `/plan <spec-path>` → loads that spec directly (no confirm)
 - `/plan <task description>` → free-text mode (no spec)
 - Path-like arg pointing at a missing file → clear error (no silent fallback)
-- `/plan` (fast), `/plan:hard` (deep + research) — both share input resolution
-- Lifecycle: `/plan:validate`, `/plan:list`, `/plan:status`, `/plan:archive`
+- `/plan` (fast), `/plan-hard` (deep + research) — both share input resolution
+- Lifecycle: `/plan-validate`, `/plan-list`, `/plan-status`, `/plan-archive`
 - Plans saved to `./plans/{YYMMDD-HHmm-slug}/`
 - Skills: `planning` (Step 0 = Input Resolution)
 
 ### 4. BUILD
 Execute the plan.
-- `/code` (step-by-step), `/code:auto` (unattended)
+- `/code` (step-by-step), `/code-auto` (unattended)
 - Update existing files; never create new enhanced files
 - Run compile check after every code modification
 - Skills: `building`
 
 ### 5. VERIFY
 Catch and fix issues.
-- `/fix`, `/fix:hard`, `/test:ui`
+- `/fix`, `/fix-hard`, `/test-ui`
 - Never fake, mock, or bypass failing tests
 - Skills: `fixing`
 
 ### 6. REVIEW
 Comprehensive PR review via specialized agents.
-- `/review:pr`
+- `/review-pr`
 - Skills: `code-review`
 
 ### 7. SHIP
 Commit, push, open PR.
-- `/git:cm` → `/git:cp` → `/git:pr`
+- `/git-cm` → `/git-cp` → `/git-pr`
 - Commit messages always in English
 
 ### 8. COMPOUND

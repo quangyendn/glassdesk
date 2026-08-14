@@ -11,10 +11,10 @@ The wiki maintainer (shipped in v0.3.0) incrementally distills git commits on `m
 
 | Command | Tier | What it does |
 |---|---|---|
-| `/wiki:init [path]` | fast (Bash) | Bootstrap `.gd-wiki/` vault, register QMD collection, prompt for first embed |
-| `/wiki:update [--dry-run]` | standard (Sonnet) | Distill commits since `last_synced_commit` into wiki edits; re-index; advance pointer |
-| `/wiki:lint [--deep]` | fast (Bash) + opt-in Sonnet | Detect broken links, orphans, stale frontmatter, empty pages; `--deep` adds LLM contradiction sweep |
-| `/ask:wiki <q>` | standard (Sonnet) | QMD search + Sonnet synthesis with path:line citations |
+| `/wiki-init [path]` | fast (Bash) | Bootstrap `.gd-wiki/` vault, register QMD collection, prompt for first embed |
+| `/wiki-update [--dry-run]` | standard (Sonnet) | Distill commits since `last_synced_commit` into wiki edits; re-index; advance pointer |
+| `/wiki-lint [--deep]` | fast (Bash) + opt-in Sonnet | Detect broken links, orphans, stale frontmatter, empty pages; `--deep` adds LLM contradiction sweep |
+| `/ask-wiki <q>` | standard (Sonnet) | QMD search + Sonnet synthesis with path:line citations |
 
 ## Vault Structure
 
@@ -27,13 +27,13 @@ The wiki maintainer (shipped in v0.3.0) incrementally distills git commits on `m
 ├── decisions/            # ADR-style trade-off records
 ├── risks/                # known landmines + mitigations
 ├── manual/               # 100% human-authored, curator never touches
-├── insights/             # /learn outputs (auto-mkdir, no /wiki:init prerequisite)
+├── insights/             # /learn outputs (auto-mkdir, no /wiki-init prerequisite)
 └── index/                # .base aggregator files (Obsidian Bases)
 ```
 
 ## Update Workflow
 
-`/wiki:update` is strictly main-branch only. It follows this pipeline:
+`/wiki-update` is strictly main-branch only. It follows this pipeline:
 
 1. **Pre-flight** — verify on `main`, wiki initialized, `last_synced_commit` reachable, diff non-empty
 2. **Token budget** — estimate diff size; abort if > `max_tokens` (default 1M)
@@ -50,21 +50,21 @@ The command itself never auto-commits the wiki changes — it prints a suggested
 
 ## Knowledge Query
 
-`/ask:wiki` runs QMD lookup first (local, ~0 tokens), then feeds 5 top-scored snippets to Sonnet for synthesis. This is approximately 10x cheaper than `/ask` general when the wiki has the answer. On cache miss, it falls back to general `/ask`.
+`/ask-wiki` runs QMD lookup first (local, ~0 tokens), then feeds 5 top-scored snippets to Sonnet for synthesis. This is approximately 10x cheaper than `/ask` general when the wiki has the answer. On cache miss, it falls back to general `/ask`.
 
 ## /learn Integration
 
-`/learn` writes to `.gd-wiki/insights/` automatically (auto-mkdir). It does not require `/wiki:init` to have run first. The curator never reads or modifies `insights/` — that subfolder belongs to `/learn` exclusively.
+`/learn` writes to `.gd-wiki/insights/` automatically (auto-mkdir). It does not require `/wiki-init` to have run first. The curator never reads or modifies `insights/` — that subfolder belongs to `/learn` exclusively.
 
 ## Required Dependencies
 
 | Dependency | Install | Purpose |
 |---|---|---|
 | `qmd` CLI ≥ 2.1.0 | `npm i -g @tobilu/qmd` | BM25 + vector + rerank index |
-| `yq` | `brew install yq` | Stale frontmatter check in `/wiki:lint` |
+| `yq` | `brew install yq` | Stale frontmatter check in `/wiki-lint` |
 | SQLite | `brew install sqlite` (macOS) | QMD SQLite extension support |
 
-First `qmd embed` downloads ~2GB of models machine-wide (one-time). `/wiki:init` prompts Y/n before proceeding.
+First `qmd embed` downloads ~2GB of models machine-wide (one-time). `/wiki-init` prompts Y/n before proceeding.
 
 ## Related Pages
 

@@ -29,7 +29,7 @@ Always honoring **YAGNI**, **KISS**, and **DRY** principles.
 
 ### 0a. Input Resolution (pre-flight)
 Load: `references/input-resolution.md`
-**Runs BEFORE** Pre-Creation Check. Resolves `$ARGUMENTS` into either a spec path or task text via `scripts/resolve-spec-input.cjs`. Inherited by both `/plan` and `/plan:hard` (and any future `/plan:*` variants) — DO NOT duplicate the decision tree in command files.
+**Runs BEFORE** Pre-Creation Check. Resolves `$ARGUMENTS` into either a spec path or task text via `scripts/resolve-spec-input.cjs`. Inherited by both `/plan` and `/plan-hard` (and any future `/plan:*` variants) — DO NOT duplicate the decision tree in command files.
 
 ### 0b. Wiki Recall (pre-flight, before Discovery)
 Load: `${CLAUDE_PLUGIN_ROOT}/skills/wiki/references/recall.md` with `$Q` = resolved task text from 0a (or `$ARGUMENTS` if input_kind == "task").

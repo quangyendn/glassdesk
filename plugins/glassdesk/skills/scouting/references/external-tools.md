@@ -119,6 +119,6 @@ patch proposals, large-context synthesis — use the `gd-external-delegate`
 subagent, which routes through `bin/external-ai.mjs` and enforces privacy and
 mode policy. See `docs/external-delegation.md`.
 
-`/scout:ext` deliberately keeps its own direct `agy` path: it is a
+`/scout-ext` deliberately keeps its own direct `agy` path: it is a
 high-volume parallel dispatch whose latency budget does not suit a
 per-call policy gate.

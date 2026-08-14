@@ -2,7 +2,7 @@
 title: "Plugin Path Resolution Fix (npx install)"
 updated: 2026-05-26
 tags: [category/decision, npx, plugin, path-resolution, bugfix, command-collision]
-summary: "npx glassdesk init/update rewrites $GD_PLUGIN_PATH literals and renames colliding built-in command files (/debug→/gd-debug, /plan→/plan:fast) in copied .md files."
+summary: "npx glassdesk init/update rewrites $GD_PLUGIN_PATH literals and renames colliding built-in command files (/debug→/gd-debug, /plan→/plan-fast) in copied .md files."
 ---
 
 `npx glassdesk init/update` rewrites the `$GD_PLUGIN_PATH` token in all copied `.md` files to project-relative `.claude/...` paths at install time, working around Claude Code bug #46696.
@@ -34,9 +34,9 @@ Claude Code 2.x introduced built-in slash commands (`/debug`, `/plan`) that sile
 | Source (plugin) | Destination (npx `.claude/`) | Reason |
 |---|---|---|
 | `commands/debug.md` | `commands/gd-debug.md` | Built-in `/debug` enables debug logging |
-| `commands/plan.md` | `commands/plan/fast.md` | Built-in `/plan` enters plan-mode |
+| `commands/plan.md` | `commands/plan-fast.md` | Built-in `/plan` enters plan-mode |
 
-**`rewriteCommandRefs()`** — walks all copied `.md` files and rewrites slash-command references using `COMMAND_REWRITES` map (`/debug` → `/gd-debug`, `/plan` → `/plan:fast`). The regex uses a negative lookahead `(?![\w.:/-])` so colon variants (`/plan:hard`), path segments (`commands/plan/hard.md`), and identifier extensions (`/planning`) are preserved. The rewrite is idempotent — re-running `npx glassdesk update` does not double-mangle.
+**`rewriteCommandRefs()`** — walks all copied `.md` files and rewrites slash-command references using `COMMAND_REWRITES` map (`/debug` → `/gd-debug`, `/plan` → `/plan-fast`). The regex uses a negative lookahead `(?![\w.:/-])` so colon variants (`/plan-hard`), path segments (`commands/plan-hard.md`), and identifier extensions (`/planning`) are preserved. The rewrite is idempotent — re-running `npx glassdesk update` does not double-mangle.
 
 Marketplace installs are unaffected: plugin namespacing exposes `glassdesk:debug` and `glassdesk:plan` naturally.
 
@@ -46,4 +46,4 @@ Re-run `npx glassdesk update` once to apply to existing installs.
 
 - [[plugin-system]] — `GD_PLUGIN_PATH` and `session-init.cjs` in context
 - [[serena-mcp-enforcement]] — separate enforcement around code file reads
-- [[planning]] — `/plan:fast` command name used by npx installs
+- [[planning]] — `/plan-fast` command name used by npx installs

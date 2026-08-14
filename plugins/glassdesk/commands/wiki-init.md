@@ -34,7 +34,7 @@ Run sequentially; abort on first failure with exact remediation:
      echo "Hint: brew install sqlite (recommended for QMD on macOS)")
    ```
 
-4. **`yq` installed** (recommended, used by `/wiki:lint`)
+4. **`yq` installed** (recommended, used by `/wiki-lint`)
    ```bash
    command -v yq >/dev/null || echo "Hint: brew install yq (recommended)"
    ```
@@ -84,7 +84,7 @@ Curated by `gd-wiki-curator` (glassdesk plugin). See `plugins/glassdesk/skills/w
 
 ## Querying
 
-Use `/ask:wiki <question>` for grounded answers. Use `/wiki:update` on `main` after merges.
+Use `/ask-wiki <question>` for grounded answers. Use `/wiki-update` on `main` after merges.
 ```
 
 Write `$WIKI_PATH/.config.json` (canonical nested schema — matches `wiki` skill SKILL.md):
@@ -154,5 +154,5 @@ qmd embed
   Folders: architecture, features, decisions, risks, manual, insights, index
   Config: $WIKI_PATH/.config.json (nested schema, sync.last_synced_commit=null)
 
-Next: commit your wiki on main, then run /wiki:update after future merges.
+Next: commit your wiki on main, then run /wiki-update after future merges.
 ```

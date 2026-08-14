@@ -1,6 +1,6 @@
 ---
 name: wiki
-description: Use when maintaining a project knowledge base in `.gd-wiki/`, distilling commits into wiki pages, querying wiki content, or linting wiki integrity. Powers /wiki:init, /wiki:update, /wiki:lint, /ask:wiki. Page authoring defers to obsidian:obsidian-markdown; index files defer to obsidian:obsidian-bases.
+description: Use when maintaining a project knowledge base in `.gd-wiki/`, distilling commits into wiki pages, querying wiki content, or linting wiki integrity. Powers /wiki-init, /wiki-update, /wiki-lint, /ask-wiki. Page authoring defers to obsidian:obsidian-markdown; index files defer to obsidian:obsidian-bases.
 ---
 
 # Wiki
@@ -9,10 +9,10 @@ Maintain an evergreen, query-able project wiki under `.gd-wiki/` (committed, Obs
 
 ## When to Use
 
-- Bootstrap `.gd-wiki/` in a project (`/wiki:init`)
-- Sync new commits on `main` into the wiki incrementally (`/wiki:update`)
-- Answer a project-knowledge question grounded in wiki content (`/ask:wiki`)
-- Audit wiki integrity — broken links, orphans, stale, contradictions (`/wiki:lint`)
+- Bootstrap `.gd-wiki/` in a project (`/wiki-init`)
+- Sync new commits on `main` into the wiki incrementally (`/wiki-update`)
+- Answer a project-knowledge question grounded in wiki content (`/ask-wiki`)
+- Audit wiki integrity — broken links, orphans, stale, contradictions (`/wiki-lint`)
 - NOT for capturing session insights alone — that's `/learn` (writes to `.gd-wiki/insights/`)
 - NOT for code-search — use `/scout` or `grep`
 
@@ -31,7 +31,7 @@ Maintain an evergreen, query-able project wiki under `.gd-wiki/` (committed, Obs
 └── index/                    # `.base` aggregator files (Obsidian Bases)
 ```
 
-`.config.json` canonical schema (all keys are nested; flat shape is a bug). `/wiki:init` is the authoritative writer — this block must match it byte-for-byte:
+`.config.json` canonical schema (all keys are nested; flat shape is a bug). `/wiki-init` is the authoritative writer — this block must match it byte-for-byte:
 
 ```json
 {
@@ -94,9 +94,9 @@ Defer to `obsidian:obsidian-bases` skill for `.base` YAML syntax. Place index fi
 
 | Task | Load |
 |---|---|
-| `/wiki:update` (curator distill loop) | `references/maintaining.md` + `references/cost-budget.md` |
-| `/ask:wiki` (retrieval + synthesis) | `references/querying.md` |
-| `/wiki:lint` (integrity audit) | `references/linting.md` |
+| `/wiki-update` (curator distill loop) | `references/maintaining.md` + `references/cost-budget.md` |
+| `/ask-wiki` (retrieval + synthesis) | `references/querying.md` |
+| `/wiki-lint` (integrity audit) | `references/linting.md` |
 | Page format / frontmatter / categories question | `references/obsidian-conventions.md` |
 | Token budget / model tier / CLI-vs-LLM trade-off | `references/cost-budget.md` |
 
@@ -106,12 +106,12 @@ Defer to `obsidian:obsidian-bases` skill for `.base` YAML syntax. Place index fi
 - Never read or write `.glassdesk-knowledge/` (deprecated v0.3.0).
 - Respect `<!-- manual -->` blocks — curator skips entire block (scope: marker → next H2 OR matching `<!-- /manual -->`).
 - Respect `sync.stop_paths` from `.config.json` — never distill diffs touching only these paths.
-- `/wiki:update` runs ONLY on `sync.main_branch` (configurable, default `main`). Refuse on feature branches.
-- First `qmd embed` triggers a ~2GB model download — `/wiki:init` must confirm Y/n before invoking.
+- `/wiki-update` runs ONLY on `sync.main_branch` (configurable, default `main`). Refuse on feature branches.
+- First `qmd embed` triggers a ~2GB model download — `/wiki-init` must confirm Y/n before invoking.
 
 ## Common Mistakes
 
-- Running `/wiki:update` on a feature branch — refuse and point to `main_branch` config
+- Running `/wiki-update` on a feature branch — refuse and point to `main_branch` config
 - Letting curator edit `manual/` or files inside `<!-- manual -->` blocks
 - Skipping the token budget pre-flight — large diffs blow context silently
 - Forgetting `qmd update -c <coll> && qmd embed` after page edits — search returns stale content

@@ -12,7 +12,7 @@ Compounding is the set of commands and pre-flight hooks that make glassdesk self
 | Direction | Mechanism | Where |
 |---|---|---|
 | **Write** | `/learn` extracts session insights | `.gd-wiki/insights/` |
-| **Write** | `/wiki:update` distills commits into pages | `.gd-wiki/{architecture,decisions,features,risks}/` |
+| **Write** | `/wiki-update` distills commits into pages | `.gd-wiki/{architecture,decisions,features,risks}/` |
 | **Read** | **Wiki Recall** (Step 0 of DISCOVERY skills) | `brainstorming`, `planning`, `scouting` query `.gd-wiki/` before Discovery |
 
 Recall side closes the loop — without it, prior decisions/architecture/insights never influence new proposals. See `plugins/glassdesk/skills/wiki/references/recall.md`.
@@ -27,7 +27,7 @@ Recall side closes the loop — without it, prior decisions/architecture/insight
 
 ## /learn Write Target
 
-Since v0.3.0, `/learn` writes exclusively to `.gd-wiki/insights/`. The old `.glassdesk-knowledge/` folder is no longer read or written. The folder is auto-created if missing — no prerequisite `/wiki:init` needed.
+Since v0.3.0, `/learn` writes exclusively to `.gd-wiki/insights/`. The old `.glassdesk-knowledge/` folder is no longer read or written. The folder is auto-created if missing — no prerequisite `/wiki-init` needed.
 
 ## /improve Read Target
 

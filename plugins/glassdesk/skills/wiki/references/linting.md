@@ -1,6 +1,6 @@
 # Linting
 
-`/wiki:lint` integrity audit — deterministic by default, `--deep` adds LLM contradiction sweep. Always propose-only; never auto-fix.
+`/wiki-lint` integrity audit — deterministic by default, `--deep` adds LLM contradiction sweep. Always propose-only; never auto-fix.
 
 ## Deterministic Rules (no LLM)
 
@@ -65,7 +65,7 @@ BEHIND=$(git rev-list --count "$LAST..HEAD")
 WARN_AT=$(jq -r '.lint.warn_unsynced_commits // 20' .gd-wiki/.config.json)
 
 [ "$BEHIND" -gt "$WARN_AT" ] && \
-  echo "WARN: wiki is $BEHIND commits behind HEAD; consider /wiki:update"
+  echo "WARN: wiki is $BEHIND commits behind HEAD; consider /wiki-update"
 ```
 
 ## `--deep` LLM Contradiction Sweep
