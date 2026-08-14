@@ -10,7 +10,7 @@ Extract durable knowledge from Claude Code sessions and convert it into persiste
 ## When to Use
 
 - After a session: capturing patterns, decisions, and recurring problems
-- Writing a `.gd-wiki/insights/` entry (`/learn`) — auto-mkdir, no `/wiki:init` prerequisite
+- Writing a `.gd-wiki/insights/` entry (`/learn`) — auto-mkdir, no `/wiki-init` prerequisite
 - Generating an improvement proposal for review (`/improve`)
 - NOT for implementation (use `building` skill) or design exploration (use `brainstorming` skill)
 

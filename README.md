@@ -74,23 +74,23 @@ claude plugin marketplace remove glassdesk-marketplace
 
 ```bash
 # Create an implementation plan
-/plan:hard "Build user authentication system"
+/plan-hard "Build user authentication system"
 
 # Execute the plan
-/code:auto
+/code-auto
 ```
 
 ## Core Capabilities
 
 | Phase | Commands | Description |
 |-------|----------|-------------|
-| **DISCOVER** | `/ask`, `/ask:wiki`, `/brainstorm`, `/scout`, `/scout:ext` | Explore, ideate, question |
-| **PLAN** | `/plan`, `/plan:hard`, `/plan:validate`, `/plan:status`, `/plan:list`, `/plan:archive` | Research-driven planning |
-| **BUILD** | `/code`, `/code:auto` | Structured execution with verification gates |
-| **VERIFY** | `/fix`, `/fix:hard`, `/debug`, `/test:ui` | Debugging, test recovery |
-| **REVIEW** | `/review:pr` | Multi-agent PR review |
-| **SHIP** | `/git:cm`, `/git:cp`, `/git:pr` | Commit, push, PR workflows |
-| **WIKI** | `/wiki`, `/wiki:init`, `/wiki:update`, `/wiki:lint` | `.gd-wiki/` project knowledge vault |
+| **DISCOVER** | `/ask`, `/ask-wiki`, `/brainstorm`, `/scout`, `/scout-ext` | Explore, ideate, question |
+| **PLAN** | `/plan`, `/plan-hard`, `/plan-validate`, `/plan-status`, `/plan-list`, `/plan-archive` | Research-driven planning |
+| **BUILD** | `/code`, `/code-auto` | Structured execution with verification gates |
+| **VERIFY** | `/fix`, `/fix-hard`, `/debug`, `/test-ui` | Debugging, test recovery |
+| **REVIEW** | `/review-pr` | Multi-agent PR review |
+| **SHIP** | `/git-cm`, `/git-cp`, `/git-pr` | Commit, push, PR workflows |
+| **WIKI** | `/wiki-run`, `/wiki-init`, `/wiki-update`, `/wiki-lint` | `.gd-wiki/` project knowledge vault |
 | **COMPOUND** | `/spec`, `/learn`, `/improve` | Self-improving knowledge loop |
 
 ## Directory Structure
@@ -120,6 +120,7 @@ glassdesk/
 ## Documentation
 
 - [Quick Start](./plugins/glassdesk/docs/quick-start.md) — 5-minute setup and example workflows
+- [Migration Guide v0.6](./plugins/glassdesk/docs/migration-v0.6.md) — flat command names, upgrading from v0.5.x
 - [Migration Guide v0.2](./plugins/glassdesk/docs/migration-v0.2.md) — upgrading from v0.1.x
 - [Changelog](./plugins/glassdesk/CHANGELOG.md) — full release history
 - [`docs/`](./docs/) — project guides and specs

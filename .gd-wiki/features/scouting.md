@@ -2,17 +2,17 @@
 title: "Scouting"
 updated: 2026-05-01
 tags: [category/feature, scouting, exploration, skill]
-summary: "The scouting feature provides codebase exploration via /scout (internal) and /scout:ext (external tools like Gemini CLI), with Wiki Recall pre-flight at Step 0."
+summary: "The scouting feature provides codebase exploration via /scout (internal) and /scout-ext (external tools like Gemini CLI), with Wiki Recall pre-flight at Step 0."
 ---
 
-The scouting feature enables structured codebase exploration using internal tools (`/scout`) or external agentic tools (`/scout:ext`), powered by the `scouting` skill.
+The scouting feature enables structured codebase exploration using internal tools (`/scout`) or external agentic tools (`/scout-ext`), powered by the `scouting` skill.
 
 ## Commands
 
 | Command | Agent | Tier | Description |
 |---|---|---|---|
 | `/scout` | `gd-scout` | fast (Haiku) | Fast local codebase exploration, file discovery |
-| `/scout:ext` | `gd-scout-external` | external | External-tool reconnaissance via Gemini CLI |
+| `/scout-ext` | `gd-scout-external` | external | External-tool reconnaissance via Gemini CLI |
 
 ## External Tier
 

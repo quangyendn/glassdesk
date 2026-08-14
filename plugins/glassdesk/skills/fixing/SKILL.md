@@ -1,6 +1,6 @@
 ---
 name: fixing
-description: Use when debugging errors, fixing failing tests, resolving reported issues, or investigating root causes. Use for /fix and /fix:hard workflows.
+description: Use when debugging errors, fixing failing tests, resolving reported issues, or investigating root causes. Use for /fix and /fix-hard workflows.
 ---
 
 # Fixing

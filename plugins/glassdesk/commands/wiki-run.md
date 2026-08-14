@@ -1,9 +1,9 @@
 ---
-description: ⚡ Project wiki maintainer — see /wiki:init, /wiki:update, /wiki:lint, /ask:wiki
+description: ⚡ Project wiki maintainer — see /wiki-init, /wiki-update, /wiki-lint, /ask-wiki
 argument-hint: [subcommand]
 ---
 
-# `/wiki` — Project Wiki Maintainer
+# `/wiki-run` — Project Wiki Maintainer
 
 Bootstrap and maintain a committed, Obsidian-flavored knowledge base under `.gd-wiki/`. Curated incrementally on `main`. Queryable via QMD (BM25 + vector + rerank, local) for ~10x token savings vs `/ask` general.
 
@@ -11,10 +11,10 @@ Bootstrap and maintain a committed, Obsidian-flavored knowledge base under `.gd-
 
 | Command | Purpose |
 |---|---|
-| `/wiki:init [path?]` | Bootstrap `.gd-wiki/` vault, register QMD collection, run first embed (~2GB model download) |
-| `/wiki:update` | Distill commits since last sync into wiki edits (main branch only). Curator subagent does the LLM work; CLI does the rest |
-| `/wiki:lint [--deep]` | Deterministic checks (broken links, orphans, stale, empty); `--deep` adds LLM contradiction sweep |
-| `/ask:wiki <q>` | Query wiki via QMD + Sonnet synthesis. Falls back to `/ask` general when wiki absent |
+| `/wiki-init [path?]` | Bootstrap `.gd-wiki/` vault, register QMD collection, run first embed (~2GB model download) |
+| `/wiki-update` | Distill commits since last sync into wiki edits (main branch only). Curator subagent does the LLM work; CLI does the rest |
+| `/wiki-lint [--deep]` | Deterministic checks (broken links, orphans, stale, empty); `--deep` adds LLM contradiction sweep |
+| `/ask-wiki <q>` | Query wiki via QMD + Sonnet synthesis. Falls back to `/ask` general when wiki absent |
 
 ## Prerequisites
 

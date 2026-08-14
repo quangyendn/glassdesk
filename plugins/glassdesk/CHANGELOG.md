@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.6.0] — 2026-08-14
+
+### Changed — BREAKING
+
+- **`commands/` is now flat; every namespaced command renamed `ns:sub` → `ns-sub`** — `/plan:hard` → `/plan-hard`, `/git:cm` → `/git-cm`, `/wiki:init` → `/wiki-init`, and so on for all 17 previously nested commands. Root cause: the Claude Code Desktop plugin scanner builds legacy command names from the file **basename only**, discarding the parent directory (the `skills/` branch uses `componentPath`, the `commands/` branch does not). Consequences on 0.5.1: `commands/plan/hard.md` registered as `/glassdesk:hard`, not `/glassdesk:plan:hard`, so the name shown in autocomplete (built from `location.componentPath`) was not the name the dispatcher held — typing it returned Unknown. Worse, the scanner does not dedupe on that branch: `plan/hard.md` and `fix/hard.md` both registered as `hard`, `review/pr.md` and `git/pr.md` both as `pr`, with no error and no defined winner. Flat kebab names are stable in both Desktop and CLI.
+- **`/wiki` renamed to `/wiki-run`** — Desktop drops any command whose name matches a `skills/` entry; `skills/wiki` won, and `main.log` recorded `Skipping legacy command "glassdesk:wiki" — name collides with skills/ entry` on every startup. The command was simply absent. No other command basename collides with a skill directory.
+- **npx install: `commands/plan.md` now copies to `commands/plan-fast.md`** (was `commands/plan/fast.md`), and the copied-markdown rewrite maps bare `/plan` → `/plan-fast` (was `/plan:fast`). Rationale for the rename itself is unchanged — the built-in `/plan` shadows a project-scope `/plan`.
+
+### Added
+
+- **Stale-file purge on `npx glassdesk update`** — the installer now deletes files listed in the previous `.claude/.glassdesk.json` manifest that the new bundle no longer ships, and prunes directories emptied by that deletion. Without it, upgrading past this release would leave `.claude/commands/plan/hard.md` on disk as a ghost `/hard` command. Only manifest-tracked paths are touched; files added by the user are never removed.
+- **Two bundle invariants enforced in tests** — `commands/` must contain no subdirectories, and no command basename may equal a `skills/` directory name.
+
+### Migration
+
+See `docs/migration-v0.6.md` for the full old → new name table. Marketplace installs: update the plugin, then restart Claude Code. npx installs: run `npx glassdesk update` once.
+
 ## [0.4.0] — 2026-04-30
 
 ### Added

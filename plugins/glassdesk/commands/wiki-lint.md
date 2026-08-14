@@ -13,7 +13,7 @@ Activate the `wiki` skill. Load `references/linting.md` (4 deterministic rules +
 ## Pre-flight
 
 ```bash
-[ -f .gd-wiki/.config.json ] || { echo "ERROR: .gd-wiki/ not initialized. Run /wiki:init."; exit 1; }
+[ -f .gd-wiki/.config.json ] || { echo "ERROR: .gd-wiki/ not initialized. Run /wiki-init."; exit 1; }
 command -v yq >/dev/null || { echo "ERROR: yq required for stale-frontmatter check. brew install yq"; exit 1; }
 mkdir -p plans/reports
 ```
@@ -36,7 +36,7 @@ LAST=$(jq -r '.sync.last_synced_commit' .gd-wiki/.config.json)
 WARN_AT=$(jq -r '.lint.warn_unsynced_commits // 20' .gd-wiki/.config.json)
 [ "$LAST" != "null" ] && {
   BEHIND=$(git rev-list --count "$LAST..HEAD")
-  [ "$BEHIND" -gt "$WARN_AT" ] && SYNC_WARN="WARN: wiki is $BEHIND commits behind HEAD (threshold $WARN_AT). Consider /wiki:update."
+  [ "$BEHIND" -gt "$WARN_AT" ] && SYNC_WARN="WARN: wiki is $BEHIND commits behind HEAD (threshold $WARN_AT). Consider /wiki-update."
 }
 ```
 

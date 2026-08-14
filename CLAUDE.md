@@ -8,53 +8,53 @@ Available commands in `.claude/commands/` — 28 total:
 
 | Phase | Commands |
 |-------|----------|
-| **DISCOVER** | `/ask`, `/ask:wiki`, `/brainstorm`, `/scout`, `/scout:ext` |
-| **PLAN** | `/plan`, `/plan:hard`, `/plan:validate`, `/plan:status`, `/plan:list`, `/plan:archive` |
-| **BUILD** | `/code`, `/code:auto` |
-| **VERIFY** | `/fix`, `/fix:hard`, `/debug`, `/test:ui` |
-| **REVIEW** | `/review:pr` |
-| **SHIP** | `/git:cm`, `/git:cp`, `/git:pr` |
-| **WIKI** | `/wiki`, `/wiki:init`, `/wiki:update`, `/wiki:lint` |
+| **DISCOVER** | `/ask`, `/ask-wiki`, `/brainstorm`, `/scout`, `/scout-ext` |
+| **PLAN** | `/plan`, `/plan-hard`, `/plan-validate`, `/plan-status`, `/plan-list`, `/plan-archive` |
+| **BUILD** | `/code`, `/code-auto` |
+| **VERIFY** | `/fix`, `/fix-hard`, `/debug`, `/test-ui` |
+| **REVIEW** | `/review-pr` |
+| **SHIP** | `/git-cm`, `/git-cp`, `/git-pr` |
+| **WIKI** | `/wiki-run`, `/wiki-init`, `/wiki-update`, `/wiki-lint` |
 | **COMPOUND** | `/spec`, `/learn`, `/improve` |
 
 ### DISCOVER
 - `/ask` - Smart question command with context
-- `/ask:wiki` - Query the project wiki (`.gd-wiki/`) via QMD for grounded answers
+- `/ask-wiki` - Query the project wiki (`.gd-wiki/`) via QMD for grounded answers
 - `/brainstorm` - Ideation and creative exploration
 - `/scout` - Explore codebase structure
-- `/scout:ext` - Use external agentic tools for scouting
+- `/scout-ext` - Use external agentic tools for scouting
 
 ### PLAN
 - `/plan` - Analyze and create an implementation plan (fast, no research)
-- `/plan:hard` - Full analysis with parallel research
-- `/plan:validate` - Validate plan with critical questions
-- `/plan:status` - Show detailed status of a specific plan
-- `/plan:list` - List all plans with status and progress
-- `/plan:archive` - Archive completed plans, write journal entries
+- `/plan-hard` - Full analysis with parallel research
+- `/plan-validate` - Validate plan with critical questions
+- `/plan-status` - Show detailed status of a specific plan
+- `/plan-list` - List all plans with status and progress
+- `/plan-archive` - Archive completed plans, write journal entries
 
 ### BUILD
 - `/code` - Execute implementation plan step-by-step
-- `/code:auto` - Auto-execute all phases without blocking gates
+- `/code-auto` - Auto-execute all phases without blocking gates
 
 ### VERIFY
 - `/fix` - Analyze and fix issues (general or test failures)
-- `/fix:hard` - Deep investigation and comprehensive fix
+- `/fix-hard` - Deep investigation and comprehensive fix
 - `/debug` - Systematic debugging and root cause analysis
-- `/test:ui` - Run UI component tests
+- `/test-ui` - Run UI component tests
 
 ### REVIEW
-- `/review:pr` - Comprehensive PR review using specialized agents
+- `/review-pr` - Comprehensive PR review using specialized agents
 
 ### SHIP
-- `/git:cm` - Stage all files and create a commit
-- `/git:cp` - Stage, commit, and push current branch
-- `/git:pr` - Create a pull request
+- `/git-cm` - Stage all files and create a commit
+- `/git-cp` - Stage, commit, and push current branch
+- `/git-pr` - Create a pull request
 
 ### WIKI
-- `/wiki` - Wiki maintainer entry point; dispatches to the subcommands below
-- `/wiki:init` - Bootstrap `.gd-wiki/` Obsidian-flavored vault, register QMD collection, run first embed
-- `/wiki:update` - Distill new commits since last sync into wiki pages (main branch only)
-- `/wiki:lint` - Deterministic checks (broken links, orphans, stale frontmatter); `--deep` runs LLM contradiction sweep
+- `/wiki-run` - Wiki maintainer entry point; dispatches to the subcommands below
+- `/wiki-init` - Bootstrap `.gd-wiki/` Obsidian-flavored vault, register QMD collection, run first embed
+- `/wiki-update` - Distill new commits since last sync into wiki pages (main branch only)
+- `/wiki-lint` - Deterministic checks (broken links, orphans, stale frontmatter); `--deep` runs LLM contradiction sweep
 
 ### COMPOUND
 - `/spec` - Formalize a brainstorm into a spec document in `docs/specs/`
@@ -86,8 +86,8 @@ Workflow guides in `./.claude/workflows/`:
 - `orchestration-protocol.md` - Multi-agent coordination
 
 Workflow steps:
-1. **Plan First:** Use `/plan:hard` to create implementation plan
-2. **Execute:** Use `/code:auto` to implement the plan
+1. **Plan First:** Use `/plan-hard` to create implementation plan
+2. **Execute:** Use `/code-auto` to implement the plan
 
 ## GitHub Actions Templates
 
@@ -125,6 +125,7 @@ Response verbosity levels in `.claude/output-styles/`:
 
 Plugin docs in `plugins/glassdesk/docs/`:
 - `quick-start.md` — 5-minute setup and SDLC walkthrough
+- `migration-v0.6.md` — flat command names (`/plan:hard` → `/plan-hard`), upgrading from v0.5.x
 - `migration-v0.2.md` — upgrading from v0.1.x
 
 Changelog: `plugins/glassdesk/CHANGELOG.md`
@@ -178,7 +179,7 @@ plugins/glassdesk/
 ├── commands/
 │   ├── scout.md          → /scout
 │   └── scout/
-│       └── ext.md        → /scout:ext
+│       └── ext.md        → /scout-ext
 ├── skills/
 └── plugin.json
 ```

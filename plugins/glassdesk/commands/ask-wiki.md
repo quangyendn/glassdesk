@@ -87,4 +87,4 @@ If top hit score < 0.5, prefix the answer with: `(low confidence — top snippet
 
 ## Cost
 
-See `references/cost-budget.md` § Cost Comparison vs `/ask` General. Single `/ask:wiki` round ≈ 1 QMD CLI call (sub-second, 0 LLM tokens) + 1 Sonnet synthesis (~3K input, ~500 output). ~10× cheaper than `/ask` general when wiki has the answer.
+See `references/cost-budget.md` § Cost Comparison vs `/ask` General. Single `/ask-wiki` round ≈ 1 QMD CLI call (sub-second, 0 LLM tokens) + 1 Sonnet synthesis (~3K input, ~500 output). ~10× cheaper than `/ask` general when wiki has the answer.

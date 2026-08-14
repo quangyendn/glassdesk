@@ -351,71 +351,71 @@ test('rewriteCommandRefs: skips non-.md files', () => {
   assert.match(fs.readFileSync(path.join(root, 'config.json'), 'utf8'), /\/debug/);
 });
 
-// ----- /plan → /plan:fast rename + variant preservation -----
+// ----- /plan → /plan-fast rename + variant preservation -----
 
-test('RENAME_MAP: includes commands/plan.md → commands/plan/fast.md', () => {
-  assert.equal(RENAME_MAP.get('commands/plan.md'), 'commands/plan/fast.md');
+test('RENAME_MAP: includes commands/plan.md → commands/plan-fast.md', () => {
+  assert.equal(RENAME_MAP.get('commands/plan.md'), 'commands/plan-fast.md');
 });
 
-test('COMMAND_REWRITES: maps plan → plan:fast', () => {
-  assert.equal(COMMAND_REWRITES.get('plan'), 'plan:fast');
+test('COMMAND_REWRITES: maps plan → plan-fast', () => {
+  assert.equal(COMMAND_REWRITES.get('plan'), 'plan-fast');
 });
 
-test('copyPluginFiles: renames plan.md into plan/fast.md alongside existing variants', () => {
+test('copyPluginFiles: renames plan.md into plan-fast.md alongside existing variants', () => {
   const src = mkTmp();
   const dest = mkTmp();
-  fs.mkdirSync(path.join(src, 'commands', 'plan'), { recursive: true });
+  fs.mkdirSync(path.join(src, 'commands'), { recursive: true });
   fs.writeFileSync(path.join(src, 'commands', 'plan.md'), 'fast plan');
-  fs.writeFileSync(path.join(src, 'commands', 'plan', 'hard.md'), 'hard plan');
-  fs.writeFileSync(path.join(src, 'commands', 'plan', 'list.md'), 'list plans');
+  fs.writeFileSync(path.join(src, 'commands', 'plan-hard.md'), 'hard plan');
+  fs.writeFileSync(path.join(src, 'commands', 'plan-list.md'), 'list plans');
 
   const files = copyPluginFiles(src, dest, false);
 
-  // Renamed base lands inside the existing namespace dir.
-  assert.equal(fs.readFileSync(path.join(dest, 'commands', 'plan', 'fast.md'), 'utf8'), 'fast plan');
-  // Source plan.md is NOT created at top level on dest.
+  // Renamed base lands flat alongside the variants.
+  assert.equal(fs.readFileSync(path.join(dest, 'commands', 'plan-fast.md'), 'utf8'), 'fast plan');
+  // Source plan.md is NOT created under its source name on dest.
   assert.equal(fs.existsSync(path.join(dest, 'commands', 'plan.md')), false);
   // Variants pass through untouched.
-  assert.equal(fs.readFileSync(path.join(dest, 'commands', 'plan', 'hard.md'), 'utf8'), 'hard plan');
-  assert.equal(fs.readFileSync(path.join(dest, 'commands', 'plan', 'list.md'), 'utf8'), 'list plans');
+  assert.equal(fs.readFileSync(path.join(dest, 'commands', 'plan-hard.md'), 'utf8'), 'hard plan');
+  assert.equal(fs.readFileSync(path.join(dest, 'commands', 'plan-list.md'), 'utf8'), 'list plans');
   // Manifest reflects renamed dest paths.
   assert.deepEqual(
     files.sort(),
-    ['commands/plan/fast.md', 'commands/plan/hard.md', 'commands/plan/list.md']
+    ['commands/plan-fast.md', 'commands/plan-hard.md', 'commands/plan-list.md']
   );
 });
 
-test('rewriteCommandRefs: rewrites /plan to /plan:fast in .md files', () => {
+test('rewriteCommandRefs: rewrites /plan to /plan-fast in .md files', () => {
   const root = mkTmp();
   const file = path.join(root, 'workflow.md');
   fs.writeFileSync(file, 'Step 1: run `/plan` to create a plan.\n');
   rewriteCommandRefs(root, { dryRun: false });
   const out = fs.readFileSync(file, 'utf8');
-  assert.match(out, /\/plan:fast/);
+  assert.match(out, /\/plan-fast/);
 });
 
-test('rewriteCommandRefs: preserves /plan:hard, /plan.md, /planning, commands/plan/hard.md', () => {
+test('rewriteCommandRefs: preserves /plan-hard, /plan.md, /planning, commands/plan-hard.md', () => {
   const root = mkTmp();
   const file = path.join(root, 'doc.md');
   fs.writeFileSync(
     file,
     [
-      'Variant: /plan:hard runs deep research',
+      'Variant: /plan-hard runs deep research',
       'Filename: commands/plan.md is the entry point',
       'Skill: /planning is the harness',
-      'Path: commands/plan/hard.md is the variant',
+      'Path: commands/plan-hard.md is the variant',
       'Bare: use /plan now',
     ].join('\n') + '\n'
   );
   rewriteCommandRefs(root, { dryRun: false });
   const out = fs.readFileSync(file, 'utf8');
   // Variants/filenames/identifiers/path-segments untouched.
-  assert.match(out, /\/plan:hard runs/);
+  assert.match(out, /\/plan-hard runs/);
   assert.match(out, /commands\/plan\.md is/);
   assert.match(out, /\/planning is/);
-  assert.match(out, /commands\/plan\/hard\.md is/);
+  assert.match(out, /commands\/plan-hard\.md is/);
   // Bare /plan rewritten.
-  assert.match(out, /use \/plan:fast now/);
+  assert.match(out, /use \/plan-fast now/);
 });
 
 test('rewriteCommandRefs: is idempotent — second run rewrites nothing new', () => {
@@ -429,7 +429,7 @@ test('rewriteCommandRefs: is idempotent — second run rewrites nothing new', ()
   assert.equal(r1.rewritten, 1);
   assert.equal(r2.rewritten, 0);
   assert.equal(after1, after2);
-  assert.match(after1, /\/plan:fast and \/gd-debug/);
+  assert.match(after1, /\/plan-fast and \/gd-debug/);
 });
 
 test('writeManifest: writes JSON with version and POSIX paths', () => {

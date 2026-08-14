@@ -14,7 +14,7 @@ The plugin lives under `plugins/glassdesk/` and installs into a project's `.clau
 plugins/glassdesk/
 ├── .claude-plugin/plugin.json   # plugin manifest + cross-marketplace deps
 ├── commands/                    # slash commands (one file = one command)
-│   └── wiki/                    # variant commands: /wiki:init, /wiki:update, /wiki:lint
+│   └── wiki/                    # variant commands: /wiki-init, /wiki-update, /wiki-lint
 ├── agents/                      # specialized subagents (gd- prefix)
 ├── skills/                      # reusable skill packages loaded by commands
 │   └── wiki/references/         # skill reference docs (maintaining, linting, querying, etc.)
@@ -28,7 +28,7 @@ plugins/glassdesk/
 └── scripts/
     ├── install-dev-hooks.sh     # optional pre-commit drift guard
     ├── pre-commit-hook.sh       # blocks commits when agent model:/effort: drifts from tier:
-    └── resolve-spec-input.cjs   # spec→plan input resolver (Step 0 of /plan and /plan:hard)
+    └── resolve-spec-input.cjs   # spec→plan input resolver (Step 0 of /plan and /plan-hard)
 ```
 
 ## Command Registration Pattern
@@ -36,7 +36,7 @@ plugins/glassdesk/
 | Pattern | Route | Example |
 |---|---|---|
 | `commands/{name}.md` | `/name` | `commands/ask.md` → `/ask` |
-| `commands/{name}/{variant}.md` | `/name:{variant}` | `commands/wiki/init.md` → `/wiki:init` |
+| `commands/{name}/{variant}.md` | `/name:{variant}` | `commands/wiki-init.md` → `/wiki-init` |
 
 Both base and variant can coexist. Variants extend base functionality; they do not replace it.
 
@@ -45,7 +45,7 @@ Both base and variant can coexist. Variants extend base functionality; they do n
 Commands are thin shims (≤30 lines). They delegate heavy work by activating a skill, which then dispatches to a subagent via the Task tool. This three-layer design keeps command files readable and routes work to the correct model tier.
 
 ```
-/plan:hard  →  activate 'planning' skill  →  dispatch gd-researcher (standard)
+/plan-hard  →  activate 'planning' skill  →  dispatch gd-researcher (standard)
                                            →  dispatch gd-planner (premium)
                                            →  dispatch gd-project-manager (light)
 ```
@@ -56,13 +56,13 @@ Commands are thin shims (≤30 lines). They delegate heavy work by activating a 
 
 | Phase | Commands |
 |---|---|
-| DISCOVER | `/ask`, `/ask:wiki`, `/brainstorm`, `/scout`, `/scout:ext` |
-| PLAN | `/plan`, `/plan:hard`, `/plan:validate`, `/plan:status`, `/plan:list`, `/plan:archive` |
-| BUILD | `/code`, `/code:auto` |
-| VERIFY | `/fix`, `/fix:hard`, `/debug`, `/test:ui` |
-| REVIEW | `/review:pr` |
-| SHIP | `/git:cm`, `/git:cp`, `/git:pr` |
-| WIKI | `/wiki:init`, `/wiki:update`, `/wiki:lint` |
+| DISCOVER | `/ask`, `/ask-wiki`, `/brainstorm`, `/scout`, `/scout-ext` |
+| PLAN | `/plan`, `/plan-hard`, `/plan-validate`, `/plan-status`, `/plan-list`, `/plan-archive` |
+| BUILD | `/code`, `/code-auto` |
+| VERIFY | `/fix`, `/fix-hard`, `/debug`, `/test-ui` |
+| REVIEW | `/review-pr` |
+| SHIP | `/git-cm`, `/git-cp`, `/git-pr` |
+| WIKI | `/wiki-init`, `/wiki-update`, `/wiki-lint` |
 | COMPOUND | `/spec`, `/learn`, `/improve` |
 
 ## Agent Topology
@@ -73,16 +73,16 @@ Key agents and their dispatch sources:
 
 | Agent | Tier | Dispatched by |
 |---|---|---|
-| `gd-planner` | premium | `/plan:hard` (planning skill) |
-| `gd-architect` | premium | `/plan`, `/plan:hard` |
-| `gd-debugger` | deep | `/debug`, `/fix:hard` |
-| `gd-researcher` | standard | `/plan:hard` |
+| `gd-planner` | premium | `/plan-hard` (planning skill) |
+| `gd-architect` | premium | `/plan`, `/plan-hard` |
+| `gd-debugger` | deep | `/debug`, `/fix-hard` |
+| `gd-researcher` | standard | `/plan-hard` |
 | `gd-implementer` | standard | building skill Step 2 |
 | `gd-project-manager` | light | building skill |
 | `gd-tester` | standard | building/fixing skills |
-| `gd-wiki-curator` | standard | `/wiki:update` |
-| `gd-git-manager` | fast | `/git:cm`, `/git:cp`, `/git:pr` |
-| `gd-plan-archiver` | fast | `/plan:archive` |
+| `gd-wiki-curator` | standard | `/wiki-update` |
+| `gd-git-manager` | fast | `/git-cm`, `/git-cp`, `/git-pr` |
+| `gd-plan-archiver` | fast | `/plan-archive` |
 
 ## Path Resolution at Runtime
 
@@ -109,7 +109,7 @@ Claude Code 2.x ships built-in slash commands (`/debug`, `/plan`) that always wi
 | Plugin source | npx `.claude/` destination | Built-in that was blocking |
 |---|---|---|
 | `commands/debug.md` → `/debug` | `commands/gd-debug.md` → `/gd-debug` | `/debug` (debug logging) |
-| `commands/plan.md` → `/plan` | `commands/plan/fast.md` → `/plan:fast` | `/plan` (plan-mode entry) |
+| `commands/plan.md` → `/plan` | `commands/plan-fast.md` → `/plan-fast` | `/plan` (plan-mode entry) |
 
 All slash-command references in copied `.md` files are rewritten to match. Marketplace plugin installs are unaffected — plugin namespacing exposes the originals as `/glassdesk:debug` and `/glassdesk:plan`. See [[plugin-path-resolution-fix]] for implementation details.
 

@@ -8,7 +8,7 @@ How to write a knowledge base entry after extracting session insights.
 .gd-wiki/insights/{YYMMDD}-{slug}.md
 ```
 
-- Auto-mkdir on every `/learn` invocation — no `/wiki:init` prerequisite
+- Auto-mkdir on every `/learn` invocation — no `/wiki-init` prerequisite
 - Committed alongside the wiki vault (since v0.3.0); previously gitignored under `.glassdesk-knowledge/` (dropped, no compat read)
 - One file per session (not per insight)
 - Date = session date (today if running same day, else use session timestamp)

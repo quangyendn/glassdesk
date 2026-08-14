@@ -28,7 +28,7 @@ Create all four missing agents with appropriate tiers. Half-measures (e.g., alia
 
 ## Planner Double-Spend Mitigation
 
-When `gd-planner` (premium) is dispatched from `/plan:hard` (which also runs as Opus in the main thread), the planning skill was updated so the main thread acts as orchestrator only — it does not write plan content. This prevents 2x Opus token spend.
+When `gd-planner` (premium) is dispatched from `/plan-hard` (which also runs as Opus in the main thread), the planning skill was updated so the main thread acts as orchestrator only — it does not write plan content. This prevents 2x Opus token spend.
 
 ## Related Pages
 

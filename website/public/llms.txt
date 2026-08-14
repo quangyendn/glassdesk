@@ -7,13 +7,13 @@ GlassDesk is a Claude Code plugin distributed under MIT. It installs 28 slash co
 ## Documentation
 
 - [Architecture — plugin system](https://glassdesk.vercel.app/docs/architecture/plugin-system): how plugin discovery, registration, and command resolution work
-- [Feature — planning](https://glassdesk.vercel.app/docs/features/planning): `/plan` and `/plan:hard` workflow and phase decomposition
+- [Feature — planning](https://glassdesk.vercel.app/docs/features/planning): `/plan` and `/plan-hard` workflow and phase decomposition
 - [Feature — building](https://glassdesk.vercel.app/docs/features/building): phase-by-phase plan execution with verification gates
-- [Feature — debugging and fixing](https://glassdesk.vercel.app/docs/features/debugging-and-fixing): `/debug`, `/fix`, `/fix:hard`
+- [Feature — debugging and fixing](https://glassdesk.vercel.app/docs/features/debugging-and-fixing): `/debug`, `/fix`, `/fix-hard`
 - [Feature — code review](https://glassdesk.vercel.app/docs/features/code-review): subagent-driven review and verification gates
 - [Feature — wiki maintainer](https://glassdesk.vercel.app/docs/features/wiki-maintainer): `.gd-wiki/` distillation and querying
 - [Feature — compounding](https://glassdesk.vercel.app/docs/features/compounding): `/learn` and `/improve` for session-extracted insights
-- [Feature — scouting](https://glassdesk.vercel.app/docs/features/scouting): `/scout` and `/scout:ext` codebase exploration
+- [Feature — scouting](https://glassdesk.vercel.app/docs/features/scouting): `/scout` and `/scout-ext` codebase exploration
 - [Feature — AI multimodal](https://glassdesk.vercel.app/docs/features/ai-multimodal): image/video/audio via Gemini
 - [Feature — media processing](https://glassdesk.vercel.app/docs/features/media-processing): FFmpeg / ImageMagick pipeline
 - [Decision — plugin flat structure](https://glassdesk.vercel.app/docs/decisions/plugin-flat-structure): why plugin source omits the `.claude/` wrapper

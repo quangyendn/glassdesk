@@ -3,7 +3,7 @@ name: gd-ui-tester
 description: |
   Browser-automation UI testing. Visit URL, exercise flows, capture
   screenshots + console logs, generate detailed report. Used by
-  `/test:ui`.
+  `/test-ui`.
 
   Examples:
   - Test login flow → fill form, submit, verify success

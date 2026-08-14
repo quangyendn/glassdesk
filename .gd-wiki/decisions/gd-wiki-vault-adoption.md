@@ -20,7 +20,7 @@ Project knowledge (architecture, feature specs, decisions, lessons) was scattere
 | vs `.glassdesk-knowledge/` | Replaced entirely | Simpler, one source; user migrates manually if needed |
 | Page format | Obsidian Flavored Markdown | Reuses `obsidian-markdown` skill; industry standard |
 | Index pages | `.base` files (Obsidian Bases) | YAML readable without Obsidian; auto-renders in Obsidian |
-| Update trigger | Manual `/wiki:update` only (v1) | Hooks deferred; user controls timing |
+| Update trigger | Manual `/wiki-update` only (v1) | Hooks deferred; user controls timing |
 | Branch model | Main branch only | Wiki = SoT of production state; refuse on feature branches |
 | Retrieval backend | QMD (local BM25 + vector + rerank) | ~10x token saving vs grep+LLM; local = no API cost |
 | Default model | Sonnet for all wiki operations | Cost-conscious; Opus reserved for explicit flag |

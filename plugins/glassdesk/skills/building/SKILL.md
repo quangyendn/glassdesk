@@ -1,6 +1,6 @@
 ---
 name: building
-description: Use when executing an implementation plan phase-by-phase with verification gates, test-driven loops, and subagent orchestration. Use for /code and /code:auto workflows.
+description: Use when executing an implementation plan phase-by-phase with verification gates, test-driven loops, and subagent orchestration. Use for /code and /code-auto workflows.
 ---
 
 # Building
@@ -13,7 +13,7 @@ For source-code files (`.ts`, `.tsx`, `.py`, `.rb`, `.go`, `.rs`, `.js`, `.jsx`,
 
 ## When to Use
 
-- Executing a plan phase (`/code`, `/code:auto`)
+- Executing a plan phase (`/code`, `/code-auto`)
 - Implementing tasks with test-driven verification
 - Orchestrating subagent teams for plan delivery
 - NOT for planning (use `planning` skill) or debugging alone (use `fixing` skill)

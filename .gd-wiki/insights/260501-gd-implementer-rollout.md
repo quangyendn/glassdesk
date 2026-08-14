@@ -12,7 +12,7 @@ types: [DECISION, MISTAKE, PATTERN]
 
 ### Wiki curator races with /code Edits on the same file
 **Type:** PATTERN
-Background wiki curator/linter modifies `.gd-wiki/**` files while `/code:auto` is running a phase that also edits them. Two consecutive `Edit` calls on `building.md` failed with "File has been modified since read" because the curator updated the frontmatter between Read and Edit. Mitigation: when editing wiki pages during a phase, expect to Re-Read before each Edit retry; do not assume read-edit atomicity for `.gd-wiki/`.
+Background wiki curator/linter modifies `.gd-wiki/**` files while `/code-auto` is running a phase that also edits them. Two consecutive `Edit` calls on `building.md` failed with "File has been modified since read" because the curator updated the frontmatter between Read and Edit. Mitigation: when editing wiki pages during a phase, expect to Re-Read before each Edit retry; do not assume read-edit atomicity for `.gd-wiki/`.
 
 > Evidence: `<tool_use_error>File has been modified since read, either by the user or by a linter</tool_use_error>` × 2 on `.gd-wiki/features/building.md`
 
@@ -44,6 +44,6 @@ Across all 3 phases, the working tree carried unrelated changes (wiki curator up
 
 ### Bootstrapping an agent the skill mandates: main thread executes Step 2 itself
 **Type:** PATTERN
-Phase 01 created `gd-implementer.agent.md` — the very agent that `building/SKILL.md` Step 2 (post-Phase 02) requires for first-draft edits. During this run the agent did not yet exist, so the main thread had to perform Step 2 work directly. The "MUST dispatch / MUST NOT edit" rule activates from the next `/code:auto` run onward. Treat "create-the-tool-that-mandates-itself" plans as bootstrap exceptions and document the cutover commit explicitly so future runs know which side of the rule they're on.
+Phase 01 created `gd-implementer.agent.md` — the very agent that `building/SKILL.md` Step 2 (post-Phase 02) requires for first-draft edits. During this run the agent did not yet exist, so the main thread had to perform Step 2 work directly. The "MUST dispatch / MUST NOT edit" rule activates from the next `/code-auto` run onward. Treat "create-the-tool-that-mandates-itself" plans as bootstrap exceptions and document the cutover commit explicitly so future runs know which side of the rule they're on.
 
 > Evidence: Phase 01 main-thread `Write` of `gd-implementer.agent.md` directly; only Phase 02 added the dispatch mandate to the skill

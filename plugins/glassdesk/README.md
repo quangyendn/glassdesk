@@ -9,7 +9,7 @@ Complete development framework for Claude Code — intelligent planning, structu
 ## Features
 
 - **27 Slash Commands** — 9-phase SDLC taxonomy: DISCOVER → PLAN → BUILD → VERIFY → REVIEW → SHIP → WIKI → COMPOUND
-- **Project Wiki Maintainer (v0.3.0+)** — `/wiki:init`, `/wiki:update`, `/wiki:lint`, `/ask:wiki`; committed `.gd-wiki/` Obsidian vault, QMD-indexed, ~10× cheaper queries vs codebase grep
+- **Project Wiki Maintainer (v0.3.0+)** — `/wiki-init`, `/wiki-update`, `/wiki-lint`, `/ask-wiki`; committed `.gd-wiki/` Obsidian vault, QMD-indexed, ~10× cheaper queries vs codebase grep
 - **Compound Engineering** — `/spec` (brainstorm→doc), `/learn` (session→`.gd-wiki/insights/`), `/improve` (gated proposals)
 - **12 Skill Packages** — building, scouting, fixing, brainstorming, compounding, planning, code-review, wiki, and more
 - **18 Specialized Agents** — code review, scouting, research, analysis, git automation, debugging, planning, testing, project coordination, plan archival, UI testing, wiki curation
@@ -32,13 +32,13 @@ claude plugin list
 
 | Phase | Commands |
 |-------|----------|
-| **DISCOVER** | `/ask`, `/ask:wiki`, `/brainstorm`, `/scout`, `/scout:ext` |
-| **PLAN** | `/plan`, `/plan:hard`, `/plan:validate`, `/plan:status`, `/plan:list`, `/plan:archive` |
-| **BUILD** | `/code`, `/code:auto` |
-| **VERIFY** | `/fix`, `/fix:hard`, `/debug`, `/test:ui` |
-| **REVIEW** | `/review:pr` |
-| **SHIP** | `/git:cm`, `/git:cp`, `/git:pr` |
-| **WIKI** | `/wiki:init`, `/wiki:update`, `/wiki:lint` |
+| **DISCOVER** | `/ask`, `/ask-wiki`, `/brainstorm`, `/scout`, `/scout-ext` |
+| **PLAN** | `/plan`, `/plan-hard`, `/plan-validate`, `/plan-status`, `/plan-list`, `/plan-archive` |
+| **BUILD** | `/code`, `/code-auto` |
+| **VERIFY** | `/fix`, `/fix-hard`, `/debug`, `/test-ui` |
+| **REVIEW** | `/review-pr` |
+| **SHIP** | `/git-cm`, `/git-cp`, `/git-pr` |
+| **WIKI** | `/wiki-init`, `/wiki-update`, `/wiki-lint` |
 | **COMPOUND** | `/spec`, `/learn`, `/improve` |
 
 ## Wiki Maintainer (v0.3.0+)
@@ -47,21 +47,21 @@ Maintain a project knowledge base in `.gd-wiki/` — Obsidian-flavored, QMD-inde
 
 | Command | What it does |
 |---|---|
-| `/wiki:init [path]` | Bootstrap `.gd-wiki/` vault + register QMD collection (~2GB model download on first machine-wide embed) |
-| `/wiki:update` | Distill commits since last sync into wiki edits (main branch only); curator subagent does LLM work, CLI does the rest |
-| `/wiki:lint [--deep]` | Detect broken links, orphans, stale frontmatter, empty pages; `--deep` adds LLM contradiction sweep |
-| `/ask:wiki <q>` | QMD search + Sonnet synthesis with `path:line` citations; ~10× cheaper than `/ask` general when wiki has the answer |
+| `/wiki-init [path]` | Bootstrap `.gd-wiki/` vault + register QMD collection (~2GB model download on first machine-wide embed) |
+| `/wiki-update` | Distill commits since last sync into wiki edits (main branch only); curator subagent does LLM work, CLI does the rest |
+| `/wiki-lint [--deep]` | Detect broken links, orphans, stale frontmatter, empty pages; `--deep` adds LLM contradiction sweep |
+| `/ask-wiki <q>` | QMD search + Sonnet synthesis with `path:line` citations; ~10× cheaper than `/ask` general when wiki has the answer |
 
 Powered by skill `wiki` (5 reference docs: maintaining, querying, linting, obsidian-conventions, cost-budget) and agent `gd-wiki-curator` (Sonnet, scope-bound to `.gd-wiki/`). Depends on `obsidian@obsidian-skills` (auto-resolved via plugin dependency) and `qmd` CLI ≥ 2.1.0 (manual install — see quick-start).
 
-`/learn` writes to `.gd-wiki/insights/` (auto-mkdir; no `/wiki:init` prerequisite). The curator never touches `insights/` — that subfolder is `/learn` territory.
+`/learn` writes to `.gd-wiki/insights/` (auto-mkdir; no `/wiki-init` prerequisite). The curator never touches `insights/` — that subfolder is `/learn` territory.
 
 ## Compound Engineering
 
 Three commands that make glassdesk self-improving:
 
 - **`/spec [topic]`** — run after `/brainstorm` to write a formal spec to `docs/specs/`
-- **`/learn`** — after a session, extract insights into `.gd-wiki/insights/` (auto-mkdir; no `/wiki:init` required; committed alongside the wiki since v0.3.0)
+- **`/learn`** — after a session, extract insights into `.gd-wiki/insights/` (auto-mkdir; no `/wiki-init` required; committed alongside the wiki since v0.3.0)
 - **`/improve [--plugin|--project]`** — reads knowledge entries, proposes diffs to `plans/improvements/` — **never auto-applied**
 
 ## Agents (17)
@@ -83,8 +83,8 @@ Three commands that make glassdesk self-improving:
 | `planner` | Synthesize research into structured implementation plans |
 | `project-manager` | Phase decomposition + TodoWrite coordination + finalize |
 | `tester` | Run test suites, interpret pass/fail, detect flakes |
-| `plan-archiver` | Archive completed plans, write journal entries (used by `/plan:archive`) |
-| `ui-tester` | Browser-automation UI testing via chrome-devtools (used by `/test:ui`) |
+| `plan-archiver` | Archive completed plans, write journal entries (used by `/plan-archive`) |
+| `ui-tester` | Browser-automation UI testing via chrome-devtools (used by `/test-ui`) |
 
 ## Skills (11)
 
@@ -201,6 +201,7 @@ Cleanup: automatic on session exit. The `SessionEnd` hook unlinks managed symlin
 ## Documentation
 
 - [Quick Start](docs/quick-start.md) — 5-minute setup and SDLC walkthrough
+- [Migration Guide v0.6](docs/migration-v0.6.md) — flat command names, upgrading from v0.5.x
 - [Migration Guide v0.2](docs/migration-v0.2.md) — upgrading from v0.1.x
 - [Changelog](CHANGELOG.md) — full release history
 

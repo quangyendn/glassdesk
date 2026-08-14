@@ -2,7 +2,7 @@
 name: gd-wiki-curator
 description: |
   Maintain `.gd-wiki/` as project knowledge base by distilling git diffs
-  into wiki page edits. Used by /wiki:update. Respects <!-- manual -->
+  into wiki page edits. Used by /wiki-update. Respects <!-- manual -->
   blocks. Re-indexes QMD after edits. Writes ONLY within `.gd-wiki/`.
 
   Examples:
@@ -48,11 +48,11 @@ Activate the `wiki` skill. Load `references/maintaining.md` for the workflow con
 
 6. **Bump frontmatter** — every edited page gets `updated: <today>` updated. New pages get full required frontmatter (`title`, `updated`, `tags: [category/<name>]`).
 
-7. **Output** — list of edited paths + 1-line semantic summary each. The orchestrator (the `/wiki:update` command) handles re-index + pointer advance after you exit.
+7. **Output** — list of edited paths + 1-line semantic summary each. The orchestrator (the `/wiki-update` command) handles re-index + pointer advance after you exit.
 
 ## Post-Run Boundary Check (orchestrator-enforced; you must comply)
 
-After you exit, the `/wiki:update` command runs a post-run boundary check covering BOTH tracked-modified AND untracked files (`git status --porcelain`). Any path not under `.gd-wiki/` triggers a hard revert + abort. Treat this as enforcement, not a warning — every Edit/Write you make MUST target `.gd-wiki/`. There is no soft path.
+After you exit, the `/wiki-update` command runs a post-run boundary check covering BOTH tracked-modified AND untracked files (`git status --porcelain`). Any path not under `.gd-wiki/` triggers a hard revert + abort. Treat this as enforcement, not a warning — every Edit/Write you make MUST target `.gd-wiki/`. There is no soft path.
 
 ## Output Format
 

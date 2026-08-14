@@ -1,6 +1,6 @@
 # Querying
 
-`/ask:wiki` retrieval contract — QMD lookup → Sonnet synthesis with citations.
+`/ask-wiki` retrieval contract — QMD lookup → Sonnet synthesis with citations.
 
 ## CLI Form (default, v0.3.0)
 
@@ -91,4 +91,4 @@ Inert in v0.3.0 — CLI is the contract. Documented for forward compat.
 
 ## Cost
 
-See `cost-budget.md`. Single `/ask:wiki` round = ~1 QMD call (sub-second, no LLM) + 1 Sonnet synthesis (~2-5K input tokens, ~500 output). Cheaper than `/ask` general by ~10x because no codebase grep.
+See `cost-budget.md`. Single `/ask-wiki` round = ~1 QMD call (sub-second, no LLM) + 1 Sonnet synthesis (~2-5K input tokens, ~500 output). Cheaper than `/ask` general by ~10x because no codebase grep.

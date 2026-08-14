@@ -1,6 +1,6 @@
 # Maintaining
 
-`/wiki:update` workflow — distill new commits since `last_synced_commit` into wiki pages on `main` only.
+`/wiki-update` workflow — distill new commits since `last_synced_commit` into wiki pages on `main` only.
 
 ## Pre-flight Checks
 
@@ -86,7 +86,7 @@ jq --arg sha "$NEW" --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
 mv .gd-wiki/.config.json.tmp .gd-wiki/.config.json
 ```
 
-Commit pointer change with message `chore(wiki): sync to <short-sha>` so the next `/wiki:update` sees the advance.
+Commit pointer change with message `chore(wiki): sync to <short-sha>` so the next `/wiki-update` sees the advance.
 
 ## Post-run Verification
 
@@ -100,7 +100,7 @@ git diff --name-only | grep -v '^\.gd-wiki/' && {
 
 ## Future Hooks (v2 placeholder)
 
-- post-merge git hook → auto-trigger `/wiki:update`
+- post-merge git hook → auto-trigger `/wiki-update`
 - SessionEnd hook → batch unsynced sessions before EOD
 - CI job on `main` → fail PR merge if `last_synced_commit` more than N commits behind
 

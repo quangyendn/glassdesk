@@ -4,19 +4,19 @@
 
 **Full review (default):**
 ```
-/review:pr
+/review-pr
 ```
 
 **Specific aspects:**
 ```
-/review:pr tests errors
-/review:pr comments
-/review:pr simplify
+/review-pr tests errors
+/review-pr comments
+/review-pr simplify
 ```
 
 **Parallel review:**
 ```
-/review:pr all parallel
+/review-pr all parallel
 ```
 
 ## Tips
@@ -31,13 +31,13 @@
 
 **Before committing:**
 1. Write code
-2. Run: `/review:pr code errors`
+2. Run: `/review-pr code errors`
 3. Fix any critical issues
 4. Commit
 
 **Before creating PR:**
 1. Stage all changes
-2. Run: `/review:pr all`
+2. Run: `/review-pr all`
 3. Address all critical and important issues
 4. Run specific reviews again to verify
 5. Create PR

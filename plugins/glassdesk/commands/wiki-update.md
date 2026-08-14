@@ -15,13 +15,13 @@ Dispatch the LLM-bound distill step to the `gd-wiki-curator` subagent. Do everyt
 
 ```bash
 # 1. Wiki initialized?
-[ -f .gd-wiki/.config.json ] || { echo "ERROR: .gd-wiki/.config.json missing. Run /wiki:init first."; exit 1; }
+[ -f .gd-wiki/.config.json ] || { echo "ERROR: .gd-wiki/.config.json missing. Run /wiki-init first."; exit 1; }
 
 # 2. On the configured main branch?
 MAIN=$(jq -r '.sync.main_branch' .gd-wiki/.config.json)
 HEAD_BRANCH=$(git rev-parse --abbrev-ref HEAD)
 [ "$HEAD_BRANCH" = "$MAIN" ] || {
-  echo "ERROR: /wiki:update runs only on '$MAIN' (currently on '$HEAD_BRANCH')."
+  echo "ERROR: /wiki-update runs only on '$MAIN' (currently on '$HEAD_BRANCH')."
   echo "Hint: edit .gd-wiki/.config.json::sync.main_branch to override."
   exit 1
 }
@@ -56,7 +56,7 @@ EST=$(node -e 'console.log(Math.ceil(require("fs").statSync("/tmp/wiki-diff-stat
 MAX=$(jq -r '.query.max_tokens // 1000000' .gd-wiki/.config.json)
 [ "$EST" -gt "$MAX" ] && {
   echo "ABORT: estimated $EST tokens exceeds budget $MAX."
-  echo "Hint: split via 'git rev-list ${LAST:0:8}..HEAD | split -l N' and call /wiki:update per chunk."
+  echo "Hint: split via 'git rev-list ${LAST:0:8}..HEAD | split -l N' and call /wiki-update per chunk."
   exit 1
 }
 ```

@@ -9,7 +9,7 @@ In v0.3.0, `/learn` and `/improve` were updated to use exclusively `.gd-wiki/ins
 
 ## Risk
 
-Users who ran `/learn` on v0.2.x have insight files in `.glassdesk-knowledge/*.md`. After upgrading to v0.3.0, `/improve` will not see these files. `/ask:wiki` will also not index them. The old folder is not deleted by the upgrade — it simply stops being used.
+Users who ran `/learn` on v0.2.x have insight files in `.glassdesk-knowledge/*.md`. After upgrading to v0.3.0, `/improve` will not see these files. `/ask-wiki` will also not index them. The old folder is not deleted by the upgrade — it simply stops being used.
 
 ## Mitigation
 

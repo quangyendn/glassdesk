@@ -34,7 +34,7 @@ tags: [category/<name>, ...]
 | `aliases` | optional | List of synonyms for fuzzy [[wikilink]] resolution |
 | `summary` | optional | One-sentence; consumed by `qmd query` snippet preview |
 
-Pages missing required keys are flagged by `/wiki:lint` rule 3.
+Pages missing required keys are flagged by `/wiki-lint` rule 3.
 
 ## Filename Convention
 
@@ -91,7 +91,7 @@ Curator may auto-create new `.base` files when a new category folder is introduc
 
 ## Style — One-Sentence Summaries
 
-Each page MUST open (after frontmatter) with a single sentence stating what the page is about. This sentence is what QMD surfaces in snippet previews and what `/ask:wiki` synthesizes from when the page is the top hit.
+Each page MUST open (after frontmatter) with a single sentence stating what the page is about. This sentence is what QMD surfaces in snippet previews and what `/ask-wiki` synthesizes from when the page is the top hit.
 
 Bad: "Caching." (label, not sentence)
 Good: "Project-wide caching strategy: when to cache, where (Redis vs in-memory), and how invalidation works."

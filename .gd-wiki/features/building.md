@@ -2,7 +2,7 @@
 title: "Building"
 updated: 2026-05-01
 tags: [category/feature, building, execution, skill, agents]
-summary: "The building feature executes implementation plans phase-by-phase with verification gates via /code and /code:auto, dispatching gd-implementer for Step 2 first-draft code edits."
+summary: "The building feature executes implementation plans phase-by-phase with verification gates via /code and /code-auto, dispatching gd-implementer for Step 2 first-draft code edits."
 ---
 
 The building feature executes implementation plans phase-by-phase with explicit verification gates between each phase, powered by the `building` skill.
@@ -12,11 +12,11 @@ The building feature executes implementation plans phase-by-phase with explicit 
 | Command | Description |
 |---|---|
 | `/code` | Execute implementation plan step-by-step with gate prompts |
-| `/code:auto` | Auto-execute all phases without blocking gates |
+| `/code-auto` | Auto-execute all phases without blocking gates |
 
 ## Verification Gates
 
-Each phase ends with a gate check before the next phase starts. Gates verify that the phase deliverables meet acceptance criteria defined in the plan. `/code` blocks at each gate for human confirmation; `/code:auto` passes gates automatically.
+Each phase ends with a gate check before the next phase starts. Gates verify that the phase deliverables meet acceptance criteria defined in the plan. `/code` blocks at each gate for human confirmation; `/code-auto` passes gates automatically.
 
 ## Agent Dispatch Chain
 
@@ -50,7 +50,7 @@ The test-driven loop runs: implement (Step 2) → test (Step 3) → fix if fail 
 
 ### Orchestrate-only constraint
 
-Step 2 dispatch to `gd-implementer` is **mandatory** — the main `/code` and `/code:auto` thread MUST NOT directly Edit/Write source files. The orchestrator role is restricted to dispatch, gate evaluation, and TodoWrite updates. On dispatch failure, the orchestrator may retry once with a `retry_hint`; on `type_check_failed` or `partial`, escalate to `gd-debugger` rather than retrying `gd-implementer` again. Cap: 1 retry per failure mode.
+Step 2 dispatch to `gd-implementer` is **mandatory** — the main `/code` and `/code-auto` thread MUST NOT directly Edit/Write source files. The orchestrator role is restricted to dispatch, gate evaluation, and TodoWrite updates. On dispatch failure, the orchestrator may retry once with a `retry_hint`; on `type_check_failed` or `partial`, escalate to `gd-debugger` rather than retrying `gd-implementer` again. Cap: 1 retry per failure mode.
 
 ## Related Pages
 

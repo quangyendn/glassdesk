@@ -2,7 +2,7 @@
 name: gd-planner
 description: |
   Synthesize research reports + spec into a structured implementation
-  plan. Used by `/plan:hard` after researchers complete. Produces
+  plan. Used by `/plan-hard` after researchers complete. Produces
   plan.md + phase files following glassdesk plan structure.
 
   Examples:
