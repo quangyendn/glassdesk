@@ -104,5 +104,21 @@ Gemini CLI's free OAuth tier was cut on 2026-06-18; `gemini -y -p` now fails wit
 `IneligibleTierError: UNSUPPORTED_CLIENT`. The binary still works on a paid API
 key, but `agy` is Google's designated successor and needs no key.
 
-OpenCode was dropped at the same time: its `opencode/grok-code` model no longer
-exists and the provider/model format no longer resolves.
+OpenCode was dropped from scouting at the same time because the documented
+`opencode/grok-code` model no longer resolves. That model is still gone, but
+the CLI itself works and now offers three models that need no credentials at
+all (`opencode/deepseek-v4-flash-free`, `opencode/nemotron-3-super-free`,
+`opencode/big-pickle`). It is registered as a provider for
+`gd-external-delegate`; re-adopting it for parallel scouting was not evaluated.
+
+## Non-scout external work
+
+This document covers external tooling for **file discovery** only. For any
+other external work — independent review, adversarial checks, debugging,
+patch proposals, large-context synthesis — use the `gd-external-delegate`
+subagent, which routes through `bin/external-ai.mjs` and enforces privacy and
+mode policy. See `docs/external-delegation.md`.
+
+`/scout-ext` deliberately keeps its own direct `agy` path: it is a
+high-volume parallel dispatch whose latency budget does not suit a
+per-call policy gate.

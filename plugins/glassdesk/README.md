@@ -1,6 +1,6 @@
 # Glassdesk Plugin
 
-27 SDLC-phased commands, specialized agents, compound-engineering primitives, and a project wiki maintainer for Claude Code.
+28 SDLC-phased commands, specialized agents, compound-engineering primitives, and a project wiki maintainer for Claude Code.
 
 ## Overview
 
@@ -8,11 +8,11 @@ Complete development framework for Claude Code — intelligent planning, structu
 
 ## Features
 
-- **27 Slash Commands** — 9-phase SDLC taxonomy: DISCOVER → PLAN → BUILD → VERIFY → REVIEW → SHIP → WIKI → COMPOUND
-- **Project Wiki Maintainer (v0.3.0+)** — `/wiki-init`, `/wiki-update`, `/wiki-lint`, `/ask-wiki`; committed `.gd-wiki/` Obsidian vault, QMD-indexed, ~10× cheaper queries vs codebase grep
+- **28 Slash Commands** — 9-phase SDLC taxonomy: DISCOVER → PLAN → BUILD → VERIFY → REVIEW → SHIP → WIKI → COMPOUND
+- **Project Wiki Maintainer (v0.3.0+)** — `/wiki-run`, `/wiki-init`, `/wiki-update`, `/wiki-lint`, `/ask-wiki`; committed `.gd-wiki/` Obsidian vault, QMD-indexed, ~10× cheaper queries vs codebase grep
 - **Compound Engineering** — `/spec` (brainstorm→doc), `/learn` (session→`.gd-wiki/insights/`), `/improve` (gated proposals)
-- **12 Skill Packages** — building, scouting, fixing, brainstorming, compounding, planning, code-review, wiki, and more
-- **18 Specialized Agents** — code review, scouting, research, analysis, git automation, debugging, planning, testing, project coordination, plan archival, UI testing, wiki curation
+- **13 Skill Packages** — building, scouting, fixing, brainstorming, compounding, planning, code-review, wiki, external-delegation, and more
+- **29 Specialized Agents** — code review, scouting, research, analysis, git automation, debugging, planning, testing, project coordination, plan archival, UI/E2E testing, wiki curation, external delegation, Rust review, security review, performance, refactoring
 - **Claude Flow Integration** — multi-agent orchestration via MCP tools
 
 ## Installation
@@ -28,7 +28,7 @@ claude plugin install glassdesk
 claude plugin list
 ```
 
-## Commands (27)
+## Commands (28)
 
 | Phase | Commands |
 |-------|----------|
@@ -38,7 +38,7 @@ claude plugin list
 | **VERIFY** | `/fix`, `/fix-hard`, `/debug`, `/test-ui` |
 | **REVIEW** | `/review-pr` |
 | **SHIP** | `/git-cm`, `/git-cp`, `/git-pr` |
-| **WIKI** | `/wiki-init`, `/wiki-update`, `/wiki-lint` |
+| **WIKI** | `/wiki-run`, `/wiki-init`, `/wiki-update`, `/wiki-lint` |
 | **COMPOUND** | `/spec`, `/learn`, `/improve` |
 
 ## Wiki Maintainer (v0.3.0+)
@@ -64,29 +64,41 @@ Three commands that make glassdesk self-improving:
 - **`/learn`** — after a session, extract insights into `.gd-wiki/insights/` (auto-mkdir; no `/wiki-init` required; committed alongside the wiki since v0.3.0)
 - **`/improve [--plugin|--project]`** — reads knowledge entries, proposes diffs to `plans/improvements/` — **never auto-applied**
 
-## Agents (17)
+## Agents (29)
 
 | Agent | Purpose |
 |-------|---------|
-| `scout` | Fast local codebase exploration and file discovery |
-| `scout-external` | External-tool reconnaissance (Gemini, OpenCode) |
-| `researcher` | Web/topic research with structured reporting |
+| `architect` | High-level system design, scalability, and architectural decision-making |
+| `code-architect` | Feature architecture blueprints (files, interfaces, data flow, build order) from existing codebase patterns |
+| `code-explorer` | Traces execution paths and maps architecture/dependencies in unfamiliar code before changes begin |
 | `code-reviewer` | Adherence checks against project guidelines and CLAUDE.md |
 | `code-simplifier` | Simplify and refine code for clarity and maintainability |
 | `comment-analyzer` | Audit comments for accuracy and long-term maintainability |
-| `docs-manager` | Documentation management, updates, synchronization |
-| `pr-test-analyzer` | PR test coverage analysis |
-| `silent-failure-hunter` | Find silent failures and inadequate error handling |
-| `type-design-analyzer` | Type design quality, encapsulation, invariants |
-| `git-manager` | Git automation — stage, commit, push, create PR (used by `/git:*`) |
 | `debugger` | Root cause analysis for bugs and test failures |
-| `planner` | Synthesize research into structured implementation plans |
-| `project-manager` | Phase decomposition + TodoWrite coordination + finalize |
-| `tester` | Run test suites, interpret pass/fail, detect flakes |
+| `docs-manager` | Documentation management, updates, synchronization |
+| `e2e-runner` | End-to-end browser testing (Vercel Agent Browser/Playwright) — journeys, flaky quarantine, artifacts |
+| `external-delegate` | Routes bounded work to a non-Claude provider under privacy and mode policy |
+| `git-manager` | Git automation — stage, commit, push, create PR (used by `/git-*`) |
+| `implementer` | Phase-scoped first-draft implementation for `building` skill Step 2 (no test execution) |
+| `performance-optimizer` | Profiling, bottleneck analysis, bundle size and runtime performance optimization |
 | `plan-archiver` | Archive completed plans, write journal entries (used by `/plan-archive`) |
+| `planner` | Synthesize research into structured implementation plans |
+| `pr-test-analyzer` | PR test coverage analysis |
+| `project-manager` | Phase decomposition + TodoWrite coordination + finalize |
+| `refactor-cleaner` | Dead code cleanup and consolidation (knip/depcheck/ts-prune), batch-by-batch removal |
+| `researcher` | Web/topic research with structured reporting |
+| `rust-build-resolver` | Rust build/compile/dependency error resolution — cargo, borrow checker, Cargo.toml |
+| `rust-reviewer` | Rust code review — ownership, lifetimes, error handling, unsafe usage, idiomatic patterns |
+| `scout` | Fast local codebase exploration and file discovery |
+| `scout-external` | External-tool reconnaissance (Antigravity CLI) |
+| `security-reviewer` | Security vulnerability detection — secrets, SSRF, injection, unsafe crypto, OWASP Top 10 |
+| `silent-failure-hunter` | Find silent failures and inadequate error handling |
+| `tester` | Run test suites, interpret pass/fail, detect flakes |
+| `type-design-analyzer` | Type design quality, encapsulation, invariants |
 | `ui-tester` | Browser-automation UI testing via chrome-devtools (used by `/test-ui`) |
+| `wiki-curator` | Maintain `.gd-wiki/` by distilling commits into page edits (used by `/wiki-update`) |
 
-## Skills (11)
+## Skills (13)
 
 | Skill | Purpose |
 |-------|---------|
@@ -98,6 +110,9 @@ Three commands that make glassdesk self-improving:
 | `compounding` | Session insight extraction, knowledge base, improvement proposals |
 | `debugging` | Systematic four-phase debugging with root cause tracing |
 | `code-review` | Receive/request reviews, verification gates |
+| `external-delegation` | Provider selection, context minimisation, and validation for routing work to a non-Claude AI provider |
+| `wiki` | Bootstrap and maintain the `.gd-wiki/` Obsidian vault; QMD-indexed distillation, linting, querying |
+| `creative-writing` | Write or rewrite prose so it reads as human-written, not AI-generated |
 | `ai-multimodal` | Image/video/audio processing via Gemini API |
 | `media-processing` | FFmpeg, ImageMagick, background removal |
 
@@ -112,7 +127,7 @@ Each agent declares a **tier** in its frontmatter. A central config maps tier �
 | `premium` | opus | Brainstorm, plan, spec, deep review, design judgment |
 | `standard` | sonnet | Coding, refactoring, doc writing, structured analysis |
 | `fast` | haiku | Trivial edits, simple scout, comment checks |
-| `external` | sonnet (fallback) + Gemini CLI | High-volume scout via `gemini-2.5-flash` |
+| `external` | sonnet (fallback) + Antigravity CLI | High-volume scout via `agy` (`Gemini 3.5 Flash (Medium)`) |
 
 ### How to change model policy
 

@@ -63,7 +63,7 @@ Available commands in `.claude/commands/` — 28 total:
 
 ## Skills
 
-Skills available in `plugins/glassdesk/skills/` (12 total):
+Skills available in `plugins/glassdesk/skills/` (13 total):
 - `planning` - Plan creation, organization, and validation
 - `building` - Phase-by-phase plan execution with verification gates
 - `code-review` - Code review reception, requesting reviews, verification gates
@@ -76,6 +76,9 @@ Skills available in `plugins/glassdesk/skills/` (12 total):
 - `creative-writing` - Prose drafting and editing that reads as human-written
 - `ai-multimodal` - Image generation/analysis, video processing, audio transcription
 - `media-processing` - FFmpeg video encoding, ImageMagick editing, background removal
+- `external-delegation` - Route bounded work to a non-Claude provider under privacy and mode policy
+- `creative-writing` - Human-sounding prose: posts, emails, rewrites, social copy
+- `wiki` - Project knowledge base maintenance in `.gd-wiki/`
 
 ## Workflows
 
@@ -145,6 +148,7 @@ User specs (output of `/spec`): `docs/specs/`
 | AI Multimodal | `pip install google-genai` + `GEMINI_API_KEY` |
 | Media Processing | `brew install ffmpeg imagemagick && npm i -g rmbg-cli` |
 | External Scouts | `curl -fsSL https://antigravity.google/cli/install.sh \| bash` (Antigravity CLI) |
+| External Delegation | `brew install codex` and/or `curl -fsSL https://opencode.ai/install \| bash` — `opencode` needs no credentials |
 
 See `plugins/glassdesk/docs/quick-start.md` for complete setup instructions.
 
